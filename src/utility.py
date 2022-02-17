@@ -4,7 +4,8 @@ import open3d
 import numpy as np
 import argparse as ap
 from datetime import datetime
-from sklearn.neighbors import NearestNeighbors
+from sklearn.neighbors import NearestNeighbors, KDTree, BallTree
+from collections import Counter
 
 def read_header(path):
     '''
@@ -104,8 +105,13 @@ def reformulate_data(las, label):
 
     return np.vstack(las.x, las.y, las.z) 
 
+# get the study region
+def get_region_indice(data, x_min, x_max, y_min, y_max, blank):
+    return np.where(((x_min+blank<data[:,0]) & (data[:,0]<x_max-blank)) & ((y_min+blank<data[:,1]) & (data[:,1]<y_max-blank)))
+
 # transpose the labels from one point cloud to another
-def transpose_label(origin, target, k):
+# 问题在这！
+def transpose(target, ref, indice_region):
     '''
     Args:
         origin : a point cloud, 3d data. The data with label.
@@ -114,5 +120,22 @@ def transpose_label(origin, target, k):
     Returns:
         None.
     '''
+    print(">> [Time consuming part] ok, let's wait")
+    #kdt = KDTree(ref[:, 0:3], leaf_size=(len(ref)-10), metric="euclidean")
+    #btree = BallTree
+    neigh = NearestNeighbors(n_neighbors=3, radius=0.5)
+    neigh.fit(ref[:, 0:3])
+    # for each point in the target, we search k cloest points in the ref
+    #dist, ind = kdt.query(target[indice_region], k=3, return_distance=True)
+    dist, ind = neigh.kneighbors(target[indice_region][:, 0:3], return_distance=True)
 
-    return None
+    # Data cannot be modified directly on np.ndarray[indice], that's why we need temporary res
+    res = np.empty(len(indice_region[0]), dtype=float)
+    
+    for i in range(len(indice_region[0])):
+        # the most frequent label
+        t = Counter(ref[ind[i]][:,3]).most_common(1)[0][0]
+        res[i] = t
+    
+    return res
+
