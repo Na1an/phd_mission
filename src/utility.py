@@ -110,7 +110,6 @@ def get_region_indice(data, x_min, x_max, y_min, y_max, blank):
     return np.where(((x_min+blank<data[:,0]) & (data[:,0]<x_max-blank)) & ((y_min+blank<data[:,1]) & (data[:,1]<y_max-blank)))
 
 # transpose the labels from one point cloud to another
-# 问题在这！
 def transpose(target, ref, indice_region):
     '''
     Args:
