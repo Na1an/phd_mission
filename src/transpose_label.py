@@ -7,7 +7,8 @@ def get_region_indice(data, x_min, x_max, y_min, y_max, blank):
 
 def transpose(target, ref, indice_region):
     print(">> [Time consuming part] ok, let's wait")
-    kdt = KDTree(ref[0:3], leaf_size=(0.5*len(ref)+3), metric="euclidean")
+    #kdt = KDTree(ref[0:3], leaf_size=(0.5*len(ref)+3), metric="euclidean")
+    kdt = KDTree(ref, leaf_size=(0.5*len(ref)+3), metric="euclidean")
     # for each point in the target, we search k cloest points in the ref
     dist, ind = kdt.query(target[indice_region], k=3, return_distance=True)
     print("ind =",ind)
@@ -34,7 +35,6 @@ def transpose(target, ref, indice_region):
     return res
 
 if __name__ == "__main__":
-
     # build arguments
     parser = ap.ArgumentParser(description="Convert lidar to BEV, support only .data for the moment.")
     parser.add_argument("target", help="The path of the target file (no label).", type=str)
@@ -75,5 +75,5 @@ if __name__ == "__main__":
     data_target.add_extra_dim(laspy.ExtraBytesParams(name="llabel", type=np.float64))
     data_target.llabel = data_target_rf[:,3]
     print("final2 =", data_target.llabel[0:20])
-    data_target.write("new_file.las")
+    data_target.write("new_file_" + datetime.now().strftime('%Y-%m-%d_%H-%M-%S') + ".las")
     print("###### Transpose End! ######")

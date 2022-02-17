@@ -36,6 +36,6 @@ if __name__ == "__main__":
     open3d.visualization.draw_geometries([v_grid])
     
     # store the result as mesh/voxel
-    #sotre_as_mesh(v_grid, v_size)
+    sotre_as_mesh(v_grid, v_size)
     
     print("###### End! ######")
