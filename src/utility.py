@@ -107,10 +107,45 @@ def reformulate_data(las, label):
 
 # get the study region
 def get_region_indice(data, x_min, x_max, y_min, y_max, blank):
-    return np.where(((x_min+blank<data[:,0]) & (data[:,0]<x_max-blank)) & ((y_min+blank<data[:,1]) & (data[:,1]<y_max-blank)))
+    '''
+    print("x_min, x_max, y_min, y_max :", x_min, x_max, y_min, y_max)
+    print("data[:,0] : ", data[:,0][0:10])
+    print("data[:,1] : ", data[:,1][0:10])
+    '''
+    return np.where((((x_min)<data[:,0]) & (data[:,0]<(x_max))) & (((y_min)<data[:,1]) & (data[:,1]<(y_max))))
+    #return np.intersect1d(np.where(((x_min+blank)<data[:,0]) & (data[:,0]<(x_max-blank))), np.where(((y_min+blank)<data[:,1]) & (data[:,1]<(y_max-blank))))
 
 # transpose the labels from one point cloud to another
-def transpose(target, ref, indice_region):
+def transpose(target, ref, indice_region, k=3):
+    '''
+    Args:
+        origin : a point cloud, 3d data. The data with label.
+        traget : a point cloud, 3d data. The target to transpose the label.
+        indice_region: a np.darray, 1d data. The indice list of the interesting region.
+        k : a integer. The number the neighbours to consider.
+    Returns:
+        None.
+    '''
+    print(">> [Time consuming part] ok, let's wait")
+    #kdt = KDTree(ref[:, 0:3], leaf_size=(len(ref)-10), metric="euclidean")
+    #btree = BallTree
+    neigh = NearestNeighbors(n_neighbors=k, radius=0.0)
+    neigh.fit(ref[:, 0:3])
+    # for each point in the target, we search k cloest points in the ref
+    #dist, ind = kdt.query(target[indice_region], k=3, return_distance=True)
+    dist, ind = neigh.kneighbors(target[indice_region][:, 0:3], return_distance=True)
+
+    # Data cannot be modified directly on np.ndarray[indice], that's why we need temporary res
+    res = np.empty(len(indice_region[0]), dtype=float)
+    
+    for i in range(len(indice_region[0])):
+        # the most frequent label
+        res[i] = Counter(ref[ind[i]][:,3]).most_common(1)[0][0]
+    print(">> res shape", res.shape)
+
+    return res
+
+def transpose_bis(target, ref, indice_region):
     '''
     Args:
         origin : a point cloud, 3d data. The data with label.
@@ -122,19 +157,40 @@ def transpose(target, ref, indice_region):
     print(">> [Time consuming part] ok, let's wait")
     #kdt = KDTree(ref[:, 0:3], leaf_size=(len(ref)-10), metric="euclidean")
     #btree = BallTree
-    neigh = NearestNeighbors(n_neighbors=3, radius=0.5)
-    neigh.fit(ref[:, 0:3])
+    neigh = NearestNeighbors(n_neighbors=3, radius=0.0)
+    neigh.fit(ref[:,0:2])
     # for each point in the target, we search k cloest points in the ref
     #dist, ind = kdt.query(target[indice_region], k=3, return_distance=True)
-    dist, ind = neigh.kneighbors(target[indice_region][:, 0:3], return_distance=True)
+    dist, ind = neigh.kneighbors(target[:,0:2], return_distance=True)
 
     # Data cannot be modified directly on np.ndarray[indice], that's why we need temporary res
     res = np.empty(len(indice_region[0]), dtype=float)
     
     for i in range(len(indice_region[0])):
         # the most frequent label
-        t = Counter(ref[ind[i]][:,3]).most_common(1)[0][0]
-        res[i] = t
-    
+        res[i] = Counter(ref[ind[i]][:,3]).most_common(1)[0][0]
+    print(">> res shape", res.shape)
     return res
 
+# create a las file
+def create_las_file():
+    header = laspy.header.LasHeader()
+    of = laspy.create(point_format=2, file_version='1.2')
+    of.X = data_target[indice_region_t].X
+    of.Y = data_target[indice_region_t].Y
+    of.Z = data_target[indice_region_t].Z
+    of.write(os.getcwd()+"/newyyyyyyyyyy_file_" + datetime.now().strftime('%Y-%m-%d_%H-%M-%S') + ".las")
+    return None
+
+# test
+def test():
+    indice_region_t_list = indice_region_t[0].tolist()
+    print("len :", len(indice_region_t_list))
+    print("show :", indice_region_t[0][0:10])
+    print("show :", indice_region_t_list[0:10])
+    for i in range(data_target_rf.shape[0]):
+        if (i not in indice_region_t_list):
+            if data_target_rf[i][3] >-1:
+                print("77777777777777777777>>> :", i, " wrong", data_ref_rf[i])
+
+    return None

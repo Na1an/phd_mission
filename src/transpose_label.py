@@ -1,6 +1,6 @@
 from utility import *
 
-
+# main
 if __name__ == "__main__":
 
     # build arguments
@@ -31,10 +31,11 @@ if __name__ == "__main__":
     data_ref_rf = np.vstack((data_ref.x, data_ref.y, data_ref.z, data_ref.label)).transpose()
     print(">>> data ref reformulated :", data_ref_rf[0:10], " shape =", data_ref_rf.shape)
     
-    indice_region_t = get_region_indice(data_target_rf[:,0:2], x_min_ref, x_max_ref, y_min_ref, y_max_ref, 0.2)
+    indice_region_t = get_region_indice(data_target_rf[:,0:2], x_min_ref, x_max_ref, y_min_ref, y_max_ref, 0.3)
     print(">> we have picked :", indice_region_t[0].shape, "points to receive the transpose")
+    
     data_tmp = data_target_rf[indice_region_t]
-    data_tmp[:,3] = transpose(data_target_rf, data_ref_rf, indice_region_t)
+    data_tmp[:,3] = transpose(data_target_rf, data_ref_rf, indice_region_t, k=5)
 
     # assign the label to dls data
     data_target_rf[indice_region_t] = data_tmp
