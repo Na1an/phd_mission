@@ -40,9 +40,17 @@ if __name__ == "__main__":
     # assign the label to dls data
     data_target_rf[indice_region_t] = data_tmp
     data_target.add_extra_dim(laspy.ExtraBytesParams(name="llabel", type=np.float64))
-    data_target.llabel = data_target_rf[:,3]
+    data_target.llabel = -1.0*np.ones(len(data_target))
+    data_target.llabel[indice_region_t] = data_tmp[:,3]
 
     # store the result
     data_target.write(os.getcwd()+"/new_file_" + datetime.now().strftime('%Y-%m-%d_%H-%M-%S') + ".las")
+
+    header = laspy.header.LasHeader()
+    of = laspy.create(point_format=2, file_version='1.2')
+    of.X = data_target[indice_region_t].X
+    of.Y = data_target[indice_region_t].Y
+    of.Z = data_target[indice_region_t].Z
+    of.write(os.getcwd()+"/newyyyyyyyyyy_file_" + datetime.now().strftime('%Y-%m-%d_%H-%M-%S') + ".las")
 
     print("###### Transpose End! ######")
