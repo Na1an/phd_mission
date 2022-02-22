@@ -45,12 +45,4 @@ if __name__ == "__main__":
 
     # store the result
     data_target.write(os.getcwd()+"/new_file_" + datetime.now().strftime('%Y-%m-%d_%H-%M-%S') + ".las")
-
-    header = laspy.header.LasHeader()
-    of = laspy.create(point_format=2, file_version='1.2')
-    of.X = data_target[indice_region_t].X
-    of.Y = data_target[indice_region_t].Y
-    of.Z = data_target[indice_region_t].Z
-    of.write(os.getcwd()+"/newyyyyyyyyyy_file_" + datetime.now().strftime('%Y-%m-%d_%H-%M-%S') + ".las")
-
     print("###### Transpose End! ######")
