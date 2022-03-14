@@ -10,9 +10,23 @@ def read_header(path):
     Returns:
         The file's header and data. (and VLRS if it has)
     '''
+    print("\n> Reading data from :", path)
+
+    las = laspy.read(path)
+    print(">> Point of Data Format:", las)
+    print(">> min: x,y,z", np.min(las.x), np.min(las.y), np.min(las.z))
+    print(">> max: x,y,z", np.max(las.x), np.max(las.y), np.max(las.z))
+
+    nb_points = las.header.point_count
+    print(">> Number of points:", nb_points)
+    
+    point_format = las.point_format
+    print(">> LAS File Format:", point_format.id)
+    print(">> Dimension names:", list(point_format.dimension_names))
+
     return laspy.read(path)
 
-def scale_to_255(a, min, max, dtype=np.uint8):
+def scale_to_255(a, min, max, dtype=np.int64):
     """ 
     Scales an array of values from specified min, max range to 0-255
     Optionally specify the data type of the output (default is uint8)
@@ -28,7 +42,8 @@ def point_cloud_2_birdseye(points,
                            res=0.1,
                            y_range=(0., 10.),  
                            x_range = (0., 10.), 
-                           z_range=(0., 2.),  
+                           z_range=(0., 2.),
+                           dtype=np.int64
                            ):
     """
     Creates an 2D birds eye view representation of the point cloud data.
@@ -60,13 +75,14 @@ def point_cloud_2_birdseye(points,
     x_points = x_points[indices]
     y_points = y_points[indices]
     z_points = z_points[indices]
-    print("x_points =", x_points[0:10], "min =", np.min(x_points), "max=", np.max(x_points), "max-min=", np.max(x_points) - np.min(x_points))
-    print("y_points =", y_points[0:10], "min =", np.min(y_points), "max=", np.max(y_points), "max-min=", np.max(y_points) - np.min(y_points))
-    print("z_points =", z_points[0:10], "min =", np.min(z_points), "max=", np.max(z_points), "max-min=", np.max(z_points) - np.min(z_points))
+    print(">>> NB of points in the range :", x_points.shape)
+    print("x_points =", x_points[0:10])
+    print("y_points =", y_points[0:10])
+    print("z_points =", z_points[0:10])
 
     # Convert to the pixels positions, based on resolution
-    x_img = (x_points / res).astype(np.int32)  
-    y_img = (y_points / res).astype(np.int32)  
+    x_img = (x_points / res).astype(dtype)
+    y_img = (y_points / res).astype(dtype)
     print(y_img)
     if np.max(y_img) >= y_range[1]:
         Exception("Erreur, filter doesn't work")
@@ -96,9 +112,9 @@ def point_cloud_2_birdseye(points,
     pixel_values = scale_to_255(pixel_values, min=0, max=np.max(pixel_values))
 
     # INITIALIZE EMPTY ARRAY - of the dimensions we want
-    x_max = 1 + int(np.ceil((x_range[1] - x_range[0]) / res))
-    y_max = 1 + int(np.ceil((y_range[1] - y_range[0]) / res))
-    im = np.zeros([y_max, x_max], dtype=np.uint8)
+    x_max = int(np.ceil((x_range[1] - x_range[0]) / res)) + 1
+    y_max = int(np.ceil((y_range[1] - y_range[0]) / res)) + 1
+    im = np.zeros([y_max, x_max], dtype=dtype)
 
     # FILL PIXEL VALUES IN IMAGE ARRAY
     im[y_img, x_img] = pixel_values
