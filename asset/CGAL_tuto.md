@@ -33,3 +33,9 @@ make                                                                            
 ## 4. Debug
 
 You will find many error when you try to compile the demo : **Polyhedron**. What I have encountered is as follows : 
+
+
+
+## 5. Data Format
+
+It seems like CGAL doesn't support .las/.laz format even we download **lastool**. So I suggest **.las -> .ply **.
