@@ -53,7 +53,9 @@ if __name__ == "__main__":
 
     dif = (im_tls-im_dls)
     #im_dif = dif + np.abs(np.min(dif))
-    im_dif = (dif + np.abs(np.min(dif)))/(np.max(dif) - np.min(dif))
+    #im_dif = (dif + np.abs(np.min(dif)))/(np.max(dif) - np.min(dif))
+    #im_dif = (dif)/(np.max(dif) - np.min(dif))
+    im_dif = (dif)
     print(">>> vmin=", np.min(im_dif), "vmax=", np.max(im_dif))
     pos2 = axs[2].imshow(im_dif, cmap="nipy_spectral", vmin=np.min(im_dif), vmax=np.max(im_dif), origin='lower')
     fig.colorbar(pos2, ax=axs[2], fraction=0.046, pad=0.04)
