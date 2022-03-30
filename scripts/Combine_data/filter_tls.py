@@ -16,7 +16,7 @@ if __name__ == "__main__":
 
     las = read_header(folder_path)
     res = las
-    res.points = las[np.where(las['WL']>0)]
+    res.points = las[np.where(las['TreeID']>0)]
     # read data
     
 

@@ -42,7 +42,7 @@ if __name__ == "__main__":
         indice_region_t = get_region_indice(data_target_rf[:,0:2], x_min_ref_bis, x_max_ref_bis, y_min_ref_bis, y_max_ref_bis, 0.3)
 
     else:
-        data_ref_rf = np.vstack((data_ref.x, data_ref.y, data_ref.z, data_ref.label)).transpose()
+        data_ref_rf = np.vstack((data_ref.x, data_ref.y, data_ref.z, data_ref.WL+1.0)).transpose()
         indice_region_t = get_region_indice(data_target_rf[:,0:2], x_min_ref, x_max_ref, y_min_ref, y_max_ref, 0.3)
     
     print(">>> data ref reformulated :", data_ref_rf[0:10], " shape =", data_ref_rf.shape)
