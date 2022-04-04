@@ -10,13 +10,12 @@ def read_data(path, feature, detail=False):
     Returns:
         res : a 4-D numpy array type tensor.
     '''
-    res = 0
     data_las = laspy.read(path)
     x_min, x_max, y_min, y_max, z_min, z_max = get_info(data_las)
     data = np.vstack((data_las.x - x_min, data_las.y - y_min, data_las.z, data_las[feature])).transpose()
     print(">>> data token :", data[0:10], " shape =", data.shape, " type =", type(data))
 
-    return res, x_min, x_max, y_min, y_max, z_min, z_max
+    return data, x_min, x_max, y_min, y_max, z_min, z_max
 
 # return the set of sliding window coordinates
 def sliding_window(x_min, x_max, y_min, y_max, grid_size):

@@ -27,3 +27,12 @@ def get_info(las):
     print(">> Dimension names:", list(point_format.dimension_names), '\n')
 
     return x_min, x_max, y_min, y_max, z_min, z_max
+
+def get_region_index(data, x_min, x_max, y_min, y_max):
+    '''
+    Args:
+        data : a 4-D np.darray. (x,y,z,label)
+    Returns:
+        numpyp index, which are in this region.
+    '''
+    return np.where((((x_min)<data[:,0]) & (data[:,0]<(x_max))) & (((y_min)<data[:,1]) & (data[:,1]<(y_max))))
