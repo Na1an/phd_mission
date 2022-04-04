@@ -27,12 +27,21 @@ def sliding_window(x_min, x_max, y_min, y_max, grid_size):
         res : a list of 2-d coordinates (x,y). The set of grid coordinates.
     '''
 
-    divide_x = np.ceil((x_max - x_min)/grid_size)
-    divide_y = np.ceil((y_max - y_min)/grid_size)
-    coor_x = np.linspace(x_min, x_max, int(divide_x), endpoint=False)
-    coor_y = np.linspace(y_min, y_max, int(divide_y), endpoint=False)
-    mesh_x, mesh_y = np.meshgrid(coor_x, coor_y)
+    divide_x = int(np.ceil((x_max - x_min)/grid_size))
+    divide_y = int(np.ceil((y_max - y_min)/grid_size))
     
+    coor_x = np.zeros(divide_x)
+    overlap_x = (divide_x * grid_size - (x_max - x_min))/(divide_x-1)
+    for i in range(divide_x):
+        coor_x[i] = i*grid_size - overlap_x*i
+    
+    coor_y = np.zeros(divide_y)
+    overlap_y = (divide_y * grid_size - (y_max - y_min))/(divide_y-1)
+    for j in range(divide_y):
+        coor_y[j] = j*grid_size - overlap_y*j
+
+    mesh_x, mesh_y = np.meshgrid(coor_x, coor_y)
+
     return np.stack((mesh_x,mesh_y), 2)
 
 # get the study region
@@ -43,3 +52,24 @@ def get_region_indice(data, x_min, x_max, y_min, y_max, blank):
     print("data[:,1] : ", data[:,1][0:10])
     '''
     return np.where((((x_min)<data[:,0]) & (data[:,0]<(x_max))) & (((y_min)<data[:,1]) & (data[:,1]<(y_max))))
+
+
+
+############################## abandoned ###############################
+# return the set of sliding window coordinates
+def sliding_window_naif(x_min, x_max, y_min, y_max, grid_size):
+    '''
+    Args:
+        *_min/*_max : a interger. The raw data range.
+        grid_size : a interger/float. The side length of the grid.
+    Returns:
+        res : a list of 2-d coordinates (x,y). The set of grid coordinates.
+    '''
+
+    divide_x = np.ceil((x_max - x_min)/grid_size)
+    divide_y = np.ceil((y_max - y_min)/grid_size)
+    coor_x = np.linspace(x_min, x_max, int(divide_x), endpoint=False)
+    coor_y = np.linspace(y_min, y_max, int(divide_y), endpoint=False)
+    mesh_x, mesh_y = np.meshgrid(coor_x, coor_y)
+    
+    return np.stack((mesh_x,mesh_y), 2)
