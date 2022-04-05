@@ -9,6 +9,8 @@ if __name__ == "__main__":
     parser.add_argument("ref", help="The path of the ref file (with label).", type=str)
     parser.add_argument("--ref_bis", help="The path of the ref bis file (with label), only for shift.", type=str)
     parser.add_argument("--shift_ref", help="If we need shift our reference data.", type=bool, default=False)
+    parser.add_argument("--nb_nearest_point", help="Nearest point (default is 5).", type=int, default=5)
+
     args = parser.parse_args()
 
     # take parameters
@@ -16,7 +18,8 @@ if __name__ == "__main__":
     ref_path = args.ref
     ref_path_bis = args.ref_bis
     shift_ref = args.shift_ref
-    
+    k = args.nb_nearest_point
+
     # read data
     print("> Reading data from target:", target_path)
     data_target = read_header(target_path)
@@ -39,17 +42,20 @@ if __name__ == "__main__":
         data_ref_rf = np.vstack((data_ref.x, data_ref.y, data_ref.z, data_ref["Scalar field"])).transpose()
         data_ref_rf[:,0] = data_ref_rf[:,0] + x_min_ref_bis
         data_ref_rf[:,1] = data_ref_rf[:,1] + y_min_ref_bis
-        indice_region_t = get_region_indice(data_target_rf[:,0:2], x_min_ref_bis, x_max_ref_bis, y_min_ref_bis, y_max_ref_bis, 0.3)
+        indice_region_t = get_region_indice(data_target_rf[:,0:2], x_min_ref_bis, x_max_ref_bis, y_min_ref_bis, y_max_ref_bis, 0.1)
 
     else:
         data_ref_rf = np.vstack((data_ref.x, data_ref.y, data_ref.z, data_ref.WL+1.0)).transpose()
-        indice_region_t = get_region_indice(data_target_rf[:,0:2], x_min_ref, x_max_ref, y_min_ref, y_max_ref, 0.3)
+        indice_region_t = get_region_indice(data_target_rf[:,0:2], x_min_ref, x_max_ref, y_min_ref, y_max_ref, 0.1)
     
     print(">>> data ref reformulated :", data_ref_rf[0:10], " shape =", data_ref_rf.shape)
     print(">> we have picked :", indice_region_t[0].shape, "points to receive the transpose")
     
     data_tmp = data_target_rf[indice_region_t]
-    data_tmp[:,3] = transpose(data_target_rf, data_ref_rf, indice_region_t, k=5)
+    # change the 
+    
+    print("\n>> nb_nearest_point =", k)
+    data_tmp[:,3] = transpose(data_target_rf, data_ref_rf, indice_region_t, k=k)
 
     # assign the label to dls data
     data_target_rf[indice_region_t] = data_tmp
