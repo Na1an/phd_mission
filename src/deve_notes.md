@@ -13,3 +13,6 @@
 * **[important]** grid_sample probleme solved
   * grid_sample is still a point-wise method, one step feature extraction is performed, in the form of voxels, but still notice that we always feed the network with the points, not voxels. **Even I would like to name this feature extraction step : voxelization feature extraction, the study object is still points.**
     * This makes us to find a way to subsample the point-clouds in a cube
+    * **query_points** is a set of points selected randomly in the input (points), grid_sample(input, **query_points**)
+      * the benefit of the query points is the implicit representation, we can put any point size as input, 10w ~ 100w, but we then use **grid_sample** to resize the input. That's allow us to feed the network. 
+      * 100w points as input, select randomly 10000 query_points, which can represent the whole and then the output of the network is also 100w, each point will be given a class leaf/wood.   

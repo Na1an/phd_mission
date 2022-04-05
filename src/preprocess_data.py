@@ -21,7 +21,7 @@ def read_data(path, feature, detail=False):
 def sliding_window(x_min, x_max, y_min, y_max, grid_size):
     '''
     Args:
-        *_min/*_max : a interger. The raw data range.
+        *_min/*_max : a interger. The data range.
         grid_size : a interger/float. The side length of the grid.
     Returns:
         res : a list of 2-d coordinates (x,y). The set of grid coordinates.
@@ -44,15 +44,32 @@ def sliding_window(x_min, x_max, y_min, y_max, grid_size):
 
     return np.stack((mesh_x,mesh_y), 2)
 
-# get the study region
+# get indice from the study region
 def get_region_indice(data, x_min, x_max, y_min, y_max, blank):
     '''
-    print("x_min, x_max, y_min, y_max :", x_min, x_max, y_min, y_max)
-    print("data[:,0] : ", data[:,0][0:10])
-    print("data[:,1] : ", data[:,1][0:10])
+    Args:
+        data : a 4-D numpy.darray (x,y,z,label). The data to process.
+        *_min/*_max : a interger. The data range.
+        blank : a float. The margin of the area.
+    Returns:
+        res : a list of 2-d coordinates (x,y). The set of grid coordinates.
     '''
     return np.where((((x_min)<data[:,0]) & (data[:,0]<(x_max))) & (((y_min)<data[:,1]) & (data[:,1]<(y_max))))
 
+# to do : we have more important thing now
+# voxelization
+def voxelization(data, grid_size, height, resolution):
+    '''
+    Args:
+        data : a 4-D numpy.darray (x,y,z,label). The data to process.
+        grid_size : a interger/float. The side length of the grid.
+        height : a float. The max height of the raw data. Not local height!
+        resolution : a float. The resolution of the voxel. 
+    Returns:
+        res : a voxelized data. 0-unoccupied voxel, 1-wood voxel, 2-leaf voxel.
+    '''
+    
+    return None
 
 
 ############################## abandoned ###############################

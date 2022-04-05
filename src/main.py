@@ -1,14 +1,6 @@
 import argparse as ap
 from preprocess_data import *
 
-''''
-path = "/home/yuchen/Documents/PhD/data_for_project/22-03-23_tls_labelled_data/res_bis_crop.las"
-data_preprocessed, x_min, x_max, y_min, y_max, z_min, z_max = preprocess_data(path, "WL", detail=True)
-
-res = sliding_window(x_min, x_max, y_min, y_max, 5)
-print(res)
-'''
-
 if __name__ == "__main__":
     print("\n###### start the programme ######\n")
     # build arguments
@@ -31,6 +23,7 @@ if __name__ == "__main__":
     print("> coords :", coords_sw)
 
     # to do : add more overlap between the cubes
+    # beta version
     w_nb = 1
     for i in range(d1):
         for j in range(d2):
@@ -49,10 +42,11 @@ if __name__ == "__main__":
             print(">> local abs height : ", local_abs_height)
             print(">> local data.shape :", local_points.shape)
             print(">> local data shifted")
-            print(local_points[0:10])
+            #print(local_points[0:10])
+
             w_nb = w_nb + 1
-            break
-        break
+            #break
+        #break
 
     print("\n###### End ######")
         
