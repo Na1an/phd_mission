@@ -36,3 +36,7 @@ def get_region_index(data, x_min, x_max, y_min, y_max):
         numpyp index, which are in this region.
     '''
     return np.where((((x_min)<data[:,0]) & (data[:,0]<(x_max))) & (((y_min)<data[:,1]) & (data[:,1]<(y_max))))
+
+# setting device
+def setting_device():
+    return None
