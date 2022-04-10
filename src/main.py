@@ -9,11 +9,13 @@ if __name__ == "__main__":
     parser = ap.ArgumentParser(description="-- Yuchen PhD mission, let's figure it out! --")
     parser.add_argument("data_path", help="The path of raw data (TLS data with labels).", type=str)
     parser.add_argument("--grid_size", help="The sliding window size.", type=float, default=5.0)
+    parser.add_argument("--voxel_size", help="The voxel size.", type=float, default=0.2)
     args = parser.parse_args()
 
     # take arguments
     raw_data_path = args.data_path
     grid_size = args.grid_size
+    voxel_size = args.voxel_size
 
     # setting device
     if torch.cuda.is_available():
@@ -30,10 +32,12 @@ if __name__ == "__main__":
     print("> input data:", raw_data_path)
     data_preprocessed, x_min, x_max, y_min, y_max, z_min, z_max = read_data(raw_data_path, "WL", detail=True)
     print("\n> data_preprocess.shape =", data_preprocessed.shape)
+    print("> grid_size:", grid_size)
+    print("> voxel_size:", voxel_size)
 
     coords_sw = sliding_window(0, x_max - x_min, 0, y_max - y_min, grid_size)
     (d1,d2,_) = coords_sw.shape
-    print("> coords :", coords_sw)
+    #print("> coords :", coords_sw)
 
     # to do : add more overlap between the cubes
     # beta version
@@ -41,18 +45,21 @@ if __name__ == "__main__":
 
     # record of point numbers in each cube
     tmp = []
+    global_height = z_max - z_min
     for i in range(d1):
         for j in range(d2):
             # (1) cut data to cubes
             # local origin
             local_x, local_y = coords_sw[i, j]
             print("\n>> sliding window n°", w_nb, "bottom left coordinate :(",local_x, ',',local_y,')')
+            w_nb = w_nb + 1
+            
             # find index of the data_preprocessed in this sliding window
             local_index = get_region_index(data_preprocessed, local_x, local_x+grid_size, local_y, local_y+grid_size)
 
             # shift points to local origin (0, 0, 0)
             local_points = data_preprocessed[local_index]
-            if local_points.size == 0:
+            if local_points.size < 1550000:
                 print(">> Local_points is empty, no points founds here!")
                 continue
             
@@ -65,16 +72,18 @@ if __name__ == "__main__":
             print(">> local data.shape :", local_points.shape)
             print(">> local data shifted")
             tmp.append(local_points.size)
-
+            voxel, points_per_voxel = voxel_grid_sample(local_points, grid_size, global_height, voxel_size, 'mc')
+            print(voxel[0:10])
+            print(voxel.shape)
+            print(points_per_voxel.shape)
+            visualize_voxel_key_points(voxel, points_per_voxel)
             # (2) put cube data to device : (cpu or gpu)
 
 
             # (3) feed it to the model
 
-
-            w_nb = w_nb + 1
-            #break
-        break
-    print(tmp)
+            break
+        
+    #print(tmp)
     print("\n###### End ######")
         

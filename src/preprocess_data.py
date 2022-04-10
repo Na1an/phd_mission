@@ -56,21 +56,58 @@ def get_region_indice(data, x_min, x_max, y_min, y_max, blank):
     '''
     return np.where((((x_min)<data[:,0]) & (data[:,0]<(x_max))) & (((y_min)<data[:,1]) & (data[:,1]<(y_max))))
 
-# to do : we have more important thing now
+# to do : decide which kind of key point in each voxel we need. 
+# [mean center, closest point to mean center, voxel center]
 # voxelization
-def voxelization(data, grid_size, height, resolution):
+def voxel_grid_sample(cuboid, grid_size, height, voxel_size, mode):
     '''
     Args:
-        data : a 4-D numpy.darray (x,y,z,label). The data to process.
-        grid_size : a interger/float. The side length of the grid.
+        points : a (n,4) numpy.darray. The data to process.
+        grid_size : a interger/float. The side length of a grid.
         height : a float. The max height of the raw data. Not local height!
-        resolution : a float. The resolution of the voxel. 
+        voxel_size : a float. The resolution of the voxel. 
+        mode : a string. How to select points in voxel. ('mc': mean_center, 'cmc' : closest point to mean center)
     Returns:
-        res : a voxelized data. 0-unoccupied voxel, 1-wood voxel, 2-leaf voxel.
+        #res : a voxelized data. 0-unoccupied voxel, 1-wood voxel, 2-leaf voxel.
+        # voxel mean center
+        res : a voxelized data. 0-unoccupied voxel, 1-occupied.
+        nb_voxel : a integer. The total voxel number.
     '''
-    
-    return None
 
+    res = []
+    points = cuboid[:,:3]
+    nb_voxel = int(((grid_size//voxel_size)**2) * (height//voxel_size))
+    print(">> voxel_nb =", nb_voxel)
+    
+    # non_empy_voxel : no empty voxel :)
+    # index : the positions of [new elements in old array]
+    # index_inversed : the positions of [old elements in new array]
+    # nb_pts_per_voxel : nb of points in each voxels
+    non_empty_voxel, index, index_inversed, nb_points_per_voxel = np.unique((points//voxel_size).astype(int), axis=0, return_index=True, return_inverse=True, return_counts=True)
+    index_points_on_voxel_sorted = np.argsort(index_inversed)
+    # we can then access the points that are linked to each voxel through index_points_on_voxel_sorted and how many they are (nb_pts_per_voxel)
+
+    voxel_grid = {}
+    loc_select = 0
+
+    # inner fucntion
+    if mode == "mc":
+        def key_point_in_voxel(v):
+            return np.mean(voxel_grid[tuple(v)],axis=0)
+    elif mode == "cmc":
+        def key_point_in_voxel(v):
+            return voxel_grid[tuple(v)][np.linalg.norm(voxel_grid[tuple(v)] - np.mean(voxel_grid[tuple(v)],axis=0),axis=1).argmin()]
+    else:
+        raise RuntimeError("Function : voxel_grid_sample, select point mode unknowm (neither mc nor cmc)")
+
+    # i - index, v - coordinate of non empty voxel
+    for i,v in enumerate(non_empty_voxel):
+        nb_points = nb_points_per_voxel[i]
+        voxel_grid[tuple(v)] = points[index_points_on_voxel_sorted[loc_select:loc_select+nb_points]]
+        res.append(key_point_in_voxel(v))
+        loc_select = loc_select + nb_points
+        
+    return np.array(res), np.array(nb_points_per_voxel)
 
 ############################## abandoned ###############################
 # return the set of sliding window coordinates

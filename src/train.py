@@ -9,15 +9,26 @@ class Trainer():
         self.model = model.to(device)
         
         # optimizer
-        self.optimizer = optim.Adam(self.model.parameters(), lr=1e-4)
+        #self.optimizer = torch.optim.Adam(self.model.parameters(), lr=1e-4)
 
         # take data
         #self.train_data = train_data
         #self.val_data = val_data
 
-    def train_model(self):
+    def train_model(self, nb_epoch, train_data):
         '''
         Args:
-        Return
+            nb_epoch : a integer. How many epochs you want to train.
+            train_data : a 5-D tensor. (B, C, x, y, z)
+        Return:
         '''
+        # initialize loss
+        loss = 0
+
+        for i in range(0, nb_epoch):
+            # batch.size = 
+            # take n iterations to complete an epoch
+            sum_loss = 0
+            print("start {}-th epoch".format(i))
+
         return None

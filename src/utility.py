@@ -1,6 +1,8 @@
 import torch
 import laspy
 import numpy as np
+import matplotlib.pyplot as plt
+from mpl_toolkits import mplot3d
 
 # print info of the laspy data
 def get_info(las):
@@ -37,6 +39,20 @@ def get_region_index(data, x_min, x_max, y_min, y_max):
     '''
     return np.where((((x_min)<data[:,0]) & (data[:,0]<(x_max))) & (((y_min)<data[:,1]) & (data[:,1]<(y_max))))
 
+# visualize key point of voxels
+def visualize_voxel_key_points(points, points_per_voxel):
+    '''
+    Args:
+        points: a (x,y,z) np.darray.
+    Returns:
+        None.
+    '''
+    ax = plt.axes(projection='3d')
+    ax.scatter(points[:,0], points[:,1], points[:,2], c=(points_per_voxel/np.max(points_per_voxel)), s=0.01)
+    plt.show()
+    return None
+
+# to do
 # setting device
 def setting_device():
     return None
