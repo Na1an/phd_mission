@@ -40,16 +40,23 @@ def get_region_index(data, x_min, x_max, y_min, y_max):
     return np.where((((x_min)<data[:,0]) & (data[:,0]<(x_max))) & (((y_min)<data[:,1]) & (data[:,1]<(y_max))))
 
 # visualize key point of voxels
-def visualize_voxel_key_points(points, points_per_voxel):
+def visualize_voxel_key_points(points, points_per_voxel, title):
     '''
     Args:
         points: a (x,y,z) np.darray.
+        points_per_voxel: a (m,n) np.darray. m is the points number in each voxel, n is index of voxel.
+        title: a string.
     Returns:
         None.
     '''
     ax = plt.axes(projection='3d')
-    ax.scatter(points[:,0], points[:,1], points[:,2], c=(points_per_voxel/np.max(points_per_voxel)), s=0.01)
+    ax.set_title(title)
+    sc = ax.scatter(points[:,0], points[:,1], points[:,2], c=(points_per_voxel/np.max(points_per_voxel)), s=1)
+    #plt.gca().invert_xaxis()
+    #plt.legend("nb points")
+    plt.colorbar(sc, fraction=0.020, pad=0.04) 
     plt.show()
+    
     return None
 
 # to do

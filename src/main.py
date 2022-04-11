@@ -16,6 +16,9 @@ if __name__ == "__main__":
     raw_data_path = args.data_path
     grid_size = args.grid_size
     voxel_size = args.voxel_size
+    
+    # set by default
+    voxel_sample_mode = 'mc'
 
     # setting device
     if torch.cuda.is_available():
@@ -34,6 +37,7 @@ if __name__ == "__main__":
     print("\n> data_preprocess.shape =", data_preprocessed.shape)
     print("> grid_size:", grid_size)
     print("> voxel_size:", voxel_size)
+    print("> voxel sample mode is:", voxel_sample_mode)
 
     coords_sw = sliding_window(0, x_max - x_min, 0, y_max - y_min, grid_size)
     (d1,d2,_) = coords_sw.shape
@@ -59,7 +63,8 @@ if __name__ == "__main__":
 
             # shift points to local origin (0, 0, 0)
             local_points = data_preprocessed[local_index]
-            if local_points.size < 1550000:
+            #if local_points.size < 1550000:
+            if local_points.size < 10000:
                 print(">> Local_points is empty, no points founds here!")
                 continue
             
@@ -72,11 +77,14 @@ if __name__ == "__main__":
             print(">> local data.shape :", local_points.shape)
             print(">> local data shifted")
             tmp.append(local_points.size)
-            voxel, points_per_voxel = voxel_grid_sample(local_points, grid_size, global_height, voxel_size, 'mc')
+            key_points_in_voxel, nb_points_per_voxel, voxel = voxel_grid_sample(local_points, grid_size, global_height, voxel_size, voxel_sample_mode)
+            #print(key_points_in_voxel[0:10])
+            #print(key_points_in_voxel.shape)
+            print(">> nb_points_per_voxel.shape :",nb_points_per_voxel.shape)
+            print(">> voxel.shape :",voxel.shape)
             print(voxel[0:10])
-            print(voxel.shape)
-            print(points_per_voxel.shape)
-            visualize_voxel_key_points(voxel, points_per_voxel)
+            #visualize_voxel_key_points(key_points_in_voxel, nb_points_per_voxel, "key points in voxel - cuboid "+str(w_nb))
+            visualize_voxel_key_points(voxel, nb_points_per_voxel, "voxel - cuboid "+str(w_nb))
             # (2) put cube data to device : (cpu or gpu)
 
 

@@ -77,7 +77,9 @@ def voxel_grid_sample(cuboid, grid_size, height, voxel_size, mode):
     res = []
     points = cuboid[:,:3]
     nb_voxel = int(((grid_size//voxel_size)**2) * (height//voxel_size))
-    print(">> voxel_nb =", nb_voxel)
+    print(">>> grid_size//voxel_size =", grid_size//voxel_size)
+    print(">>> height//voxel_size =", height//voxel_size)
+    print(">>> voxel_nb =", nb_voxel)
     
     # non_empy_voxel : no empty voxel :)
     # index : the positions of [new elements in old array]
@@ -107,7 +109,7 @@ def voxel_grid_sample(cuboid, grid_size, height, voxel_size, mode):
         res.append(key_point_in_voxel(v))
         loc_select = loc_select + nb_points
         
-    return np.array(res), np.array(nb_points_per_voxel)
+    return np.array(res), np.array(nb_points_per_voxel), non_empty_voxel
 
 ############################## abandoned ###############################
 # return the set of sliding window coordinates
