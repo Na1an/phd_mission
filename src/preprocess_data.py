@@ -59,27 +59,27 @@ def get_region_indice(data, x_min, x_max, y_min, y_max, blank):
 # to do : decide which kind of key point in each voxel we need. 
 # [mean center, closest point to mean center, voxel center]
 # voxelization
-def voxel_grid_sample(cuboid, grid_size, height, voxel_size, mode):
+#def voxel_grid_sample(cuboid, grid_size, height, voxel_size, mode):
+def voxel_grid_sample(cuboid, voxel_size, mode):
     '''
     Args:
         points : a (n,4) numpy.darray. The data to process.
-        grid_size : a interger/float. The side length of a grid.
-        height : a float. The max height of the raw data. Not local height!
         voxel_size : a float. The resolution of the voxel. 
         mode : a string. How to select points in voxel. ('mc': mean_center, 'cmc' : closest point to mean center)
+        #grid_size : a interger/float. The side length of a grid.
+        #height : a float. The max height of the raw data. Not local height!
     Returns:
-        #res : a voxelized data. 0-unoccupied voxel, 1-wood voxel, 2-leaf voxel.
-        # voxel mean center
-        res : a voxelized data. 0-unoccupied voxel, 1-occupied.
-        nb_voxel : a integer. The total voxel number.
+        res : a voxelized data. key points in each voxel.
+        nb_points_per_voxel : a list integer. The total voxel number.
+        non_empty_voxel : a (n,3) np.darray. The index of occupied voxel.
     '''
 
     res = []
     points = cuboid[:,:3]
-    nb_voxel = int(((grid_size//voxel_size)**2) * (height//voxel_size))
-    print(">>> grid_size//voxel_size =", grid_size//voxel_size)
-    print(">>> height//voxel_size =", height//voxel_size)
-    print(">>> voxel_nb =", nb_voxel)
+    #nb_voxel = int((((grid_size+0.000001)//voxel_size)**2) * ((height+0.000001)//voxel_size))
+    #print(">>> grid_size//voxel_size =", grid_size//voxel_size)
+    #print(">>> height//voxel_size =", height//voxel_size)
+    #print(">>> voxel_nb =", nb_voxel)
     
     # non_empy_voxel : no empty voxel :)
     # index : the positions of [new elements in old array]

@@ -27,10 +27,6 @@ if __name__ == "__main__":
         my_device = torch.device('cpu')
     print('> Device : {}'.format(my_device))
 
-    # create a model 
-    my_model = PointWiseModel(device=my_device)
-    my_trainer = Trainer(my_model, my_device)
-
     # (1) preprocess data and get set of sliding window coordinates
     print("> input data:", raw_data_path)
     data_preprocessed, x_min, x_max, y_min, y_max, z_min, z_max = read_data(raw_data_path, "WL", detail=True)
@@ -38,25 +34,34 @@ if __name__ == "__main__":
     print("> grid_size:", grid_size)
     print("> voxel_size:", voxel_size)
     print("> voxel sample mode is:", voxel_sample_mode)
+    
+    # create a model
+    global_height = z_max - z_min # the absolute height
+    my_model = PointWiseModel(device=my_device, grid_size=grid_size, voxel_size=voxel_size, global_height=global_height)
+    my_model.show_voxel_shape()
+    
+    # trainer
+    my_trainer = Trainer(my_model, my_device)
 
+    # sliding window
     coords_sw = sliding_window(0, x_max - x_min, 0, y_max - y_min, grid_size)
     (d1,d2,_) = coords_sw.shape
     #print("> coords :", coords_sw)
 
     # to do : add more overlap between the cubes
     # beta version
-    w_nb = 1
-
     # record of point numbers in each cube
+    w_nb = 0
     tmp = []
     global_height = z_max - z_min
+
     for i in range(d1):
         for j in range(d2):
+            w_nb = w_nb + 1
             # (1) cut data to cubes
             # local origin
             local_x, local_y = coords_sw[i, j]
             print("\n>> sliding window n°", w_nb, "bottom left coordinate :(",local_x, ',',local_y,')')
-            w_nb = w_nb + 1
             
             # find index of the data_preprocessed in this sliding window
             local_index = get_region_index(data_preprocessed, local_x, local_x+grid_size, local_y, local_y+grid_size)
@@ -76,22 +81,30 @@ if __name__ == "__main__":
             print(">> local abs height : ", local_abs_height)
             print(">> local data.shape :", local_points.shape)
             print(">> local data shifted")
+            #print(">> local_points:", local_points[0:10])
             tmp.append(local_points.size)
-            key_points_in_voxel, nb_points_per_voxel, voxel = voxel_grid_sample(local_points, grid_size, global_height, voxel_size, voxel_sample_mode)
+
+            key_points_in_voxel, nb_points_per_voxel, voxel = voxel_grid_sample(local_points, voxel_size, voxel_sample_mode)
+            print(">> voxel.shape :",voxel.shape)
+            print(">> nb_points_per_voxel.shape :",nb_points_per_voxel.shape)
+            #print(voxel[0:10])
+            visualize_voxel_key_points(voxel, nb_points_per_voxel, "voxel - cuboid "+str(w_nb))
+
             #print(key_points_in_voxel[0:10])
             #print(key_points_in_voxel.shape)
-            print(">> nb_points_per_voxel.shape :",nb_points_per_voxel.shape)
-            print(">> voxel.shape :",voxel.shape)
-            print(voxel[0:10])
             #visualize_voxel_key_points(key_points_in_voxel, nb_points_per_voxel, "key points in voxel - cuboid "+str(w_nb))
-            visualize_voxel_key_points(voxel, nb_points_per_voxel, "voxel - cuboid "+str(w_nb))
+            
             # (2) put cube data to device : (cpu or gpu)
 
-
+            # prepar voxel
+            voxel_skeleton = np.zeros([my_model.x_v, my_model.y_v, my_model.z_v], dtype=int)
+            voxel_skeleton[voxel[:,0], voxel[:,1], voxel[:,2]] = 1
+            
             # (3) feed it to the model
+            my_trainer.train_model(nb_epoch, local_points, voxel_skeleton)
 
             break
-        
+        break
     #print(tmp)
     print("\n###### End ######")
         
