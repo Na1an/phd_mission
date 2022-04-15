@@ -14,9 +14,9 @@ def read_data(path, feature=None, detail=False):
     data_las = laspy.read(path)
     x_min, x_max, y_min, y_max, z_min, z_max = get_info(data_las)
     #data = np.vstack((data_las.x - x_min, data_las.y - y_min, data_las.z, data_las[feature])).transpose()
-    data = np.vstack((data_las.x - x_min, data_las.y - y_min, data_las.z)).transpose()
-    print(">>> data token :", data[0:10], " shape =", data.shape, " type =", type(data))
-
+    data = np.vstack((data_las.x, data_las.y, data_las.z)).transpose()
+    print(">>> data token :", data[0:3], " shape =", data.shape, " type =", type(data))
+    #print(">>> data border: x_min={}, y_min={}, x_max={}, y_max={}".format(x_min, y_min, x_max, y_max))
     return data, x_min, x_max, y_min, y_max, z_min, z_max
 
 # return the set of sliding window coordinates
@@ -56,6 +56,7 @@ def get_region_indice(data, x_min, x_max, y_min, y_max, blank):
     Returns:
         res : a list of 2-d coordinates (x,y). The set of grid coordinates.
     '''
+    print(">>> inside get region indiece data_pricessed[0:10] =", data[0:10])
     return np.where((((x_min)<data[:,0]) & (data[:,0]<(x_max))) & (((y_min)<data[:,1]) & (data[:,1]<(y_max))))
 
 # to do : decide which kind of key point in each voxel we need. 
@@ -113,6 +114,13 @@ def voxel_grid_sample(cuboid, voxel_size, mode):
         
     return np.array(res), np.array(nb_points_per_voxel), non_empty_voxel
 
+def bottom_voxel(data):
+    _,index = np.unique(data[:,0:2], axis=0, return_index=True)
+
+    return index
+
+def slice_voxel_data(bottom, layer_bot, layer_top):
+    return None
 ############################## abandoned ###############################
 # return the set of sliding window coordinates
 def sliding_window_naif(x_min, x_max, y_min, y_max, grid_size):
