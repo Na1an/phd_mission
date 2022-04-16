@@ -63,17 +63,18 @@ def get_region_indice(data, x_min, x_max, y_min, y_max, blank):
 # [mean center, closest point to mean center, voxel center]
 # voxelization
 #def voxel_grid_sample(cuboid, grid_size, height, voxel_size, mode):
-def voxel_grid_sample(cuboid, voxel_size, mode):
+def voxel_grid_sample(cuboid, voxel_size, mode, get_voxel_grid=False):
     '''
     Args:
         points : a (n,4) numpy.darray. The data to process.
         voxel_size : a float. The resolution of the voxel. 
         mode : a string. How to select points in voxel. ('mc': mean_center, 'cmc' : closest point to mean center)
+        get_voxel_grid : a boolean. If true, return plus the voxel grid.
         #grid_size : a interger/float. The side length of a grid.
         #height : a float. The max height of the raw data. Not local height!
     Returns:
         res : a voxelized data. key points in each voxel.
-        nb_points_per_voxel : a list integer. The total voxel number.
+        nb_points_per_voxel : a list integer. The total point number in each voxel.
         non_empty_voxel : a (n,3) np.darray. The index of occupied voxel.
     '''
 
@@ -92,6 +93,7 @@ def voxel_grid_sample(cuboid, voxel_size, mode):
     index_points_on_voxel_sorted = np.argsort(index_inversed)
     # we can then access the points that are linked to each voxel through index_points_on_voxel_sorted and how many they are (nb_pts_per_voxel)
 
+    # voxel grid save the points' index for each voxel
     voxel_grid = {}
     loc_select = 0
 
@@ -111,16 +113,50 @@ def voxel_grid_sample(cuboid, voxel_size, mode):
         voxel_grid[tuple(v)] = points[index_points_on_voxel_sorted[loc_select:loc_select+nb_points]]
         res.append(key_point_in_voxel(v))
         loc_select = loc_select + nb_points
-        
+    
+    if get_voxel_grid:
+        return np.array(res), np.array(nb_points_per_voxel), non_empty_voxel, voxel_grid
+
     return np.array(res), np.array(nb_points_per_voxel), non_empty_voxel
 
 def bottom_voxel(data):
+    '''
+    Args:
+        data : a (n,3) np.ndarray. The voxelized data.
+    Returns:
+        index : a list of integer. The index of bottom voxel.
+    '''
     _,index = np.unique(data[:,0:2], axis=0, return_index=True)
-
+    
     return index
 
-def slice_voxel_data(bottom, layer_bot, layer_top):
-    return None
+def slice_voxel_data(bottom, layer_bot, layer_top, voxel_size, voxel_grid):
+    '''
+    Args:
+        bottom : (n,3) np.ndarray. The index, output of the bottom_voxel.
+        layer_bot : a float. The bottom of layer.
+        layer_top : a float. The top of layer.
+    Return:
+        res : (layer_height, n, 3). The index of a voxel layer.
+    '''
+
+    layer_bot_voxel = int((layer_bot+0.000001)//voxel_size)
+    layer_top_voxel = int(((layer_top+0.000001)//voxel_size)) + 1
+    x_s, y_s = bottom.shape
+    #res = np.zeros((layer_top_voxel-layer_bot_voxel, x_s, y_s))
+    res2 = []
+    i = 0
+    for h in range(layer_bot_voxel, layer_top_voxel):
+        #res[i] = bottom[:,2] + h
+        #i = i+1
+        #tmp = bottom[:,2] + h
+        
+        for x in bottom:
+            x[2] = x[2] + h
+            if tuple(x) in voxel_grid:
+                [res2.append(a) for a in voxel_grid[tuple(x)]]
+    return np.array(res2)
+    
 ############################## abandoned ###############################
 # return the set of sliding window coordinates
 def sliding_window_naif(x_min, x_max, y_min, y_max, grid_size):

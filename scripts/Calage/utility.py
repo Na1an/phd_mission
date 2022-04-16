@@ -1,6 +1,7 @@
 import torch
 import laspy
 import numpy as np
+import seaborn as sns
 import matplotlib.pyplot as plt
 from mpl_toolkits import mplot3d
 
@@ -40,7 +41,7 @@ def get_region_index(data, x_min, x_max, y_min, y_max):
     return np.where((((x_min)<data[:,0]) & (data[:,0]<(x_max))) & (((y_min)<data[:,1]) & (data[:,1]<(y_max))))
 
 # visualize key point of voxels
-def visualize_voxel_key_points(points, points_per_voxel, title):
+def visualize_voxel_key_points(points, points_per_voxel, title, only_points=False):
     '''
     Args:
         points: a (x,y,z) np.darray.
@@ -49,11 +50,22 @@ def visualize_voxel_key_points(points, points_per_voxel, title):
     Returns:
         None.
     '''
+    print(">>>>> shape", points.shape)
+    sns.set(style = "darkgrid")
     ax = plt.axes(projection='3d')
     ax.set_title(title)
-    sc = ax.scatter(points[:,0], points[:,1], points[:,2], c=points_per_voxel, s=20, cmap="gist_rainbow")
+
+    if only_points:
+        sc = ax.scatter(points[:,0], points[:,1], points[:,2], s=20, cmap="gist_rainbow")
+    else:
+        sc = ax.scatter(points[:,0], points[:,1], points[:,2], c=points_per_voxel, s=20, cmap="gist_rainbow")
     #plt.gca().invert_xaxis()
     #plt.legend("nb points")
+    
+    ax.set_xlabel("X")
+    ax.set_ylabel("Y")
+    ax.set_zlabel("Z")
+
     plt.colorbar(sc, fraction=0.020, pad=0.04) 
     plt.show()
     

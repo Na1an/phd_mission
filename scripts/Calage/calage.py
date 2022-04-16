@@ -24,7 +24,7 @@ if __name__ == "__main__":
     layer_top = args.layer_top
     
     # set by default
-    voxel_sample_mode = 'cmc'
+    voxel_sample_mode = 'mc'
     layer_height = layer_top - layer_bot
 
     # (1) preprocess data and get set of sliding window coordinates
@@ -41,7 +41,6 @@ if __name__ == "__main__":
     print("> input data dls_path:", dls_path)
     tls_data_processed, x_min_t, x_max_t, y_min_t, y_max_t, z_min_t, z_max_t = read_data(tls_path, detail=True)
     print("\n> tls_data_preprocess.shape =", tls_data_processed.shape)
-    
 
     #dls_data_processed, x_min_d, x_max_d, y_min_d, y_max_d, z_min_d, z_max_d = read_data(dls_path, detail=True)
     #print("\n> dls_data_preprocess.shape =", dls_data_processed.shape)
@@ -81,15 +80,26 @@ if __name__ == "__main__":
 
     print("> dtm_points.shape = {}".format(dtm_points.shape))
 
+    # 3-1. voxelize dtm
     dtm_voxel_key_points, dtm_nb_points_per_voxel, dtm_voxel = voxel_grid_sample(dtm_points, voxel_size, voxel_sample_mode)
-    print(">> voxel.shape :",dtm_voxel.shape)
-    print(">> nb_points_per_voxel.shape :",dtm_nb_points_per_voxel.shape)
-    print(">> dtm_voxel[0:10]", dtm_voxel[0:30])
-    visualize_voxel_key_points(dtm_voxel, dtm_nb_points_per_voxel, "voxel dtm")
+    print(">> dtm_voxel.shape :",dtm_voxel.shape)
+    print(">> dtm_nb_points_per_voxel.shape :",dtm_nb_points_per_voxel.shape)
+    #print(">> dtm_voxel_key_points:", dtm_voxel_key_points[0:10])
+    #visualize_voxel_key_points(dtm_voxel, dtm_nb_points_per_voxel, "voxel dtm")
     
+    # 3-2. find the bittom of the dtm
     index_dtm_bottom_voxel = bottom_voxel(dtm_voxel)
-    visualize_voxel_key_points(dtm_voxel[index_dtm_bottom_voxel], dtm_nb_points_per_voxel[index_dtm_bottom_voxel], "voxel dtm bottom")
+    #visualize_voxel_key_points(dtm_voxel[index_dtm_bottom_voxel], dtm_nb_points_per_voxel[index_dtm_bottom_voxel], "voxelized dtm bottom")
     
+    # 3-3 voxelize tls
+    tls_voxel_key_points, tls_nb_points_per_voxel, tls_voxel, tls_voxel_grid = voxel_grid_sample(tls_points, voxel_size, voxel_sample_mode, get_voxel_grid=True)
+    #visualize_voxel_key_points(tls_voxel, tls_nb_points_per_voxel, "voxelized tls ")
+
+    # (layer_height, n, 3)
+    voxel_layer = slice_voxel_data(dtm_voxel[index_dtm_bottom_voxel], layer_bot, layer_top, voxel_size, tls_voxel_grid)
+    print("> voxel_layer.shape =", voxel_layer.shape)
+    print(">> voxel_mayer[0:20", voxel_layer[0:20])
+    visualize_voxel_key_points(np.array(voxel_layer), voxel_layer, "what we want is here!", only_points=True)
 
     '''
     # sliding window
