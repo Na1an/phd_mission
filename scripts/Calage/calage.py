@@ -42,8 +42,8 @@ if __name__ == "__main__":
     tls_data_processed, x_min_t, x_max_t, y_min_t, y_max_t, z_min_t, z_max_t = read_data(tls_path, detail=True)
     print("\n> tls_data_preprocess.shape =", tls_data_processed.shape)
 
-    #dls_data_processed, x_min_d, x_max_d, y_min_d, y_max_d, z_min_d, z_max_d = read_data(dls_path, detail=True)
-    #print("\n> dls_data_preprocess.shape =", dls_data_processed.shape)
+    dls_data_processed, x_min_d, x_max_d, y_min_d, y_max_d, z_min_d, z_max_d = read_data(dls_path, detail=True)
+    print("\n> dls_data_preprocess.shape =", dls_data_processed.shape)
 
     dtm_data_processed, x_min, x_max, y_min, y_max, z_min, z_max = read_data(dtm_path, detail=True)
     print("\n> dtm_data_preprocess.shape =", dtm_data_processed.shape)
@@ -51,7 +51,7 @@ if __name__ == "__main__":
     
     # coordinates features
     tls_height = z_max_t - z_min_t
-    #dls_height = z_max_d - z_min_d 
+    dls_height = z_max_d - z_min_d 
     dtm_height = z_max - z_min # the absolute height dtm
 
     # find overlap region
@@ -65,16 +65,18 @@ if __name__ == "__main__":
 
     # index interesting
     index_tls = get_region_index(tls_data_processed, x_min_overlap, x_min_overlap+grid_size, y_min_overlap, y_min_overlap+grid_size)
-    #index_dls = get_region_index(dls_data_processed, x_min_overlap, x_min_overlap+grid_size, y_min_overlap, y_min_overlap+grid_size)
+    index_dls = get_region_index(dls_data_processed, x_min_overlap, x_min_overlap+grid_size, y_min_overlap, y_min_overlap+grid_size)
     index_dtm = get_region_index(dtm_data_processed, x_min_overlap, x_min_overlap+grid_size, y_min_overlap, y_min_overlap+grid_size)
 
     tls_points = tls_data_processed[index_tls]
-    #dls_points = dls_data_processed[index_dls]
+    dls_points = dls_data_processed[index_dls]
     dtm_points = dtm_data_processed[index_dtm]
 
     # normalization
     tls_points[:,0] = tls_points[:,0] - x_min_overlap
     tls_points[:,1] = tls_points[:,1] - y_min_overlap
+    dls_points[:,0] = dls_points[:,0] - x_min_overlap
+    dls_points[:,1] = dls_points[:,1] - y_min_overlap
     dtm_points[:,0] = dtm_points[:,0] - x_min_overlap
     dtm_points[:,1] = dtm_points[:,1] - y_min_overlap
 
@@ -87,72 +89,26 @@ if __name__ == "__main__":
     #print(">> dtm_voxel_key_points:", dtm_voxel_key_points[0:10])
     #visualize_voxel_key_points(dtm_voxel, dtm_nb_points_per_voxel, "voxel dtm")
     
-    # 3-2. find the bittom of the dtm
+    # 3-2. find the bottom of the dtm
     index_dtm_bottom_voxel = bottom_voxel(dtm_voxel)
     #visualize_voxel_key_points(dtm_voxel[index_dtm_bottom_voxel], dtm_nb_points_per_voxel[index_dtm_bottom_voxel], "voxelized dtm bottom")
     
     # 3-3 voxelize tls
     tls_voxel_key_points, tls_nb_points_per_voxel, tls_voxel, tls_voxel_grid = voxel_grid_sample(tls_points, voxel_size, voxel_sample_mode, get_voxel_grid=True)
     #visualize_voxel_key_points(tls_voxel, tls_nb_points_per_voxel, "voxelized tls ")
+    dls_voxel_key_points, dls_nb_points_per_voxel, dls_voxel, dls_voxel_grid = voxel_grid_sample(dls_points, voxel_size, voxel_sample_mode, get_voxel_grid=True)
 
     # (layer_height, n, 3)
+    '''
     voxel_layer = slice_voxel_data(dtm_voxel[index_dtm_bottom_voxel], layer_bot, layer_top, voxel_size, tls_voxel_grid)
     print("> voxel_layer.shape =", voxel_layer.shape)
-    print(">> voxel_mayer[0:20", voxel_layer[0:20])
+    print(">> voxel_mayer[0:20]", voxel_layer[0:20])
     visualize_voxel_key_points(np.array(voxel_layer), voxel_layer, "what we want is here!", only_points=True)
-
     '''
-    # sliding window
-    coords_sw = sliding_window(0, x_max - x_min, 0, y_max - y_min, grid_size)
-    (d1,d2,_) = coords_sw.shape
-    #print("> coords :", coords_sw)
-
-    # to do : add more overlap between the cubes
-    # beta version
-    # record of point numbers in each cube
-    w_nb = 0
-    tmp = []
-    global_height = z_max - z_min
-
-    for i in range(d1):
-        for j in range(d2):
-            w_nb = w_nb + 1
-            # (1) cut data to cubes
-            # local origin
-            local_x, local_y = coords_sw[i, j]
-            print("\n>> sliding window n°", w_nb, "bottom left coordinate :(",local_x, ',',local_y,')')
-            
-            # find index of the tls_data_processed in this sliding window
-            local_index = get_region_index(tls_data_processed, local_x, local_x+grid_size, local_y, local_y+grid_size)
-
-            # shift points to local origin (0, 0, 0)
-            local_points = tls_data_processed[local_index]
-            #if local_points.size < 1550000:
-            if local_points.size < 10:
-                print(">> Local_points is empty, no points founds here!")
-                continue
-            
-            local_z_min = np.min(local_points[:,2])
-            local_points[:,0] = local_points[:,0] - local_x
-            local_points[:,1] = local_points[:,1] - local_y
-            local_points[:,2] = local_points[:,2] - np.min(local_points[:,2])
-            local_abs_height = np.max(local_points[:,2])
-            print(">> local abs height : ", local_abs_height)
-            print(">> local data.shape :", local_points.shape)
-            print(">> local data shifted")
-            #print(">> local_points:", local_points[0:10])
-            tmp.append(local_points.size)
-
-            key_points_in_voxel, nb_points_per_voxel, voxel = voxel_grid_sample(local_points, voxel_size, voxel_sample_mode)
-            print(">> voxel.shape :",voxel.shape)
-            print(">> nb_points_per_voxel.shape :",nb_points_per_voxel.shape)
-            #print(voxel[0:10])
-            visualize_voxel_key_points(voxel, nb_points_per_voxel, "voxel - cuboid "+str(w_nb))
-
-            #print(key_points_in_voxel[0:10])
-            #print(key_points_in_voxel.shape)
-            #visualize_voxel_key_points(key_points_in_voxel, nb_points_per_voxel, voxel_sample_mode + " key points in voxel - cuboid "+str(w_nb) + "ratio nb_point/max(nb_point)")
-        
-    #print(tmp)
-    print("\n###### End ######")
-    '''
+    layer_tls, layer_dls, nb_voxel_tls, nb_voxel_dls, nb_voxel_coi, coi_voxel = slice_voxel_data_and_find_coincidence(dtm_voxel[index_dtm_bottom_voxel], layer_bot, layer_top, voxel_size, tls_voxel_grid, dls_voxel_grid)
+    print("> voxel_layer_tls.shape =", layer_tls.shape, "voxel_layer_dls.shape =", layer_dls.shape)
+    visualize_voxel_key_points(layer_tls, layer_tls, "voxel_layer_tls", only_points=True)
+    visualize_voxel_key_points(layer_dls, layer_dls, "voxel_layer_dls", only_points=True)
+    visualize_voxel_key_points(coi_voxel, coi_voxel, "both", only_points=True)
+    print("> nb_voxel_tls={}, nb_voxel_dls={}, nb_voxel_coi={}, coi_rate={}".format(nb_voxel_tls, nb_voxel_dls, nb_voxel_coi,(nb_voxel_coi/(nb_voxel_tls+nb_voxel_dls-nb_voxel_coi))))
+    

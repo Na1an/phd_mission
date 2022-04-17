@@ -15,7 +15,7 @@ def read_data(path, feature=None, detail=False):
     x_min, x_max, y_min, y_max, z_min, z_max = get_info(data_las)
     #data = np.vstack((data_las.x - x_min, data_las.y - y_min, data_las.z, data_las[feature])).transpose()
     data = np.vstack((data_las.x, data_las.y, data_las.z)).transpose()
-    print(">>> data token :", data[0:3], " shape =", data.shape, " type =", type(data))
+    #print(">>> data token :", data[0:3], " shape =", data.shape, " type =", type(data))
     #print(">>> data border: x_min={}, y_min={}, x_max={}, y_max={}".format(x_min, y_min, x_max, y_max))
     return data, x_min, x_max, y_min, y_max, z_min, z_max
 
@@ -143,7 +143,7 @@ def slice_voxel_data(bottom, layer_bot, layer_top, voxel_size, voxel_grid):
     layer_bot_voxel = int((layer_bot+0.000001)//voxel_size)
     layer_top_voxel = int(((layer_top+0.000001)//voxel_size)) + 1
     x_s, y_s = bottom.shape
-    #res = np.zeros((layer_top_voxel-layer_bot_voxel, x_s, y_s))
+    
     res2 = []
     i = 0
     for h in range(layer_bot_voxel, layer_top_voxel):
@@ -153,9 +153,54 @@ def slice_voxel_data(bottom, layer_bot, layer_top, voxel_size, voxel_grid):
         
         for x in bottom:
             x[2] = x[2] + h
+            # flatten/reshape maybe work?
             if tuple(x) in voxel_grid:
                 [res2.append(a) for a in voxel_grid[tuple(x)]]
+    
     return np.array(res2)
+
+def slice_voxel_data_and_find_coincidence(bottom, layer_bot, layer_top, voxel_size, voxel_grid_tls, voxel_grid_dls):
+    '''
+    Args:
+        bottom : (n,3) np.ndarray. The index, output of the bottom_voxel.
+        layer_bot : a float. The bottom of layer.
+        layer_top : a float. The top of layer.
+    Return:
+        tls_data (points) : (layer_height, n, 3). The points data of tls.
+        dls_data (points) : (layer_height, n, 3). The points data of dls.
+        nb_voxel_tls : a integer. The number of TLS voxel exists in the layer.
+        nb_voxel_dls : a integer. The number of DLS voxel exists in the layer.
+        nb_voxel_coi : a integer. The number of voxel exists in the layer for both TLS and DLS.
+        coi_voxel : a (n,3) np.darray. The index of the coincidence voxel.
+    '''
+
+    layer_bot_voxel = int((layer_bot+0.000001)//voxel_size)
+    layer_top_voxel = int(((layer_top+0.000001)//voxel_size)) + 1
+    x_s, y_s = bottom.shape
+    
+    #res 
+    tls_data = []
+    dls_data = []
+    nb_voxel_tls = 0
+    nb_voxel_dls = 0
+    nb_voxel_coi = 0
+    coi_voxel = []
+
+    for h in range(layer_bot_voxel, layer_top_voxel):
+        for x in bottom:
+            x[2] = x[2] + h
+            # flatten/reshape maybe work?
+            if tuple(x) in voxel_grid_tls:
+                nb_voxel_tls = nb_voxel_tls + 1
+                [tls_data.append(a) for a in voxel_grid_tls[tuple(x)]]
+            if tuple(x) in voxel_grid_dls:
+                nb_voxel_dls = nb_voxel_dls + 1
+                [dls_data.append(a) for a in voxel_grid_dls[tuple(x)]]
+            if (tuple(x) in voxel_grid_dls) and (tuple(x) in voxel_grid_tls):
+                nb_voxel_coi = nb_voxel_coi + 1
+                coi_voxel.append(tuple(x))
+
+    return np.array(tls_data), np.array(dls_data), nb_voxel_tls, nb_voxel_dls, nb_voxel_coi, np.array(coi_voxel)
     
 ############################## abandoned ###############################
 # return the set of sliding window coordinates
