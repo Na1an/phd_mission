@@ -205,6 +205,7 @@ def slice_voxel_data_and_find_coincidence(bottom, layer_bot, layer_top, voxel_si
     x_s, y_s = bottom.shape
     
     print("layer_bot={}, layer_top={}, layer_bot_voxel={}, layer_top_voxel={}, voxel_size={}".format(layer_bot, layer_top, layer_bot_voxel, layer_top_voxel, voxel_size))
+    
     #res 
     tls_data = []
     dls_data = []
@@ -212,10 +213,10 @@ def slice_voxel_data_and_find_coincidence(bottom, layer_bot, layer_top, voxel_si
     nb_voxel_dls = 0
     nb_voxel_coi = 0
     coi_voxel = []
-    
-    for h in range(layer_bot_voxel, layer_top_voxel):
-        tmp = bottom.copy()
-        tmp[:,2] = tmp[:,2] + h
+
+    tmp = bottom.copy()
+    tmp[:,2] = tmp[:,2] + layer_bot_voxel
+    for h in range(0, layer_top_voxel-layer_bot_voxel): 
         for x in tmp:
             # flatten/reshape maybe work?
             if tuple(x) in voxel_grid_tls:
@@ -227,6 +228,7 @@ def slice_voxel_data_and_find_coincidence(bottom, layer_bot, layer_top, voxel_si
             if (tuple(x) in voxel_grid_dls) and (tuple(x) in voxel_grid_tls):
                 nb_voxel_coi = nb_voxel_coi + 1
                 coi_voxel.append(tuple(x))
+        tmp[:,2] = tmp[:,2] + 1
     
     if show_coi_rate:
         print("\n> nb_voxel_tls={}, nb_voxel_dls={}, nb_voxel_coi={}".format(nb_voxel_tls, nb_voxel_dls, nb_voxel_coi))
