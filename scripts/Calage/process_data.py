@@ -19,6 +19,25 @@ def read_data(path, feature=None, detail=False):
     #print(">>> data border: x_min={}, y_min={}, x_max={}, y_max={}".format(x_min, y_min, x_max, y_max))
     return data, x_min, x_max, y_min, y_max, z_min, z_max
 
+# write data
+def write_data(data, filename, x_min_overlap, y_min_overlap):
+    '''
+    Args:
+        data : a (n,3) np.ndarray. The points coordiantes!
+        filename : a string.
+    Returns:
+        None.
+    '''
+    new_file = laspy.create(point_format=2, file_version="1.2")
+    new_file.x = data[:,0] + x_min_overlap
+    new_file.y = data[:,1] + y_min_overlap
+    new_file.z = data[:,2]
+    path = os.getcwd()+"/"+ filename + datetime.now().strftime('%Y-%m-%d_%H-%M-%S') + ".las"
+    new_file.write(path)
+    print(">> data writed to:", path)
+    
+    return None
+
 # return the set of sliding window coordinates
 def sliding_window(x_min, x_max, y_min, y_max, grid_size):
     '''
@@ -142,29 +161,36 @@ def slice_voxel_data(bottom, layer_bot, layer_top, voxel_size, voxel_grid):
 
     layer_bot_voxel = int((layer_bot+0.000001)//voxel_size)
     layer_top_voxel = int(((layer_top+0.000001)//voxel_size)) + 1
-    x_s, y_s = bottom.shape
+    print("layer_bot={}, layer_top={}, layer_bot_voxel={}, layer_top_voxel={}, voxel_size={}".format(layer_bot, layer_top, layer_bot_voxel, layer_top_voxel, voxel_size))
+    
+    #x_s, y_s = bottom.shape
+    #print("bottom.shape", bottom[0:100])
+    #print("bottom[0:100]", bottom[0:100])
     
     res2 = []
     i = 0
     for h in range(layer_bot_voxel, layer_top_voxel):
-        #res[i] = bottom[:,2] + h
-        #i = i+1
-        #tmp = bottom[:,2] + h
-        
-        for x in bottom:
-            x[2] = x[2] + h
+        tmp = bottom.copy()
+        tmp[:,2] = tmp[:,2] + h
+        print(">> bottom[0:5]", bottom[0:5])
+        print(">> tmp[0:5]", tmp[0:5])
+        for x in tmp:
             # flatten/reshape maybe work?
             if tuple(x) in voxel_grid:
                 [res2.append(a) for a in voxel_grid[tuple(x)]]
     
     return np.array(res2)
 
-def slice_voxel_data_and_find_coincidence(bottom, layer_bot, layer_top, voxel_size, voxel_grid_tls, voxel_grid_dls):
+def slice_voxel_data_and_find_coincidence(bottom, layer_bot, layer_top, voxel_size, voxel_grid_tls, voxel_grid_dls, show_coi_rate=True):
     '''
     Args:
         bottom : (n,3) np.ndarray. The index, output of the bottom_voxel.
         layer_bot : a float. The bottom of layer.
         layer_top : a float. The top of layer.
+        voxel_size: a float. The voxel size.
+        voxel_grid_tls : a dict. Key is (x,y,z) voxel index. Value is the points in this voxel for TLS data.
+        voxel_grid_dls : a dict. Key is (x,y,z) voxel index. Value is the points in this voxel for DLS data.
+        show_coi_rate : a boolean.
     Return:
         tls_data (points) : (layer_height, n, 3). The points data of tls.
         dls_data (points) : (layer_height, n, 3). The points data of dls.
@@ -178,6 +204,7 @@ def slice_voxel_data_and_find_coincidence(bottom, layer_bot, layer_top, voxel_si
     layer_top_voxel = int(((layer_top+0.000001)//voxel_size)) + 1
     x_s, y_s = bottom.shape
     
+    print("layer_bot={}, layer_top={}, layer_bot_voxel={}, layer_top_voxel={}, voxel_size={}".format(layer_bot, layer_top, layer_bot_voxel, layer_top_voxel, voxel_size))
     #res 
     tls_data = []
     dls_data = []
@@ -185,10 +212,11 @@ def slice_voxel_data_and_find_coincidence(bottom, layer_bot, layer_top, voxel_si
     nb_voxel_dls = 0
     nb_voxel_coi = 0
     coi_voxel = []
-
+    
     for h in range(layer_bot_voxel, layer_top_voxel):
-        for x in bottom:
-            x[2] = x[2] + h
+        tmp = bottom.copy()
+        tmp[:,2] = tmp[:,2] + h
+        for x in tmp:
             # flatten/reshape maybe work?
             if tuple(x) in voxel_grid_tls:
                 nb_voxel_tls = nb_voxel_tls + 1
@@ -199,6 +227,12 @@ def slice_voxel_data_and_find_coincidence(bottom, layer_bot, layer_top, voxel_si
             if (tuple(x) in voxel_grid_dls) and (tuple(x) in voxel_grid_tls):
                 nb_voxel_coi = nb_voxel_coi + 1
                 coi_voxel.append(tuple(x))
+    
+    if show_coi_rate:
+        print("\n> nb_voxel_tls={}, nb_voxel_dls={}, nb_voxel_coi={}".format(nb_voxel_tls, nb_voxel_dls, nb_voxel_coi))
+        print("> coi_rate={}".format(nb_voxel_coi/(nb_voxel_tls+nb_voxel_dls-nb_voxel_coi)))
+        print("> nb_voxel_coi/nb_voxel_tls ={}".format(nb_voxel_coi/nb_voxel_tls))
+        print("> nb_voxel_coi/nb_voxel_dls ={}".format(nb_voxel_coi/nb_voxel_dls))
 
     return np.array(tls_data), np.array(dls_data), nb_voxel_tls, nb_voxel_dls, nb_voxel_coi, np.array(coi_voxel)
     

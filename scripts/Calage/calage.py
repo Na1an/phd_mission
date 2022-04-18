@@ -72,7 +72,7 @@ if __name__ == "__main__":
     dls_points = dls_data_processed[index_dls]
     dtm_points = dtm_data_processed[index_dtm]
 
-    # normalization
+    # normalization, shift to (0,0)
     tls_points[:,0] = tls_points[:,0] - x_min_overlap
     tls_points[:,1] = tls_points[:,1] - y_min_overlap
     dls_points[:,0] = dls_points[:,0] - x_min_overlap
@@ -91,24 +91,34 @@ if __name__ == "__main__":
     
     # 3-2. find the bottom of the dtm
     index_dtm_bottom_voxel = bottom_voxel(dtm_voxel)
-    #visualize_voxel_key_points(dtm_voxel[index_dtm_bottom_voxel], dtm_nb_points_per_voxel[index_dtm_bottom_voxel], "voxelized dtm bottom")
-    
+    visualize_voxel_key_points(dtm_voxel[index_dtm_bottom_voxel], dtm_nb_points_per_voxel[index_dtm_bottom_voxel], "voxelized dtm bottom")
+    #write_data(dtm_voxel[index_dtm_bottom_voxel], "dtm_bottom")
+
     # 3-3 voxelize tls
     tls_voxel_key_points, tls_nb_points_per_voxel, tls_voxel, tls_voxel_grid = voxel_grid_sample(tls_points, voxel_size, voxel_sample_mode, get_voxel_grid=True)
     #visualize_voxel_key_points(tls_voxel, tls_nb_points_per_voxel, "voxelized tls ")
     dls_voxel_key_points, dls_nb_points_per_voxel, dls_voxel, dls_voxel_grid = voxel_grid_sample(dls_points, voxel_size, voxel_sample_mode, get_voxel_grid=True)
+    #visualize_voxel_key_points(dls_voxel, dls_nb_points_per_voxel, "voxelized dls ")
+    
+    #write_data(tls_voxel, "voxel_tls")
+    #write_data(dls_voxel, "voxel_dls")
 
     # (layer_height, n, 3)
     '''
     voxel_layer = slice_voxel_data(dtm_voxel[index_dtm_bottom_voxel], layer_bot, layer_top, voxel_size, tls_voxel_grid)
+    
     print("> voxel_layer.shape =", voxel_layer.shape)
     print(">> voxel_mayer[0:20]", voxel_layer[0:20])
-    visualize_voxel_key_points(np.array(voxel_layer), voxel_layer, "what we want is here!", only_points=True)
+    visualize_voxel_key_points(voxel_layer, voxel_layer, "what we want is here!", only_points=True)
+    write_data(voxel_layer, "voxel_layer")
     '''
     layer_tls, layer_dls, nb_voxel_tls, nb_voxel_dls, nb_voxel_coi, coi_voxel = slice_voxel_data_and_find_coincidence(dtm_voxel[index_dtm_bottom_voxel], layer_bot, layer_top, voxel_size, tls_voxel_grid, dls_voxel_grid)
     print("> voxel_layer_tls.shape =", layer_tls.shape, "voxel_layer_dls.shape =", layer_dls.shape)
-    visualize_voxel_key_points(layer_tls, layer_tls, "voxel_layer_tls", only_points=True)
+    #visualize_voxel_key_points(layer_tls, layer_tls, "voxel_layer_tls", only_points=True)
     visualize_voxel_key_points(layer_dls, layer_dls, "voxel_layer_dls", only_points=True)
     visualize_voxel_key_points(coi_voxel, coi_voxel, "both", only_points=True)
-    print("> nb_voxel_tls={}, nb_voxel_dls={}, nb_voxel_coi={}, coi_rate={}".format(nb_voxel_tls, nb_voxel_dls, nb_voxel_coi,(nb_voxel_coi/(nb_voxel_tls+nb_voxel_dls-nb_voxel_coi))))
+
+    write_data(layer_tls, "layer_tls", x_min_overlap, y_min_overlap)
+    write_data(layer_dls, "layer_dls", x_min_overlap, y_min_overlap)
+    write_data(coi_voxel*voxel_size, "coi_voxel", x_min_overlap, y_min_overlap)
     

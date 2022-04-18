@@ -1,8 +1,10 @@
+import os
 import torch
 import laspy
 import numpy as np
 import seaborn as sns
 import matplotlib.pyplot as plt
+from datetime import datetime
 from mpl_toolkits import mplot3d
 
 # print info of the laspy data
@@ -50,7 +52,6 @@ def visualize_voxel_key_points(points, points_per_voxel, title, only_points=Fals
     Returns:
         None.
     '''
-    print(">>>>> shape", points.shape)
     sns.set(style = "darkgrid")
     ax = plt.axes(projection='3d')
     ax.set_title(title)
