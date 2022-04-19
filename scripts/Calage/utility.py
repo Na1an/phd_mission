@@ -29,7 +29,7 @@ def get_info(las):
 
     point_format = las.point_format
     print(">> Point format (las point format):", point_format.id)
-    print(">> Dimension names:", list(point_format.dimension_names), '\n')
+    print(">> Dimension names:", list(point_format.dimension_names))
 
     return x_min, x_max, y_min, y_max, z_min, z_max
 
@@ -128,5 +128,30 @@ def old_code():
         
     #print(tmp)
     print("\n###### End ######")
+    '''
+
+    #write_data(tls_voxel, "voxel_tls")
+    #write_data(dls_voxel, "voxel_dls")
+
+    # (layer_height, n, 3)
+    '''
+    voxel_layer = slice_voxel_data(dtm_voxel[index_dtm_bottom_voxel], layer_bot, layer_top, voxel_size, tls_voxel_grid)
+    
+    print("> voxel_layer.shape =", voxel_layer.shape)
+    print(">> voxel_mayer[0:20]", voxel_layer[0:20])
+    visualize_voxel_key_points(voxel_layer, voxel_layer, "what we want is here!", only_points=True)
+    write_data(voxel_layer, "voxel_layer")
+    '''
+    
+    '''
+    layer_tls, layer_dls, nb_voxel_tls, nb_voxel_dls, nb_voxel_coi, coi_voxel = slice_voxel_data_and_find_coincidence(dtm_voxel[index_dtm_bottom_voxel], layer_bot, layer_top, voxel_size, tls_voxel_grid, dls_voxel_grid)
+    print("> voxel_layer_tls.shape =", layer_tls.shape, "voxel_layer_dls.shape =", layer_dls.shape)
+    #visualize_voxel_key_points(layer_tls, layer_tls, "voxel_layer_tls", only_points=True)
+    visualize_voxel_key_points(layer_dls, layer_dls, "voxel_layer_dls", only_points=True)
+    visualize_voxel_key_points(coi_voxel, coi_voxel, "both", only_points=True)
+
+    write_data(layer_tls, "layer_tls", x_min_overlap, y_min_overlap)
+    write_data(layer_dls, "layer_dls", x_min_overlap, y_min_overlap)
+    write_data(coi_voxel*voxel_size, "coi_voxel", x_min_overlap, y_min_overlap)
     '''
     return None

@@ -12,6 +12,7 @@ if __name__ == "__main__":
     parser.add_argument("--voxel_size", help="The voxel size.", type=float, default=0.2)
     parser.add_argument("--layer_bot", help="The bottom of layer.", type=float, default=2.0)
     parser.add_argument("--layer_top", help="The top of layer.", type=float, default=8.0)
+    parser.add_argument("--slice_height", help="The height of each slice.", type=float, default=1.0)
     args = parser.parse_args()
 
     # take arguments
@@ -22,6 +23,7 @@ if __name__ == "__main__":
     voxel_size = args.voxel_size
     layer_bot = args.layer_bot
     layer_top = args.layer_top
+    slice_height = args.slice_height
     
     # set by default
     voxel_sample_mode = 'mc'
@@ -38,15 +40,17 @@ if __name__ == "__main__":
     print("> layer_bot_voxel={}, layer_top_voxel={}, voxel_height={}".format((layer_bot+0.000001)//voxel_size,(layer_top+0.000001)//voxel_size, ((layer_top-layer_bot)+0.000001)//voxel_size))
     #print("> voxel sample mode is:", voxel_sample_mode)
 
-    print("> input data dls_path:", dls_path)
+    print("> input data dls_path:", tls_path)
     tls_data_processed, x_min_t, x_max_t, y_min_t, y_max_t, z_min_t, z_max_t = read_data(tls_path, detail=True)
-    print("\n> tls_data_preprocess.shape =", tls_data_processed.shape)
-
+    print("> tls_data_preprocess.shape =", tls_data_processed.shape, '\n')
+    
+    print("> input data dls_path:", dls_path)
     dls_data_processed, x_min_d, x_max_d, y_min_d, y_max_d, z_min_d, z_max_d = read_data(dls_path, detail=True)
-    print("\n> dls_data_preprocess.shape =", dls_data_processed.shape)
+    print("> dls_data_preprocess.shape =", dls_data_processed.shape, '\n')
 
+    print("> input data dls_path:", dtm_path)
     dtm_data_processed, x_min, x_max, y_min, y_max, z_min, z_max = read_data(dtm_path, detail=True)
-    print("\n> dtm_data_preprocess.shape =", dtm_data_processed.shape)
+    print("> dtm_data_preprocess.shape =", dtm_data_processed.shape, '\n')
     
     
     # coordinates features
@@ -91,7 +95,7 @@ if __name__ == "__main__":
     
     # 3-2. find the bottom of the dtm
     index_dtm_bottom_voxel = bottom_voxel(dtm_voxel)
-    visualize_voxel_key_points(dtm_voxel[index_dtm_bottom_voxel], dtm_nb_points_per_voxel[index_dtm_bottom_voxel], "voxelized dtm bottom")
+    #visualize_voxel_key_points(dtm_voxel[index_dtm_bottom_voxel], dtm_nb_points_per_voxel[index_dtm_bottom_voxel], "voxelized dtm bottom")
     #write_data(dtm_voxel[index_dtm_bottom_voxel], "dtm_bottom")
 
     # 3-3 voxelize tls
@@ -112,6 +116,8 @@ if __name__ == "__main__":
     visualize_voxel_key_points(voxel_layer, voxel_layer, "what we want is here!", only_points=True)
     write_data(voxel_layer, "voxel_layer")
     '''
+    
+    '''
     layer_tls, layer_dls, nb_voxel_tls, nb_voxel_dls, nb_voxel_coi, coi_voxel = slice_voxel_data_and_find_coincidence(dtm_voxel[index_dtm_bottom_voxel], layer_bot, layer_top, voxel_size, tls_voxel_grid, dls_voxel_grid)
     print("> voxel_layer_tls.shape =", layer_tls.shape, "voxel_layer_dls.shape =", layer_dls.shape)
     #visualize_voxel_key_points(layer_tls, layer_tls, "voxel_layer_tls", only_points=True)
@@ -121,4 +127,6 @@ if __name__ == "__main__":
     write_data(layer_tls, "layer_tls", x_min_overlap, y_min_overlap)
     write_data(layer_dls, "layer_dls", x_min_overlap, y_min_overlap)
     write_data(coi_voxel*voxel_size, "coi_voxel", x_min_overlap, y_min_overlap)
-    
+    '''
+
+    plot_coi_rate(dtm_voxel[index_dtm_bottom_voxel], layer_bot, layer_top, voxel_size, tls_voxel_grid, dls_voxel_grid, slice_height, grid_size)

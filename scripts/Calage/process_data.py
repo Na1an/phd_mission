@@ -1,5 +1,4 @@
 from utility import *
-from torch.utils.data import Dataset, DataLoader
 
 # This function works for the preprocessing the (TLS) data
 def read_data(path, feature=None, detail=False):
@@ -169,15 +168,14 @@ def slice_voxel_data(bottom, layer_bot, layer_top, voxel_size, voxel_grid):
     
     res2 = []
     i = 0
-    for h in range(layer_bot_voxel, layer_top_voxel):
-        tmp = bottom.copy()
-        tmp[:,2] = tmp[:,2] + h
-        print(">> bottom[0:5]", bottom[0:5])
-        print(">> tmp[0:5]", tmp[0:5])
+    tmp = bottom.copy()
+    tmp[:,2] = tmp[:,2] + layer_bot_voxel
+    for h in range(0,layer_top_voxel- layer_bot_voxel):
         for x in tmp:
             # flatten/reshape maybe work?
             if tuple(x) in voxel_grid:
                 [res2.append(a) for a in voxel_grid[tuple(x)]]
+        tmp[:,2] = tmp[:,2] + 1
     
     return np.array(res2)
 
@@ -203,16 +201,12 @@ def slice_voxel_data_and_find_coincidence(bottom, layer_bot, layer_top, voxel_si
     layer_bot_voxel = int((layer_bot+0.000001)//voxel_size)
     layer_top_voxel = int(((layer_top+0.000001)//voxel_size)) + 1
     x_s, y_s = bottom.shape
-    
+    check = lambda x,y: 0 if y==0 else x/y
     print("layer_bot={}, layer_top={}, layer_bot_voxel={}, layer_top_voxel={}, voxel_size={}".format(layer_bot, layer_top, layer_bot_voxel, layer_top_voxel, voxel_size))
     
     #res 
-    tls_data = []
-    dls_data = []
-    nb_voxel_tls = 0
-    nb_voxel_dls = 0
-    nb_voxel_coi = 0
-    coi_voxel = []
+    coi_voxel, tls_data, dls_data = [], [], []
+    nb_voxel_coi, nb_voxel_tls, nb_voxel_dls = 0, 0, 0
 
     tmp = bottom.copy()
     tmp[:,2] = tmp[:,2] + layer_bot_voxel
@@ -232,12 +226,66 @@ def slice_voxel_data_and_find_coincidence(bottom, layer_bot, layer_top, voxel_si
     
     if show_coi_rate:
         print("\n> nb_voxel_tls={}, nb_voxel_dls={}, nb_voxel_coi={}".format(nb_voxel_tls, nb_voxel_dls, nb_voxel_coi))
-        print("> coi_rate={}".format(nb_voxel_coi/(nb_voxel_tls+nb_voxel_dls-nb_voxel_coi)))
-        print("> nb_voxel_coi/nb_voxel_tls ={}".format(nb_voxel_coi/nb_voxel_tls))
-        print("> nb_voxel_coi/nb_voxel_dls ={}".format(nb_voxel_coi/nb_voxel_dls))
+        print("> coi_rate={}".format(check(nb_voxel_coi, (nb_voxel_tls+nb_voxel_dls-nb_voxel_coi))))
+        print("> nb_voxel_coi/nb_voxel_tls ={}".format(check(nb_voxel_coi,nb_voxel_tls)))
+        print("> nb_voxel_coi/nb_voxel_dls ={}".format(check(nb_voxel_coi,nb_voxel_dls)))
 
     return np.array(tls_data), np.array(dls_data), nb_voxel_tls, nb_voxel_dls, nb_voxel_coi, np.array(coi_voxel)
+
+# draw coi_rate
+def plot_coi_rate(bottom, layer_bot, layer_top, voxel_size, tls_voxel_grid, dls_voxel_grid, slice_height, grid_size):
+    '''
+    Draw the plot.
+    Args:
+        bottom : (n,3) np.ndarray. The index, output of the bottom_voxel.
+        layer_bot : a float. The bottom of layer.
+        layer_top : a float. The top of layer.
+        voxel_size: a float. The voxel size.
+        voxel_grid_tls : a dict. Key is (x,y,z) voxel index. Value is the points in this voxel for TLS data.
+        voxel_grid_dls : a dict. Key is (x,y,z) voxel index. Value is the points in this voxel for DLS data.
+        slice_height : a float. The height of each slice.
+    Return:
+        None. 
+    '''
+    x_axis = []
+    nb_coi, nb_tls, nb_dls = [], [], []
+    coi_rate, coi_tls_rate, coi_dls_rate = [], [], []
+    check = lambda x,y: 0 if y==0 else x/y
+
+    for h in range(0, int(layer_top - layer_bot)):
+        #print(">> h={}".format(h))
+        print(">> layer_bot={}".format(layer_bot))
+        layer_tls, layer_dls, nb_voxel_tls, nb_voxel_dls, nb_voxel_coi, coi_voxel = slice_voxel_data_and_find_coincidence(bottom, layer_bot, layer_bot+slice_height, voxel_size, tls_voxel_grid, dls_voxel_grid)
+        nb_coi.append(nb_voxel_coi)
+        nb_tls.append(nb_voxel_tls)
+        nb_dls.append(nb_voxel_dls)
+        coi_rate.append(check(nb_voxel_coi, (nb_voxel_tls+nb_voxel_dls-nb_voxel_coi)))
+        coi_tls_rate.append(check(nb_voxel_coi,nb_voxel_tls))
+        coi_dls_rate.append(check(nb_voxel_coi,nb_voxel_dls))
+        x_axis.append(h)
+        layer_bot = layer_bot + 1
     
+    sns.set(style = "darkgrid")
+    
+    plt.title("Coi rate, slice height={}m, voxel_size={}m, grid_size={}m".format(slice_height, voxel_size, grid_size), fontsize=22)
+    plt.plot(x_axis, coi_rate, color="red", label="coi rate")
+    plt.plot(x_axis, coi_tls_rate, color="green", label="coi_tls_rate")
+    plt.plot(x_axis, coi_dls_rate, color="blue", label="coi_dls_rate")
+    plt.legend(fontsize=18)
+    plt.xlabel("different layer_bot height", fontsize=20)
+    plt.ylabel("rate", fontsize=20)
+    plt.show()
+
+    plt.title("Nb voxel, slice height={}m, voxel_size={}m, grid_size={}m".format(slice_height, voxel_size, grid_size), fontsize=22)
+    plt.plot(x_axis, nb_coi, color="red", label="nb_coi")
+    plt.plot(x_axis, nb_tls, color="green", label="nb_voxel_tls")
+    plt.plot(x_axis, nb_dls, color="blue", label="nb_voxel_dls")
+    plt.legend(fontsize=18)
+    plt.xlabel("different layer_bot height", fontsize=20)
+    plt.ylabel("nb_voxel", fontsize=20)
+    plt.show()
+
+
 ############################## abandoned ###############################
 # return the set of sliding window coordinates
 def sliding_window_naif(x_min, x_max, y_min, y_max, grid_size):
