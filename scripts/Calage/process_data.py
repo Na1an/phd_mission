@@ -37,6 +37,26 @@ def write_data(data, filename, x_min_overlap, y_min_overlap):
     
     return None
 
+# write data
+def write_data_bis(data, filename, x_min_overlap, y_min_overlap):
+    '''
+    Args:
+        data : a (n,3) np.ndarray. The points coordiantes!
+        filename : a string.
+    Returns:
+        None.
+    '''
+    new_file = laspy.create(point_format=2, file_version="1.2")
+    new_file.x = data[:,0] + x_min_overlap
+    new_file.y = data[:,1] + y_min_overlap
+    new_file.z = data[:,2]
+    new_file.classification = data[:,3]
+    path = os.getcwd()+"/"+ filename + datetime.now().strftime('%Y-%m-%d_%H-%M-%S') + ".las"
+    new_file.write(path)
+    print(">> data writed to:", path)
+    
+    return None
+
 # return the set of sliding window coordinates
 def sliding_window(x_min, x_max, y_min, y_max, grid_size):
     '''
@@ -268,10 +288,10 @@ def plot_coi_rate(bottom, layer_bot, layer_top, voxel_size, tls_voxel_grid, dls_
     sns.set(style = "darkgrid")
     
     plt.title("Coi rate, slice height={}m, voxel_size={}m, grid_size={}m".format(slice_height, voxel_size, grid_size), fontsize=22)
-    plt.plot(x_axis, coi_rate, color="red", label="coi rate")
-    plt.plot(x_axis, coi_tls_rate, color="green", label="coi_tls_rate")
-    plt.plot(x_axis, coi_dls_rate, color="blue", label="coi_dls_rate")
-    plt.legend(fontsize=18)
+    plt.plot(x_axis, coi_rate, color="red", label="coi_voxel/(tls_voxel+dls_voxel-coi_voxel)")
+    plt.plot(x_axis, coi_tls_rate, color="green", label="coi_voxel/tls_voxel")
+    plt.plot(x_axis, coi_dls_rate, color="blue", label="coi_voxel/dls_voxel")
+    plt.legend(fontsize=14)
     plt.xlabel("different layer_bot height", fontsize=20)
     plt.ylabel("rate", fontsize=20)
     plt.show()
@@ -285,7 +305,56 @@ def plot_coi_rate(bottom, layer_bot, layer_top, voxel_size, tls_voxel_grid, dls_
     plt.ylabel("nb_voxel", fontsize=20)
     plt.show()
 
+# get slice data
+def get_slice_data(bottom, layer_bot, layer_top, voxel_size, tls_voxel_grid, dls_voxel_grid, slice_height, x_min_overlap, y_min_overlap):
+    '''
+    Args:
+    Returns:
+    '''
+    print("\n>> save slice date")
+    
+    for h in range(1, int(np.floor((layer_top-layer_bot)/slice_height))):
+        l_bot = layer_bot+(h-1)*slice_height
+        l_top = layer_bot+h*slice_height
+        print(">> layer_bot={}, layer_top={}".format(l_bot, l_top))
+        layer_tls, layer_dls, nb_voxel_tls, nb_voxel_dls, nb_voxel_coi, coi_voxel = slice_voxel_data_and_find_coincidence(bottom, l_bot, l_top, voxel_size, tls_voxel_grid, dls_voxel_grid)
+        print("> voxel_layer_tls.shape =", layer_tls.shape, "voxel_layer_dls.shape =", layer_dls.shape)
+        #visualize_voxel_key_points(layer_tls, layer_tls, "voxel_layer_tls", only_points=True)
+        #visualize_voxel_key_points(layer_dls, layer_dls, "voxel_layer_dls", only_points=True)
+        #visualize_voxel_key_points(coi_voxel, coi_voxel, "both", only_points=True)
+        visualize_voxel_key_points(layer_tls, layer_tls, "voxel_layer_tls", only_points=True)
+        visualize_voxel_key_points(layer_dls, layer_dls, "voxel_layer_dls", only_points=True)
+        
+        write_data(layer_tls, "tls_layer_bot="+str(l_bot)+"_slice_h="+str(slice_height), x_min_overlap, y_min_overlap)
+        write_data(layer_dls, "dls_layer_bot="+str(l_bot)+"_slice_h="+str(slice_height), x_min_overlap, y_min_overlap)
+        write_data(coi_voxel*voxel_size, "coi_voxel_layer_bot="+str(l_bot)+"_slice_h="+str(slice_height), x_min_overlap, y_min_overlap)
 
+    return None
+
+# get slice data
+def get_slice_data_bis(bottom, layer_bot, layer_top, voxel_size, tls_voxel_grid, dls_voxel_grid, slice_height, x_min_overlap, y_min_overlap):
+    '''
+    Args:
+    Returns:
+    '''
+    nb_slice = np.ceil((layer_top - layer_bot)/slice_height)
+    heights = np.linspace(layer_bot, layer_top, int(nb_slice), endpoint=False)
+    print("\n>> save slice date, nb_slice={}".format(nb_slice))
+    for h in heights:
+        l_bot = h
+        l_top = h + slice_height
+        print(">> layer_bot={}, layer_top={}".format(l_bot, l_top))
+        layer_tls, layer_dls, nb_voxel_tls, nb_voxel_dls, nb_voxel_coi, coi_voxel = slice_voxel_data_and_find_coincidence(bottom, l_bot, l_top, voxel_size, tls_voxel_grid, dls_voxel_grid)
+        print("> voxel_layer_tls.shape =", layer_tls.shape, "voxel_layer_dls.shape =", layer_dls.shape)
+        #visualize_voxel_key_points(layer_tls, layer_tls, "voxel_layer_tls", only_points=True)
+        #visualize_voxel_key_points(layer_dls, layer_dls, "voxel_layer_dls", only_points=True)
+        #visualize_voxel_key_points(coi_voxel, coi_voxel, "both", only_points=True)
+
+        write_data(layer_tls, "tls_layer_bot="+str(l_bot)+"_slice_h="+str(slice_height), x_min_overlap, y_min_overlap)
+        write_data(layer_dls, "dls_layer_bot="+str(l_bot)+"_slice_h="+str(slice_height), x_min_overlap, y_min_overlap)
+        write_data(coi_voxel*voxel_size, "coi_voxel_layer_bot="+str(l_bot)+"_slice_h="+str(slice_height), x_min_overlap, y_min_overlap)
+
+    return None
 ############################## abandoned ###############################
 # return the set of sliding window coordinates
 def sliding_window_naif(x_min, x_max, y_min, y_max, grid_size):
