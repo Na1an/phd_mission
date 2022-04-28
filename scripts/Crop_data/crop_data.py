@@ -17,7 +17,7 @@ if __name__ == "__main__":
     print("> input data tls_path:", tls_path)
     print("> input data dls_path:", dls_path)
 
-    print("> input data dls_path:", tls_path)
+    print("> input data tls_path:", tls_path)
     tls_data_processed, x_min_t, x_max_t, y_min_t, y_max_t, z_min_t, z_max_t = read_data(tls_path, detail=True)
     print("> tls_data_preprocess.shape =", tls_data_processed.shape, '\n')
     
