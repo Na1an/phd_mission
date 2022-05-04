@@ -28,6 +28,10 @@ class PointWiseModel(nn.Module):
         self.nb_vox = self.x_v*self.y_v*self.z_v
 
         # define architecture here
+        self.actvn = nn.ReLU()
+        self.maxpool = nn.MaxPool3d(2)
+        
+
 
     # forward propagation
     def forward(self, input, query_points):

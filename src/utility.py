@@ -51,7 +51,7 @@ def visualize_voxel_key_points(points, points_per_voxel, title):
     '''
     ax = plt.axes(projection='3d')
     ax.set_title(title)
-    sc = ax.scatter(points[:,0], points[:,1], points[:,2], c=(points_per_voxel/np.max(points_per_voxel)), s=1)
+    sc = ax.scatter(points[:,0], points[:,1], points[:,2], c=(points_per_voxel/np.max(points_per_voxel)), s=20)
     #plt.gca().invert_xaxis()
     #plt.legend("nb points")
     plt.colorbar(sc, fraction=0.020, pad=0.04) 

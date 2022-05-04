@@ -59,7 +59,7 @@ class Trainer():
             # take n iterations to complete an epoch
             sum_loss = 0
             print("start {}-th epoch".format(i))
-
+            # todo
 
 
 
