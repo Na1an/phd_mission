@@ -112,7 +112,7 @@ def voxel_grid_sample(cuboid, voxel_size, mode):
     return np.array(res), np.array(nb_points_per_voxel), non_empty_voxel
 
 # for prepare dataset
-def prepare_dataset(data, coords_sw, grid_size, voxel_size, global_height, voxel_sample_mode, sample_size):
+def prepare_dataset(data, coords_sw, grid_size, voxel_size, global_height, voxel_sample_mode, sample_size, detail=False):
     '''
     Args:
         data: a numpy.ndarray (x,y,z,label). 
@@ -136,7 +136,7 @@ def prepare_dataset(data, coords_sw, grid_size, voxel_size, global_height, voxel
     
     # returns
     samples = []
-    sample_cuboid_index = []
+    sample_cuboid_index = {}
     voxel_skeleton_cuboid = {}
 
     w_nb = 0
@@ -152,33 +152,40 @@ def prepare_dataset(data, coords_sw, grid_size, voxel_size, global_height, voxel
 
             # find index of the data_preprocessed in this sliding window
             local_index = get_region_index(data, local_x, local_x+grid_size, local_y, local_y+grid_size)
-           
+            
             # shift points to local origin (0, 0, 0)
+            # zero-centered
             local_points = data[local_index]
-            local_z_min = np.min(local_points[:,2])
             local_points[:,0] = local_points[:,0] - local_x
             local_points[:,1] = local_points[:,1] - local_y
             local_points[:,2] = local_points[:,2] - np.min(local_points[:,2])
-            local_abs_height = np.max(local_points[:,2])
-            print(">>> local abs height :", local_abs_height)
-            print(">>> local data.shape :", local_points.shape)
-            print(">>> local data shifted")
+            local_abs_height = np.max(local_points[:,2]) - np.min(local_points[:,2])
+            local_points[:,:3] = local_points[:,:3] - np.mean(local_points[:, :3], axis=0) 
+            
+            if detail:
+                print(">>> local abs height :", local_abs_height)
+                print(">>> local data.shape :", local_points.shape)
+                print(">>> local_data (points in cuboid) zero-centered but no standardization/normalization")
             
             # voxelization
             key_points_in_voxel, nb_points_per_voxel, voxel = voxel_grid_sample(local_points, voxel_size, voxel_sample_mode)
-            #print(">> voxel.shape :",voxel.shape, "should be equal to: ({},{},{})".format(cub_s_nb, cub_s_nb, cub_h_nb))
-            #print(">>>>>>>>>>>>>>>>> voxel[0:10]", voxel[0:10])
             voxel_skeleton_cuboid[w_nb] = voxel
+            #visualize_voxel_key_points(voxel, nb_points_per_voxel, "TLS voxelized data")
 
             # the number of local_points
             nb_local_points = len(local_points)
             tmp_nb_sample = int(nb_local_points/sample_size)
             
-            print(">>> nb_sample={}".format(nb_sample))
+            #print(">>> nb_sample={}".format(nb_sample))
             # set sample_cuboid_index
-            [sample_cuboid_index.append([i_s, w_nb]) for i_s in range(nb_sample, nb_sample+tmp_nb_sample)]
+            #[sample_cuboid_index.append([i_s, w_nb]) for i_s in range(nb_sample, nb_sample+tmp_nb_sample)]
+            
+            for i_s in range(nb_sample, nb_sample+tmp_nb_sample):
+                sample_cuboid_index[i_s] = w_nb
+            
             nb_sample = nb_sample + tmp_nb_sample
-            print(">>> tmp_nb_sample={}, nb_sample+tmp={}".format(tmp_nb_sample, nb_sample))
+            if detail:
+                print(">>> tmp_nb_sample={}, nb_sample+tmp={}".format(tmp_nb_sample, nb_sample))
 
             # set samples
             np.random.shuffle(local_points)
@@ -187,9 +194,27 @@ def prepare_dataset(data, coords_sw, grid_size, voxel_size, global_height, voxel
 
             #print(">> nb_points_per_voxel.shape :",nb_points_per_voxel.shape)
             w_nb = w_nb + 1
+            
+    return np.array(samples), sample_cuboid_index, voxel_skeleton_cuboid
 
-    return np.array(samples), np.array(sample_cuboid_index), voxel_skeleton_cuboid
+# analyse
+def analyse_voxel_in_cuboid(voxel_skeleton_cuboid, h, side):
+    '''
+    print("len(voxel_skeleton_cuboid) =", len(voxel_skeleton_cuboid), " ", type(voxel_skeleton_cuboid))
+    print("v_k_c[0]=type",type(voxel_skeleton_cuboid[0]))
+    print("v_k_c[0]=",voxel_skeleton_cuboid[0])
+    '''
+    print(">> voxel_net, h={} side={}".format(h,side))
+    nb_cuboid = len(voxel_skeleton_cuboid)
+    print(voxel_skeleton_cuboid[0].shape)
+    res = np.zeros([nb_cuboid, side, side, h])
+    for k,v in voxel_skeleton_cuboid.items():
+        #print("k=",k, "y.shape=", v.shape)
+        for c in v:
+            x,y,z = c
+            res[k,x,y,z] = 1
 
+    return res
 
 ############################## abandoned ###############################
 # return the set of sliding window coordinates
