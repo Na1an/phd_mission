@@ -16,6 +16,7 @@ class PointWiseModel(nn.Module):
         # define architecture here
         self.actvn = nn.ReLU()
         self.maxpool = nn.MaxPool3d(2)
+        self.show_net_shape = False
         
         #nn.Conv3d(N batch_size, Cin 输入图像通道数, D深度/高度, H图像高, W图像宽, padding=1)
         # 给voxel skeleton准备的net，只为提取feature
@@ -62,41 +63,95 @@ class PointWiseModel(nn.Module):
     def forward(self, p, v):
         '''
         Args:
-            input : a 3d pytorch tensor.
+            p: points, a 3d pytorch tensor.
+            v: voxel net.
         Returns: 
             None.
         '''
-        print(">>>> so we start our forward")
         
         v = v.unsqueeze(1)
+        v = torch.permute(v, dims=[0,1,4,2,3])
         p = p.unsqueeze(1).unsqueeze(1)
+        p = torch.cat([p + d for d in self.displacments], dim=2)
+        '''
         print("what is points, p.shape={}".format(p.shape))
         print("what is v_cuboid, v.shape={}".format(v.shape))
-
-        print("<<<< maybe end here")
+        '''
         
-        
-        # apply all layers here
+        # feature_0
+        feature_0 = F.grid_sample(v, p)
+        net = self.actvn(self.conv_1(v))
+        net = self.actvn(self.conv_1_1(net))
+        net = self.conv1_1_bn(net)
+        '''
+        print("feature_0.shape", feature_0.shape) # feature_0.shape torch.Size([4, 1, 1, 7, 5000])
+        print("after first conv_1, net=", net.shape)
+        print("after first conv_1_1, net=", net.shape)
+        '''
 
+        # feature_1
+        feature_1 = F.grid_sample(net, p)  # out : (B,C (of x), 1,1,sample_num)
+        net = self.maxpool(net)
+        net = self.actvn(self.conv_2(net))
+        net = self.actvn(self.conv_2_1(net))
+        net = self.conv2_1_bn(net)
+        '''
+        print("feature_1.shape {}".format(feature_1.shape))
+        print("after first conv_2, net=", net.shape)
+        print("after first conv_2_1, net=", net.shape)
+        '''
+
+        # feature_3
+        feature_2 = F.grid_sample(net, p)
+        net = self.maxpool(net)
+        net = self.actvn(self.conv_3(net))
+        net = self.actvn(self.conv_3_1(net))
+        net = self.conv3_1_bn(net)
+        '''
+        print("feature_2.shape {}".format(feature_2.shape))
+        print("after first conv_3, net=", net.shape)
+        print("after first conv_3_1, net=", net.shape)
+        '''
+
+        # feature_3
+        feature_3 = F.grid_sample(net, p)
+
+        # here every channel corresponse to one feature.
+        features = torch.cat((feature_0, feature_1, feature_2, feature_3), dim=1)  # (B, features, 1,7,sample_num)
+        shape = features.shape
+        features = torch.reshape(features, (shape[0], shape[1] * shape[3], shape[4]))  # (B, featues_per_sample, samples_num)
+        
+        '''
+        #features = torch.cat((features, p_features), dim=1)  # (B, featue_size, samples_num)
+        print("feature_3.shape {}".format(feature_3.shape))
+        print("features.shape {}".format(features.shape))
+        print("features.shape {}".format(features.shape))
+        '''
+
+        net = self.actvn(self.fc_0(features))
+        net = self.actvn(self.fc_1(net))
+        net = self.actvn(self.fc_2(net))
+        net = self.fc_out(net)
+        out = net.squeeze(1)
+        '''
+        print("out shape:", out.shape)
+        print("out is {}", out)
+        '''
+
+        '''
+        feature_0.shape torch.Size([4, 1, 1, 7, 5000])
+        after first conv_1, net= torch.Size([4, 32, 100, 10, 10])
+        after first conv_1_1, net= torch.Size([4, 64, 100, 10, 10])
+        feature_1.shape torch.Size([4, 64, 1, 7, 5000])
+        after first conv_2, net= torch.Size([4, 128, 50, 5, 5])
+        after first conv_2_1, net= torch.Size([4, 128, 50, 5, 5])
+        feature_2.shape torch.Size([4, 128, 1, 7, 5000])
+        after first conv_3, net= torch.Size([4, 128, 25, 2, 2])
+        after first conv_3_1, net= torch.Size([4, 128, 25, 2, 2])
+        feature_3.shape torch.Size([4, 128, 1, 7, 5000])
+        features.shape torch.Size([4, 321, 1, 7, 5000])
+        features.shape torch.Size([4, 2247, 5000])
+        out shape: torch.Size([4, 5000])
+        '''
+        return out
     
-
-''' 
-def old_code():
-    grid_size : a interger/float. The side length of a grid.
-            voxel_size : a float. The resolution of the voxel. 
-            global_height : a float. The max height of the raw data.
-            device : a string. Tensor mode "cpu" or "gpu".
-            hidden_dim : no idea for the moment.
-        self.grid_size = grid_size
-        self.voxel_size = voxel_size
-        self.global_height = global_height
-        
-        self.x_v = int((grid_size+0.000000000001)//voxel_size)
-        self.y_v = int((grid_size+0.000000000001)//voxel_size)
-        self.z_v = int((global_height+0.000000000001)//voxel_size)
-        self.nb_vox = self.x_v*self.y_v*self.z_v
-    # show voxel shape
-    def show_voxel_shape(self):
-        print("model: x_v=", self.x_v, "y_v=",self.y_v, "z_v=",self.z_v, " -> nb_vox=", self.nb_vox)
-        return None
-'''

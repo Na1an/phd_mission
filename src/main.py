@@ -12,6 +12,7 @@ if __name__ == "__main__":
     parser.add_argument("--grid_size", help="The sliding window size.", type=float, default=5.0)
     parser.add_argument("--voxel_size", help="The voxel size.", type=float, default=0.2)
     parser.add_argument("--sample_size", help="The sample size : number of points in one-time training.", type=int, default=5000)
+    parser.add_argument("--nb_epoch", help="The epoch number.", type=int, default=300)
     args = parser.parse_args()
 
     # take arguments
@@ -19,6 +20,7 @@ if __name__ == "__main__":
     grid_size = args.grid_size
     voxel_size = args.voxel_size
     sample_size = args.sample_size
+    nb_epoch = args.nb_epoch
 
     # set by default
     voxel_sample_mode = 'mc'
@@ -30,6 +32,37 @@ if __name__ == "__main__":
         my_device = torch.device('cpu')
     print('> Device : {}'.format(my_device))
 
+    
+    # (2) prepare train dataset and validation dataset
+    samples_train, sample_cuboid_index_train, train_voxel_nets = prepare_procedure(raw_data_path, grid_size, voxel_size, voxel_sample_mode, sample_size, detail=True)
+    train_dataset = TrainDataSet(samples_train, sample_cuboid_index_train, my_device)
+    train_dataset.show_info()
+    
+    samples_val, sample_cuboid_index_val, val_voxel_nets = prepare_procedure(raw_data_path, grid_size, voxel_size, voxel_sample_mode, sample_size, detail=True)
+    val_dataset = TrainDataSet(samples, sample_cuboid_index, my_device)
+    val_dataset.show_info()
+
+    # (3) create model and trainning
+
+    # create a model
+    global_height = z_max - z_min # the absolute height, set to 50 for the moment
+    my_model = PointWiseModel()
+
+    my_trainer = Trainer(
+                my_model, 
+                my_device, 
+                train_dataset=train_dataset,
+                train_voxel_nets=train_voxel_nets,
+                val_dataset=val_dataset,
+                val_voxel_nets=val_voxel_nets,
+                batch_size=4,
+                num_workers=0)
+
+    my_trainer.train_model(nb_epoch=nb_epoch)
+    
+    print("\n###### End ######")
+
+'''
     # (1) preprocess data and get set of sliding window coordinates
     print("> input data:", raw_data_path)
     data_preprocessed, x_min, x_max, y_min, y_max, z_min, z_max = read_data(raw_data_path, "llabel", detail=True)
@@ -56,26 +89,5 @@ if __name__ == "__main__":
     unique,count = np.unique(voxel_nets, return_counts=True)
     data_count = dict(zip(unique, count))
     print("> data_count", data_count)
-    
-    # (2) put processed data to the TrainDataSet
-    train_dataset = TrainDataSet(samples, sample_cuboid_index, my_device)
-    train_dataset.show_info()
-
-    # (3) create model andtrainning
-
-    # create a model
-    global_height = z_max - z_min # the absolute height, set to 50 for the moment
-    my_model = PointWiseModel()
-
-    my_trainer = Trainer(
-                my_model, 
-                my_device, 
-                train_dataset=train_dataset, 
-                batch_size=4,
-                voxel_nets=voxel_nets,
-                num_workers=0)
-
-    my_trainer.train_model(nb_epoch=1)
-    
-    print("\n###### End ######")
+'''
         

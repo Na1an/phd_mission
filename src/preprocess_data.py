@@ -216,6 +216,46 @@ def analyse_voxel_in_cuboid(voxel_skeleton_cuboid, h, side):
 
     return res
 
+def prepare_procedure(path, grid_size, voxel_size, voxel_sample_mode, sample_size, detail=False):
+    '''
+    Args:
+        path : raw_data_path. The path of training/validation/test file.
+        detail : a bool. If we want to show the details below.
+    Returns:
+    '''
+    # (1) preprocess data and get set of sliding window coordinates
+    print("> input data:", path)
+    data_preprocessed, x_min, x_max, y_min, y_max, z_min, z_max = read_data(path, "llabel", detail=True)
+    print("\n> data_preprocess.shape =", data_preprocessed.shape)
+    
+    # sliding window
+    coords_sw = sliding_window(0, x_max - x_min, 0, y_max - y_min, grid_size)
+    (d1,d2,_) = coords_sw.shape
+    nb_cuboid = d1 * d2
+    #print("> coords.shape={}, size={}".format(coords_sw.shape, coords_sw.size))
+    
+    #global_height = z_max - z_min
+    global_height = 50
+    samples, sample_cuboid_index, voxel_skeleton_cuboid = prepare_dataset(data_preprocessed, coords_sw, grid_size, voxel_size, global_height, voxel_sample_mode, sample_size, detail=False)
+    print(">>> samples.shape={}, sample_cuboid_index.shape={}, voxel_skele.len={}".format(samples.shape, len(sample_cuboid_index), len(voxel_skeleton_cuboid)))
+    
+    voxel_nets = analyse_voxel_in_cuboid(voxel_skeleton_cuboid, int(global_height/voxel_size), int(grid_size/voxel_size))
+    
+    unique,count = np.unique(voxel_nets, return_counts=True)
+    data_count = dict(zip(unique, count))
+    
+    if detail:
+        print("> grid_size:", grid_size)
+        print("> voxel_size:", voxel_size)
+        print("> voxel sample mode is:", voxel_sample_mode)
+        print("len(voxel_skeleton_cuboid) =", len(voxel_skeleton_cuboid), " ", type(voxel_skeleton_cuboid))
+        print("v_k_c[0]=type",type(voxel_skeleton_cuboid[0]))
+        print("v_k_c[0]=",voxel_skeleton_cuboid[0])
+        print("voxel_nets.shape=", voxel_nets.shape)
+        print("> data_count", data_count)
+
+    return samples, sample_cuboid_index, voxel_nets
+
 ############################## abandoned ###############################
 # return the set of sliding window coordinates
 def sliding_window_naif(x_min, x_max, y_min, y_max, grid_size):

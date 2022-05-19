@@ -1,3 +1,4 @@
+import os
 import torch
 import laspy
 import numpy as np
@@ -59,6 +60,10 @@ def visualize_voxel_key_points(points, points_per_voxel, title):
     
     return None
 
+# get current directory path
+def get_current_direct_path():
+    return os.path.dirname(os.path.abspath(__file__))
+    
 # to do
 # setting device
 def setting_device():
