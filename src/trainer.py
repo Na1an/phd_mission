@@ -99,13 +99,6 @@ class Trainer():
                 tmp_loss.backward()
                 self.optimizer.step()
 
-                '''
-                print("label.shape = {}, label = {}".format(label.shape, label))
-                print("preds.shape = {}, preds = {}".format(preds.shape, preds))
-                print("preds == label", torch.eq(preds, label))
-                print("preds == label", torch.eq(preds, label).sum())
-                print("preds == label", torch.eq(preds, label).sum().item())
-                '''
                 preds = (logits>0.5).float()
                 num_correct = torch.eq(preds, label).sum().item()/self.batch_size
                 epoch_loss = epoch_loss + tmp_loss.item()
