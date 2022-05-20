@@ -190,7 +190,7 @@ def prepare_dataset(data, coords_sw, grid_size, voxel_size, global_height, voxel
             if detail:
                 print(">>> local abs height :", local_abs_height)
                 print(">>> local data.shape :", local_points.shape)
-                print(">>> local_data (points in cuboid) zero-centered but no standardization/normalization")
+                print(">>> local_data (points in cuboid) zero-centered and no standardization/normalization")
             
             # voxelization
             key_points_in_voxel, nb_points_per_voxel, voxel = voxel_grid_sample(local_points, voxel_size, voxel_sample_mode)

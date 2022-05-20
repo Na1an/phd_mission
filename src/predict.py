@@ -36,7 +36,7 @@ if __name__ == "__main__":
 
     
     # (2) prepare train dataset and validation dataset
-    samples_test, sample_cuboid_index_test, train_voxel_nets, sw = prepare_procedure_predict(data_path, grid_size, voxel_size, voxel_sample_mode, sample_size, label_name="llabel", detail=True, naif_sliding=True)
+    samples_test, sample_cuboid_index_test, train_voxel_nets, sw = prepare_procedure_predict(data_path, grid_size, voxel_size, voxel_sample_mode, sample_size, label_name="llabel", detail=False, naif_sliding=True)
     test_dataset = TestDataSet(samples_test, sample_cuboid_index_test, device=my_device)
     test_dataset.show_info()
     
@@ -61,22 +61,12 @@ if __name__ == "__main__":
         new_file.x = points[:,0] + adjust_x + local_x
         new_file.y = points[:,1] + adjust_y + local_y
         new_file.z = points[:,2] + adjust_z + local_z
-        # realign points done
-        #points[:,0] = points[:,0] + adjust_x + local_x
-        #points[:,1] = points[:,1] + adjust_y + local_y
-        #points[:,2] = points[:,2] + adjust_z + local_z
+
         las.points = new_file.points
         las['llabel'] = predict.cpu().detach().numpy()
         las.write(os.getcwd()+"/predict_res/res_{:04}.las".format(i))
         i = i+1
-    
-    '''
-    las = read_header(folder_path)
-    res = las
-    res.points = las[np.where(las['WL']>0)]
-    res['WL'][np.where(res['WL']==1)] = 4
-    res.write(os.getcwd()+"/new_file.las")
-    '''
+        print(">>> cube - N°{} predicted ".format(i))
 
     print("\n###### End ######")
         
