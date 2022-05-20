@@ -42,6 +42,8 @@ class PointWiseModel(nn.Module):
         self.fc_0 = nn.Conv1d(feature_size, hidden_dim*2, 1)
         self.fc_1 = nn.Conv1d(hidden_dim*2, hidden_dim, 1)
         self.fc_2 = nn.Conv1d(hidden_dim, hidden_dim, 1)
+        #self.fc_out = nn.Conv1d(hidden_dim, num_classes, 1)
+        # plus log_softmax, x = F.log_softmax(x, dim=1), we will have a more flexible model -> predict more class 
         self.fc_out = nn.Conv1d(hidden_dim, 1, 1)
 
         self.conv1_1_bn = nn.BatchNorm3d(64)

@@ -17,6 +17,31 @@ def read_data(path, feature, detail=False):
 
     return data, x_min, x_max, y_min, y_max, z_min, z_max
 
+# read header
+def read_header(path, detail=True):
+    '''
+    Args:
+        path : a string. The path of file.
+        detail : a boolean. If we want to see the details.
+    Returns:
+        The file's header and data. (and VLRS if it has)
+    '''
+    print("\n> Reading data from :", path)
+
+    las = laspy.read(path)
+    nb_points = las.header.point_count
+    point_format = las.point_format
+
+    if detail:
+        print(">> Point of Data Format:", las)
+        print(">> min: x,y,z", np.min(las.x), np.min(las.y), np.min(las.z))
+        print(">> max: x,y,z", np.max(las.x), np.max(las.y), np.max(las.z))
+        print(">> Number of points:", nb_points)
+        print(">> LAS File Format:", point_format.id)
+        print(">> Dimension names:", list(point_format.dimension_names))
+
+    return laspy.read(path)
+
 # return the set of sliding window coordinates
 def sliding_window(x_min, x_max, y_min, y_max, grid_size):
     '''
@@ -216,7 +241,7 @@ def analyse_voxel_in_cuboid(voxel_skeleton_cuboid, h, side):
 
     return res
 
-def prepare_procedure(path, grid_size, voxel_size, voxel_sample_mode, sample_size, detail=False):
+def prepare_procedure(path, grid_size, voxel_size, voxel_sample_mode, sample_size, label_name="llabel", detail=False, naif_sliding=False):
     '''
     Args:
         path : raw_data_path. The path of training/validation/test file.
@@ -225,18 +250,23 @@ def prepare_procedure(path, grid_size, voxel_size, voxel_sample_mode, sample_siz
     '''
     # (1) preprocess data and get set of sliding window coordinates
     print("> input data:", path)
-    data_preprocessed, x_min, x_max, y_min, y_max, z_min, z_max = read_data(path, "llabel", detail=True)
+    data_preprocessed, x_min, x_max, y_min, y_max, z_min, z_max = read_data(path, label_name, detail=True)
     print("\n> data_preprocess.shape =", data_preprocessed.shape)
     
     # sliding window
-    coords_sw = sliding_window(0, x_max - x_min, 0, y_max - y_min, grid_size)
+    if naif_sliding:
+        print(">> ok, we do naif sliding")
+        coords_sw = sliding_window_naif(0, x_max - x_min, 0, y_max - y_min, grid_size)
+    else:
+        coords_sw = sliding_window(0, x_max - x_min, 0, y_max - y_min, grid_size)
+
     (d1,d2,_) = coords_sw.shape
     nb_cuboid = d1 * d2
     #print("> coords.shape={}, size={}".format(coords_sw.shape, coords_sw.size))
     
     #global_height = z_max - z_min
     global_height = 50
-    samples, sample_cuboid_index, voxel_skeleton_cuboid = prepare_dataset(data_preprocessed, coords_sw, grid_size, voxel_size, global_height, voxel_sample_mode, sample_size, detail=False)
+    samples, sample_cuboid_index, voxel_skeleton_cuboid = prepare_dataset(data_preprocessed, coords_sw, grid_size, voxel_size, global_height, voxel_sample_mode, sample_size, detail=detail)
     print(">>> samples.shape={}, sample_cuboid_index.shape={}, voxel_skele.len={}".format(samples.shape, len(sample_cuboid_index), len(voxel_skeleton_cuboid)))
     
     voxel_nets = analyse_voxel_in_cuboid(voxel_skeleton_cuboid, int(global_height/voxel_size), int(grid_size/voxel_size))
@@ -267,13 +297,151 @@ def sliding_window_naif(x_min, x_max, y_min, y_max, grid_size):
         res : a list of 2-d coordinates (x,y). The set of grid coordinates.
     '''
 
-    divide_x = np.ceil((x_max - x_min)/grid_size)
-    divide_y = np.ceil((y_max - y_min)/grid_size)
-    coor_x = np.linspace(x_min, x_max, int(divide_x), endpoint=False)
-    coor_y = np.linspace(y_min, y_max, int(divide_y), endpoint=False)
+    divide_x = np.floor((x_max - x_min)/grid_size)
+    divide_y = np.floor((y_max - y_min)/grid_size)
+    coor_x = np.arange(0,divide_x) * grid_size
+    coor_y = np.arange(0,divide_y) * grid_size
     mesh_x, mesh_y = np.meshgrid(coor_x, coor_y)
     
     return np.stack((mesh_x,mesh_y), 2)
+
+# predict version
+def prepare_dataset_predict(data, coords_sw, grid_size, voxel_size, global_height, voxel_sample_mode, sample_size, detail=False):
+    '''
+    Args:
+        data: a numpy.ndarray (x,y,z,label). 
+        coords_sw: (cuboid_x, cuboid_y, 2). The coordinates of sliding window.
+        grid_size: The cuboid length and width.
+        voxel_size: The voxel size.
+        global_height: a float. The global height, our cuboid height.
+        voxel_sample_mode: a string. mc or cmc.
+        sample_size: how many points in a sample.
+    Returns:
+        samples: (nb_sample, 5000, 4 :x + y + z + label).
+        sample_cuboid_index: (nb_sample, index of nb_cuboid).
+        voxel_skeleton_cuboid: (nb_voxel, 4:x+y+z+[1 or 0]).
+    '''
+
+    # get voxel_skeleton_cuboid
+    (coord_x,coord_y,_) = coords_sw.shape
+    nb_cuboid = coord_x * coord_y
+    cub_s_nb = int(grid_size/voxel_size)
+    cub_h_nb = int(global_height/voxel_size)
+    
+    # returns
+    samples = []
+    sample_cuboid_index = {}
+    voxel_skeleton_cuboid = {}
+
+    w_nb = 0
+    nb_sample = 0
+    sw = []
+    index_sw = 0
+    for i in range(coord_x):
+        for j in range(coord_y):
+            
+            # (1) cut data to cubes
+            # local origin
+            local_x, local_y = coords_sw[i, j]
+            print("\n>> sliding window n°", w_nb, "bottom left coordinate :(",local_x, ',',local_y,')')
+
+            # find index of the data_preprocessed in this sliding window
+            local_index = get_region_index(data, local_x, local_x+grid_size, local_y, local_y+grid_size)
+            
+            # shift points to local origin (0, 0, 0)
+            # zero-centered
+            local_points = data[local_index]
+            local_z = np.min(local_points[:,2])
+            local_points[:,0] = local_points[:,0] - local_x
+            local_points[:,1] = local_points[:,1] - local_y
+            local_points[:,2] = local_points[:,2] - local_z
+            local_abs_height = np.max(local_points[:,2]) - local_z
+            adjust = np.mean(local_points[:, :3], axis=0) 
+            local_points[:,:3] = local_points[:,:3] - adjust
+            
+            sw.append((local_x, local_y, local_z, adjust[0], adjust[1], adjust[2]))
+            local_points[:,3] = index_sw
+            index_sw = index_sw + 1
+
+            if detail:
+                print(">>> local abs height :", local_abs_height)
+                print(">>> local data.shape :", local_points.shape)
+                print(">>> local_data (points in cuboid) zero-centered but no standardization/normalization")
+            
+            # voxelization
+            key_points_in_voxel, nb_points_per_voxel, voxel = voxel_grid_sample(local_points, voxel_size, voxel_sample_mode)
+            voxel_skeleton_cuboid[w_nb] = voxel
+            #visualize_voxel_key_points(voxel, nb_points_per_voxel, "TLS voxelized data")
+
+            # the number of local_points
+            nb_local_points = len(local_points)
+            tmp_nb_sample = int(nb_local_points/sample_size)
+            
+            #print(">>> nb_sample={}".format(nb_sample))
+            # set sample_cuboid_index
+            #[sample_cuboid_index.append([i_s, w_nb]) for i_s in range(nb_sample, nb_sample+tmp_nb_sample)]
+            
+            for i_s in range(nb_sample, nb_sample+tmp_nb_sample):
+                sample_cuboid_index[i_s] = w_nb
+            
+            nb_sample = nb_sample + tmp_nb_sample
+            if detail:
+                print(">>> tmp_nb_sample={}, nb_sample+tmp={}".format(tmp_nb_sample, nb_sample))
+
+            # set samples
+            np.random.shuffle(local_points)
+            tmp_samples = [local_points[sample_size*i_t:sample_size*(i_t+1)] for i_t in range(tmp_nb_sample)]
+            [samples.append(item) for item in tmp_samples]
+
+            #print(">> nb_points_per_voxel.shape :",nb_points_per_voxel.shape)
+            w_nb = w_nb + 1
+            
+    return np.array(samples), sample_cuboid_index, voxel_skeleton_cuboid, sw
+
+def prepare_procedure_predict(path, grid_size, voxel_size, voxel_sample_mode, sample_size, label_name="llabel", detail=False, naif_sliding=False):
+    '''
+    Args:
+        path : raw_data_path. The path of training/validation/test file.
+        detail : a bool. If we want to show the details below.
+    Returns:
+        sw : now, the label dim (3) of samples is the index of sliding window information, will be changed later.
+    '''
+    # (1) preprocess data and get set of sliding window coordinates
+    print("> input data:", path)
+    data_preprocessed, x_min, x_max, y_min, y_max, z_min, z_max = read_data(path, label_name, detail=True)
+    print("\n> data_preprocess.shape =", data_preprocessed.shape)
+    
+    # sliding window
+    if naif_sliding:
+        print(">> ok, we do naif sliding")
+        coords_sw = sliding_window_naif(0, x_max - x_min, 0, y_max - y_min, grid_size)
+    else:
+        coords_sw = sliding_window(0, x_max - x_min, 0, y_max - y_min, grid_size)
+
+    (d1,d2,_) = coords_sw.shape
+    nb_cuboid = d1 * d2
+    #print("> coords.shape={}, size={}".format(coords_sw.shape, coords_sw.size))
+    
+    global_height = 50
+    samples, sample_cuboid_index, voxel_skeleton_cuboid, sw = prepare_dataset_predict(data_preprocessed, coords_sw, grid_size, voxel_size, global_height, voxel_sample_mode, sample_size, detail=detail)
+    print(">>> samples.shape={}, sample_cuboid_index.shape={}, voxel_skele.len={}".format(samples.shape, len(sample_cuboid_index), len(voxel_skeleton_cuboid)))
+    
+    voxel_nets = analyse_voxel_in_cuboid(voxel_skeleton_cuboid, int(global_height/voxel_size), int(grid_size/voxel_size))
+    
+    unique,count = np.unique(voxel_nets, return_counts=True)
+    data_count = dict(zip(unique, count))
+    
+    if detail:
+        print("> grid_size:", grid_size)
+        print("> voxel_size:", voxel_size)
+        print("> voxel sample mode is:", voxel_sample_mode)
+        print("len(voxel_skeleton_cuboid) =", len(voxel_skeleton_cuboid), " ", type(voxel_skeleton_cuboid))
+        print("v_k_c[0]=type",type(voxel_skeleton_cuboid[0]))
+        print("v_k_c[0]=",voxel_skeleton_cuboid[0])
+        print("voxel_nets.shape=", voxel_nets.shape)
+        print("> data_count", data_count)
+
+    return samples, sample_cuboid_index, voxel_nets, sw
 
 def old_code_befor_0405():
         # to do : add more overlap between the cubes
@@ -332,6 +500,5 @@ def old_code_befor_0405():
             
             # (3) feed it to the model
             #my_trainer.train_model(nb_epoch, local_points, voxel_skeleton)
-
 
 

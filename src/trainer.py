@@ -6,7 +6,7 @@ from glob import glob
 from torch.utils.data import DataLoader
 
 class Trainer():
-    def __init__(self, model, device, train_dataset, train_voxel_nets, val_dataset, val_voxel_nets, batch_size, num_workers, shuffle=True, opt="Adam"):
+    def __init__(self, model, device, train_dataset, train_voxel_nets, val_dataset, val_voxel_nets, batch_size, sample_size, predict_threshold, num_workers, shuffle=True, opt="Adam"):
         '''
         Args:
             model: the Deep Learning model.
@@ -44,8 +44,19 @@ class Trainer():
         else:
             print(">> So gradient clipping folder exist, the path is:", self.checkpoint_path)
         # gradient_clipping
-        self.val_loss = None
+        self.val_min = None
+        self.threshold = predict_threshold
+        self.sample_size = sample_size
+        self.batch_size = batch_size
 
+    # this is a cute function for calculating the loss
+    def compute_loss(points, label, voxel_net):
+        loss = 0 
+        output = self.model(points, self.train_voxel_nets[voxel_net])
+        tmp_loss = nn.functional.binary_cross_entropy_with_logits(output, label)
+        return loss
+
+    # let's train it!
     def train_model(self, nb_epoch=200):
         '''
         Args:
@@ -55,43 +66,52 @@ class Trainer():
         Return:
             None.
         '''
-        epoch_loss=0 # 为了compute_loss()
-        #epoch_acc=0
+        print("len(self.train_loader.dataset=", len(self.train_loader.dataset))
         start = self.load_checkpoint()
-
-        for e in range(start, nb_epoch):
-            self.model.train() # tell torch we are traning
+        for e in range(start, nb_epoch):            
             print('======= Start epoch {} ============='.format(e))
             epoch_loss = 0.0
+            epoch_acc = 0.0
+            num_correct= 0
 
             if e % 1 == 0:
                 self.save_checkpoint(e)
-                val_loss = self.compute_val_loss()
+                val_loss, predict_correct = self.compute_val_loss()
 
-                if self.val_loss is None:
-                    self.val_loss = val_loss 
+                if self.val_min is None:
+                    self.val_min = val_loss 
 
-                if val_loss < self.val_loss:
-                    self.val_loss = val_loss
-                    for path in glob(self.gradient_clipping_path + '/val_loss=*'):
+                if val_loss < self.val_min:
+                    self.val_min = val_loss
+                    for path in glob(self.gradient_clipping_path + '/val_min=*'):
                         os.remove(path)
-                    np.save(self.gradient_clipping_path + '/val_loss={}'.format(e),[e,val_loss])
-                
+                    np.save(self.gradient_clipping_path + '/val_min={}'.format(e),[e,val_loss])
+
+                print("<<Epoch {}>> - val loss average {} - val accuracy average {}".format(e, val_loss, predict_correct/self.sample_size))
+
             # points, labels, v_cuboid
             for points, label, voxel_net in self.train_loader:
-                
+                self.model.train() # tell torch we are traning
                 self.optimizer.zero_grad()
-                output = self.model(points, self.train_voxel_nets[voxel_net])
-
+                logits = self.model(points, self.train_voxel_nets[voxel_net])
                 #criterion
-                tmp_loss = nn.functional.binary_cross_entropy_with_logits(output, label)
-
+                tmp_loss = nn.functional.binary_cross_entropy_with_logits(logits, label)
                 tmp_loss.backward()
                 self.optimizer.step()
-                print(">>>> Current loss: {}".format(tmp_loss.item()))
-                epoch_loss = epoch_loss + tmp_loss.item()
 
-            print("============ Epoch {}/{} is trained - epoch_loss - {} - e_loss average - {}===========".format(e, nb_epoch, epoch_loss/nb_epoch))
+                '''
+                print("label.shape = {}, label = {}".format(label.shape, label))
+                print("preds.shape = {}, preds = {}".format(preds.shape, preds))
+                print("preds == label", torch.eq(preds, label))
+                print("preds == label", torch.eq(preds, label).sum())
+                print("preds == label", torch.eq(preds, label).sum().item())
+                '''
+                preds = (logits>0.5).float()
+                num_correct = torch.eq(preds, label).sum().item()/self.batch_size
+                epoch_loss = epoch_loss + tmp_loss.item()
+                print(">>> [Training] - Current test loss: {} - test accuracy: {}".format(tmp_loss.item(), num_correct/self.sample_size))
+
+            print("============ Epoch {}/{} is trained - epoch_loss - {} - e_loss average - {}===========".format(e+1, nb_epoch, epoch_loss, epoch_loss/nb_epoch))
 
         return None
     
@@ -126,13 +146,25 @@ class Trainer():
         self.model.eval()
         sum_val_loss = 0
         num_batches = 5
+        predict_correct = 0
         for _ in range(num_batches):
+            #output = self.model(points, self.train_voxel_nets[voxel_net])
+            #tmp_loss = nn.functional.binary_cross_entropy_with_logits(output, label)
             try:
-                val_batch = self.val_data_iterator.next()
+                points, label, voxel_net = self.val_data_iterator.next()
             except:
-                self.val_data_iterator = self.val_dataset.get_loader().__iter__()
-                val_batch = self.val_data_iterator.next()
+                self.val_data_iterator = self.val_loader.__iter__()
+                points, label, voxel_net = self.val_data_iterator.next()
 
-            sum_val_loss += self.compute_loss(val_batch).item()
+            logits = self.model(points, self.train_voxel_nets[voxel_net])
+            
+            # loss
+            tmp_loss = nn.functional.binary_cross_entropy_with_logits(logits, label)
+            sum_val_loss = sum_val_loss + tmp_loss.item()
 
-        return sum_val_loss/num_batches
+            # accuracy
+            preds = (logits>0.5).float()
+            num_correct = torch.eq(preds, label).sum().item()/self.batch_size
+            predict_correct = predict_correct + num_correct
+            
+        return sum_val_loss/num_batches, predict_correct/num_batches
