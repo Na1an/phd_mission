@@ -79,6 +79,12 @@ class PointWiseModel(nn.Module):
         v = v.unsqueeze(1)
         #v = torch.permute(v, dims=[0,1,4,2,3])
         v = v.permute((0,1,4,2,3))
+        p_x = p[...,0].clone().detach()
+        p_y = p[...,1].clone().detach()
+        p_z = p[...,2].clone().detach()
+        p[...,0] = p_z
+        p[...,1] = p_x
+        p[...,2] = p_y
         p = p.unsqueeze(1).unsqueeze(1)
         #p = torch.cat([p + d for d in self.displacments], dim=2)
         '''
