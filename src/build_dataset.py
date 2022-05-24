@@ -27,7 +27,7 @@ class TrainDataSet(Dataset):
         points = self.samples[index][:,:3]
         # minus self.adjust_label because the original data, label=3 -> leaf, label=2 -> wood  
         # now, label=1 -> leaf, label=0 -> wood
-        intensity = self.samples[:,3]
+        intensity = self.samples[index][:,3]
         labels = self.samples[index][:,4] - self.adjust_label
 
         # put them into self.device

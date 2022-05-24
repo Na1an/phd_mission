@@ -39,8 +39,9 @@ class PointWiseModel(nn.Module):
         self.conv_3_1 = nn.Conv3d(128, 128, 3, padding=1)  # out: 8
 
         # feature_size was setting 7 for displacements
-        #feature_size = (1 + 64 + 128 + 128 ) * 7
-        feature_size = (1 + 64 + 128 + 128 )
+        #feature_size = (1 + 64 + 128 + 128 ) * 7 
+        # intensity added
+        feature_size = (1 + 64 + 128 + 128+1)
         self.fc_0 = nn.Conv1d(feature_size, hidden_dim*2, 1)
         self.fc_1 = nn.Conv1d(hidden_dim*2, hidden_dim, 1)
         self.fc_2 = nn.Conv1d(hidden_dim, hidden_dim, 1)
@@ -75,7 +76,12 @@ class PointWiseModel(nn.Module):
         Returns: 
             None.
         '''
-        
+
+        '''
+        print("[*] points, p.shape={}".format(p.shape))
+        print("[*] v_cuboid, v.shape={}".format(v.shape))
+        print("[*] intensity.shape", intensity.shape)
+        '''
         v = v.unsqueeze(1)
         #v = torch.permute(v, dims=[0,1,4,2,3])
         v = v.permute((0,1,4,2,3))
@@ -132,7 +138,8 @@ class PointWiseModel(nn.Module):
 
         # here every channel corresponse to one feature.
         # !!!!!!!!!!!!!!!!!! see here, it is easy to add one extra feature non?
-        features = torch.cat((feature_0, feature_1, feature_2, feature_3), dim=1)  # (B, features, 1,7,sample_num)
+        feature_intensity = intensity.unsqueeze(1).unsqueeze(1).unsqueeze(1)
+        features = torch.cat((feature_0, feature_1, feature_2, feature_3, feature_intensity), dim=1)  # (B, features, 1,7,sample_num)
         shape = features.shape
         features = torch.reshape(features, (shape[0], shape[1] * shape[3], shape[4]))  # (B, featues_per_sample, samples_num)
         

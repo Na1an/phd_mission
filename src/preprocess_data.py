@@ -30,7 +30,8 @@ def read_data_with_intensity(path, feature, detail=False):
     '''
     data_las = laspy.read(path)
     x_min, x_max, y_min, y_max, z_min, z_max = get_info(data_las)
-    data = np.vstack((data_las.x - x_min, data_las.y - y_min, data_las.z, data_las['intensity'], data_las[feature])).transpose()
+    intensity_max = np.max(data_las['intensity'])
+    data = np.vstack((data_las.x - x_min, data_las.y - y_min, data_las.z, data_las['intensity']/intensity_max, data_las[feature])).transpose()
     print(">>>[!data with intensity] data shape =", data.shape, " type =", type(data))
 
     return data, x_min, x_max, y_min, y_max, z_min, z_max

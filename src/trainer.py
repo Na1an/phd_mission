@@ -95,6 +95,7 @@ class Trainer():
                 self.model.train() # tell torch we are traning
                 self.optimizer.zero_grad()
                 print("intensity.shape =", intensity.shape)
+                print("label.shape =", label.shape)
                 logits = self.model(points, intensity, self.train_voxel_nets[voxel_net])
                 #criterion
                 tmp_loss = nn.functional.binary_cross_entropy_with_logits(logits, label)
