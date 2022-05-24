@@ -14,6 +14,7 @@ if __name__ == "__main__":
     parser.add_argument("--voxel_size", help="The voxel size.", type=float, default=0.2)
     parser.add_argument("--sample_size", help="The sample size : number of points in one-time training.", type=int, default=5000)
     parser.add_argument("--nb_epoch", help="The epoch number.", type=int, default=300)
+    parser.add_argument("--batch_size", help="The batch size.", type=int, default=4)
     parser.add_argument("--predict_threshold", help="The predict threshold.", type=float, default=0.5)
     args = parser.parse_args()
 
@@ -25,6 +26,7 @@ if __name__ == "__main__":
     sample_size = args.sample_size
     nb_epoch = args.nb_epoch
     predict_threshold = args.predict_threshold
+    batch_size = args.batch_size
 
     # set by default
     voxel_sample_mode = 'mc'
@@ -50,7 +52,7 @@ if __name__ == "__main__":
 
     # create a model
     #global_height = z_max - z_min # the absolute height, set to 50 for the moment
-    my_model = PointWiseModel()
+    my_model = PointWiseModel(device=my_device)
 
     my_trainer = Trainer(
                 my_model, 
@@ -59,7 +61,7 @@ if __name__ == "__main__":
                 train_voxel_nets=train_voxel_nets,
                 val_dataset=val_dataset,
                 val_voxel_nets=val_voxel_nets,
-                batch_size=4,
+                batch_size=batch_size,
                 sample_size=sample_size,
                 predict_threshold=predict_threshold,
                 num_workers=0)

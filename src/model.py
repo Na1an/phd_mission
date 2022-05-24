@@ -5,7 +5,7 @@ import torch.nn.functional as F
 class PointWiseModel(nn.Module):
 
     # initialization
-    def __init__(self, hidden_dim=256):
+    def __init__(self, device, hidden_dim=256):
         '''
         Args:
             
@@ -38,7 +38,9 @@ class PointWiseModel(nn.Module):
         self.conv_3 = nn.Conv3d(128, 128, 3, padding=1)  # out: 8
         self.conv_3_1 = nn.Conv3d(128, 128, 3, padding=1)  # out: 8
 
-        feature_size = (1 + 64 + 128 + 128 ) * 7
+        # feature_size was setting 7 for displacements
+        #feature_size = (1 + 64 + 128 + 128 ) * 7
+        feature_size = (1 + 64 + 128 + 128 )
         self.fc_0 = nn.Conv1d(feature_size, hidden_dim*2, 1)
         self.fc_1 = nn.Conv1d(hidden_dim*2, hidden_dim, 1)
         self.fc_2 = nn.Conv1d(hidden_dim, hidden_dim, 1)
@@ -50,6 +52,7 @@ class PointWiseModel(nn.Module):
         self.conv2_1_bn = nn.BatchNorm3d(128)
         self.conv3_1_bn = nn.BatchNorm3d(128)
 
+        '''
         displacment = 0.035
         displacments = []
         displacments.append([0, 0, 0])
@@ -58,8 +61,9 @@ class PointWiseModel(nn.Module):
                 input = [0, 0, 0]
                 input[x] = y * displacment
                 displacments.append(input)
-
-        self.displacments = torch.Tensor(displacments)
+        self.device = device
+        self.displacments = torch.Tensor(displacments).to(self.device)
+        '''
 
     # forward propagation
     def forward(self, p, v):
@@ -75,7 +79,7 @@ class PointWiseModel(nn.Module):
         #v = torch.permute(v, dims=[0,1,4,2,3])
         v = v.permute((0,1,4,2,3))
         p = p.unsqueeze(1).unsqueeze(1)
-        p = torch.cat([p + d for d in self.displacments], dim=2)
+        #p = torch.cat([p + d for d in self.displacments], dim=2)
         '''
         print("what is points, p.shape={}".format(p.shape))
         print("what is v_cuboid, v.shape={}".format(v.shape))
@@ -120,6 +124,7 @@ class PointWiseModel(nn.Module):
         feature_3 = F.grid_sample(net, p)
 
         # here every channel corresponse to one feature.
+        # !!!!!!!!!!!!!!!!!! see here, it is easy to add one extra feature non?
         features = torch.cat((feature_0, feature_1, feature_2, feature_3), dim=1)  # (B, features, 1,7,sample_num)
         shape = features.shape
         features = torch.reshape(features, (shape[0], shape[1] * shape[3], shape[4]))  # (B, featues_per_sample, samples_num)

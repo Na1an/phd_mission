@@ -1,3 +1,4 @@
+import copy
 from utility import *
 
 # This function works for the preprocessing the (TLS) data
@@ -13,7 +14,7 @@ def read_data(path, feature, detail=False):
     data_las = laspy.read(path)
     x_min, x_max, y_min, y_max, z_min, z_max = get_info(data_las)
     data = np.vstack((data_las.x - x_min, data_las.y - y_min, data_las.z, data_las[feature])).transpose()
-    print(">>> data token :", data[0:10], " shape =", data.shape, " type =", type(data))
+    print(">>> data shape =", data.shape, " type =", type(data))
 
     return data, x_min, x_max, y_min, y_max, z_min, z_max
 
@@ -101,16 +102,13 @@ def voxel_grid_sample(cuboid, voxel_size, mode):
 
     res = []
     points = cuboid[:,:3]
-    #nb_voxel = int((((grid_size+0.000001)//voxel_size)**2) * ((height+0.000001)//voxel_size))
-    #print(">>> grid_size//voxel_size =", grid_size//voxel_size)
-    #print(">>> height//voxel_size =", height//voxel_size)
-    #print(">>> voxel_nb =", nb_voxel)
     
     # non_empy_voxel : no empty voxel :)
     # index : the positions of [new elements in old array]
     # index_inversed : the positions of [old elements in new array]
     # nb_pts_per_voxel : nb of points in each voxels
-    non_empty_voxel, index, index_inversed, nb_points_per_voxel = np.unique((points//voxel_size).astype(int), axis=0, return_index=True, return_inverse=True, return_counts=True)
+    tmp = copy.deepcopy(points//voxel_size).astype(int)
+    non_empty_voxel, index, index_inversed, nb_points_per_voxel = np.unique(tmp, axis=0, return_index=True, return_inverse=True, return_counts=True)
     index_points_on_voxel_sorted = np.argsort(index_inversed)
     # we can then access the points that are linked to each voxel through index_points_on_voxel_sorted and how many they are (nb_pts_per_voxel)
 
@@ -180,11 +178,11 @@ def prepare_dataset(data, coords_sw, grid_size, voxel_size, global_height, voxel
             
             # shift points to local origin (0, 0, 0)
             # zero-centered
-            local_points = data[local_index]
+            local_points = copy.deepcopy(data[local_index])
             local_points[:,0] = local_points[:,0] - local_x
             local_points[:,1] = local_points[:,1] - local_y
-            local_points[:,2] = local_points[:,2] - np.min(local_points[:,2])
             local_abs_height = np.max(local_points[:,2]) - np.min(local_points[:,2])
+            local_points[:,2] = local_points[:,2] - np.min(local_points[:,2])
             local_points[:,:3] = local_points[:,:3] - np.mean(local_points[:, :3], axis=0) 
             
             if detail:
@@ -347,15 +345,16 @@ def prepare_dataset_predict(data, coords_sw, grid_size, voxel_size, global_heigh
 
             # find index of the data_preprocessed in this sliding window
             local_index = get_region_index(data, local_x, local_x+grid_size, local_y, local_y+grid_size)
-            
+            print(">> reigon ({},{}) - ({},{})".format(local_x,local_y, local_x+grid_size, local_y+grid_size))
             # shift points to local origin (0, 0, 0)
             # zero-centered
+            #local_points = copy.deepcopy(data[local_index])
             local_points = data[local_index]
             local_z = np.min(local_points[:,2])
             local_points[:,0] = local_points[:,0] - local_x
             local_points[:,1] = local_points[:,1] - local_y
-            local_points[:,2] = local_points[:,2] - local_z
             local_abs_height = np.max(local_points[:,2]) - local_z
+            local_points[:,2] = local_points[:,2] - local_z
             adjust = np.mean(local_points[:, :3], axis=0) 
             local_points[:,:3] = local_points[:,:3] - adjust
             
@@ -414,13 +413,13 @@ def prepare_procedure_predict(path, grid_size, voxel_size, voxel_sample_mode, sa
     # sliding window
     if naif_sliding:
         print(">> ok, we do naif sliding")
-        coords_sw = sliding_window_naif(0, x_max - x_min, 0, y_max - y_min, grid_size)
+        coords_sw = sliding_window_naif(x_min, x_max, y_min, y_max, grid_size)
     else:
-        coords_sw = sliding_window(0, x_max - x_min, 0, y_max - y_min, grid_size)
+        coords_sw = sliding_window(x_min, x_max, y_min, y_max, grid_size)
 
     (d1,d2,_) = coords_sw.shape
     nb_cuboid = d1 * d2
-    #print("> coords.shape={}, size={}".format(coords_sw.shape, coords_sw.size))
+    print("> coords.shape={}, size={}, sw={}".format(coords_sw.shape, coords_sw.size, coords_sw))
     
     global_height = 50
     samples, sample_cuboid_index, voxel_skeleton_cuboid, sw = prepare_dataset_predict(data_preprocessed, coords_sw, grid_size, voxel_size, global_height, voxel_sample_mode, sample_size, detail=detail)
@@ -442,4 +441,5 @@ def prepare_procedure_predict(path, grid_size, voxel_size, voxel_sample_mode, sa
         print("> data_count", data_count)
 
     return samples, sample_cuboid_index, voxel_nets, sw
+    
 

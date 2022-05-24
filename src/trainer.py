@@ -89,6 +89,7 @@ class Trainer():
 
                 print("<<Epoch {}>> - val loss average {} - val accuracy average {}".format(e, val_loss, predict_correct/self.sample_size))
 
+            loader_len = 0
             # points, labels, v_cuboid
             for points, label, voxel_net in self.train_loader:
                 self.model.train() # tell torch we are traning
@@ -102,9 +103,10 @@ class Trainer():
                 preds = (logits>0.5).float()
                 num_correct = torch.eq(preds, label).sum().item()/self.batch_size
                 epoch_loss = epoch_loss + tmp_loss.item()
-                print(">>> [Training] - Current test loss: {} - test accuracy: {}".format(tmp_loss.item(), num_correct/self.sample_size))
+                loader_len = loader_len + 1
+                print("[e={}]>>> [Training] - Current test loss: {} - test accuracy: {}".format(e, tmp_loss.item(), num_correct/self.sample_size))
 
-            print("============ Epoch {}/{} is trained - epoch_loss - {} - e_loss average - {}===========".format(e+1, nb_epoch, epoch_loss, epoch_loss/nb_epoch))
+            print("============ Epoch {}/{} is trained - epoch_loss - {} - e_loss average - {}===========".format(e+1, nb_epoch, epoch_loss, epoch_loss/loader_len))
 
         return None
     
@@ -128,7 +130,7 @@ class Trainer():
         path = self.checkpoint_path + '/checkpoint_epoch_{}.tar'.format(checkpoints[-1])
 
         print('Loaded checkpoint from: {}'.format(path))
-        checkpoint = torch.load(path)
+        checkpoint = torch.load(path, map_location=torch.device('cpu'))
         self.model.load_state_dict(checkpoint['model_state_dict'])
         self.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
         epoch = checkpoint['epoch']
