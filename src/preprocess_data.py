@@ -1,7 +1,7 @@
 import copy
 from utility import *
 
-# This function works for the preprocessing the (TLS) data
+# This function works for the preprocessing the data
 def read_data(path, feature, detail=False):
     '''
     Args:
@@ -15,6 +15,23 @@ def read_data(path, feature, detail=False):
     x_min, x_max, y_min, y_max, z_min, z_max = get_info(data_las)
     data = np.vstack((data_las.x - x_min, data_las.y - y_min, data_las.z, data_las[feature])).transpose()
     print(">>> data shape =", data.shape, " type =", type(data))
+
+    return data, x_min, x_max, y_min, y_max, z_min, z_max
+
+# This function works for the preprocessing the data with intensity
+def read_data_with_intensity(path, feature, detail=False):
+    '''
+    Args:
+        path : a string. The path of the data file.
+        feature : a string. Which feature we want to keep in the output.
+        detail : a bool. False by default.
+    Returns:
+        res : a 4-D numpy array type tensor.
+    '''
+    data_las = laspy.read(path)
+    x_min, x_max, y_min, y_max, z_min, z_max = get_info(data_las)
+    data = np.vstack((data_las.x - x_min, data_las.y - y_min, data_las.z, data_las['intensity'], data_las[feature])).transpose()
+    print(">>>[!data with intensity] data shape =", data.shape, " type =", type(data))
 
     return data, x_min, x_max, y_min, y_max, z_min, z_max
 
@@ -107,8 +124,8 @@ def voxel_grid_sample(cuboid, voxel_size, mode):
     # index : the positions of [new elements in old array]
     # index_inversed : the positions of [old elements in new array]
     # nb_pts_per_voxel : nb of points in each voxels
-    tmp = copy.deepcopy(points//voxel_size).astype(int)
-    non_empty_voxel, index, index_inversed, nb_points_per_voxel = np.unique(tmp, axis=0, return_index=True, return_inverse=True, return_counts=True)
+    #tmp = copy.deepcopy(points//voxel_size).astype(int)
+    non_empty_voxel, index, index_inversed, nb_points_per_voxel = np.unique((points//voxel_size).astype(int), axis=0, return_index=True, return_inverse=True, return_counts=True)
     index_points_on_voxel_sorted = np.argsort(index_inversed)
     # we can then access the points that are linked to each voxel through index_points_on_voxel_sorted and how many they are (nb_pts_per_voxel)
 
@@ -133,6 +150,25 @@ def voxel_grid_sample(cuboid, voxel_size, mode):
         loc_select = loc_select + nb_points
         
     return np.array(res), np.array(nb_points_per_voxel), non_empty_voxel
+
+# analyse
+def analyse_voxel_in_cuboid(voxel_skeleton_cuboid, h, side):
+    '''
+    print("len(voxel_skeleton_cuboid) =", len(voxel_skeleton_cuboid), " ", type(voxel_skeleton_cuboid))
+    print("v_k_c[0]=type",type(voxel_skeleton_cuboid[0]))
+    print("v_k_c[0]=",voxel_skeleton_cuboid[0])
+    '''
+    print(">> voxel_net, h={} side={}".format(h,side))
+    nb_cuboid = len(voxel_skeleton_cuboid)
+    print(voxel_skeleton_cuboid[0].shape)
+    res = np.zeros([nb_cuboid, side, side, h])
+    for k,v in voxel_skeleton_cuboid.items():
+        #print("k=",k, "y.shape=", v.shape)
+        for c in v:
+            x,y,z = c
+            res[k,x,y,z] = 1
+
+    return res
 
 # for prepare dataset
 def prepare_dataset(data, coords_sw, grid_size, voxel_size, global_height, voxel_sample_mode, sample_size, detail=False):
@@ -178,7 +214,8 @@ def prepare_dataset(data, coords_sw, grid_size, voxel_size, global_height, voxel
             
             # shift points to local origin (0, 0, 0)
             # zero-centered
-            local_points = copy.deepcopy(data[local_index])
+            #local_points = copy.deepcopy(data[local_index])
+            local_points = data[local_index]
             local_points[:,0] = local_points[:,0] - local_x
             local_points[:,1] = local_points[:,1] - local_y
             local_abs_height = np.max(local_points[:,2]) - np.min(local_points[:,2])
@@ -196,8 +233,7 @@ def prepare_dataset(data, coords_sw, grid_size, voxel_size, global_height, voxel
             #visualize_voxel_key_points(voxel, nb_points_per_voxel, "TLS voxelized data")
 
             # the number of local_points
-            nb_local_points = len(local_points)
-            tmp_nb_sample = int(nb_local_points/sample_size)
+            tmp_nb_sample = int(len(local_points)/sample_size)
             
             #print(">>> nb_sample={}".format(nb_sample))
             # set sample_cuboid_index
@@ -220,25 +256,6 @@ def prepare_dataset(data, coords_sw, grid_size, voxel_size, global_height, voxel
             
     return np.array(samples), sample_cuboid_index, voxel_skeleton_cuboid
 
-# analyse
-def analyse_voxel_in_cuboid(voxel_skeleton_cuboid, h, side):
-    '''
-    print("len(voxel_skeleton_cuboid) =", len(voxel_skeleton_cuboid), " ", type(voxel_skeleton_cuboid))
-    print("v_k_c[0]=type",type(voxel_skeleton_cuboid[0]))
-    print("v_k_c[0]=",voxel_skeleton_cuboid[0])
-    '''
-    print(">> voxel_net, h={} side={}".format(h,side))
-    nb_cuboid = len(voxel_skeleton_cuboid)
-    print(voxel_skeleton_cuboid[0].shape)
-    res = np.zeros([nb_cuboid, side, side, h])
-    for k,v in voxel_skeleton_cuboid.items():
-        #print("k=",k, "y.shape=", v.shape)
-        for c in v:
-            x,y,z = c
-            res[k,x,y,z] = 1
-
-    return res
-
 def prepare_procedure(path, grid_size, voxel_size, voxel_sample_mode, sample_size, label_name="llabel", detail=False, naif_sliding=False):
     '''
     Args:
@@ -248,7 +265,7 @@ def prepare_procedure(path, grid_size, voxel_size, voxel_sample_mode, sample_siz
     '''
     # (1) preprocess data and get set of sliding window coordinates
     print("> input data:", path)
-    data_preprocessed, x_min, x_max, y_min, y_max, z_min, z_max = read_data(path, label_name, detail=True)
+    data_preprocessed, x_min, x_max, y_min, y_max, z_min, z_max = read_data_with_intensity(path, label_name, detail=True)
     print("\n> data_preprocess.shape =", data_preprocessed.shape)
     
     # sliding window
@@ -284,7 +301,7 @@ def prepare_procedure(path, grid_size, voxel_size, voxel_sample_mode, sample_siz
 
     return samples, sample_cuboid_index, voxel_nets
 
-############################## abandoned ###############################
+############################## for prediction ###############################
 # return the set of sliding window coordinates
 def sliding_window_naif(x_min, x_max, y_min, y_max, grid_size):
     '''
@@ -373,8 +390,7 @@ def prepare_dataset_predict(data, coords_sw, grid_size, voxel_size, global_heigh
             #visualize_voxel_key_points(voxel, nb_points_per_voxel, "TLS voxelized data")
 
             # the number of local_points
-            nb_local_points = len(local_points)
-            tmp_nb_sample = int(nb_local_points/sample_size)
+            tmp_nb_sample = int(len(local_points)/sample_size)
             
             #print(">>> nb_sample={}".format(nb_sample))
             # set sample_cuboid_index

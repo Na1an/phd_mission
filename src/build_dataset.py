@@ -26,17 +26,19 @@ class TrainDataSet(Dataset):
         # (x,y,z,label), label index is 3
         points = self.samples[index][:,:3]
         # minus self.adjust_label because the original data, label=3 -> leaf, label=2 -> wood  
-        # now, label=1 -> leaf, label=0 -> wood  
-        labels = self.samples[index][:,3] - self.adjust_label
+        # now, label=1 -> leaf, label=0 -> wood
+        intensity = self.samples[:,3]
+        labels = self.samples[index][:,4] - self.adjust_label
 
         # put them into self.device
         points = torch.from_numpy(points.copy()).type(torch.float).to(self.device)
         labels = torch.from_numpy(labels.copy()).type(torch.float).to(self.device)
+        intensity = torch.from_numpy(intensity.copy()).type(torch.float).to(self.device)
         #v_cuboid = torch.from_numpy(self.voxelized_cuboids[self.sample_cuboid_index[index]]).type(torch.int).to(self.device)
         index_of_voxel_net = self.sample_cuboid_index[index]
 
         #return points, labels, v_cuboid
-        return points, labels, index_of_voxel_net
+        return points, intensity, labels, index_of_voxel_net
 
     # print the info
     def show_info(self):

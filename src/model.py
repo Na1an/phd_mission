@@ -66,10 +66,11 @@ class PointWiseModel(nn.Module):
         '''
 
     # forward propagation
-    def forward(self, p, v):
+    def forward(self, p, intensity, v):
         '''
         Args:
             p: points, a 3d pytorch tensor.
+            intensity: intensity.
             v: voxel net.
         Returns: 
             None.

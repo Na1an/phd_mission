@@ -91,10 +91,11 @@ class Trainer():
 
             loader_len = 0
             # points, labels, v_cuboid
-            for points, label, voxel_net in self.train_loader:
+            for points, intensity, label, voxel_net in self.train_loader:
                 self.model.train() # tell torch we are traning
                 self.optimizer.zero_grad()
-                logits = self.model(points, self.train_voxel_nets[voxel_net])
+                print("intensity.shape =", intensity.shape)
+                logits = self.model(points, intensity, self.train_voxel_nets[voxel_net])
                 #criterion
                 tmp_loss = nn.functional.binary_cross_entropy_with_logits(logits, label)
                 tmp_loss.backward()
@@ -149,9 +150,9 @@ class Trainer():
                 points, label, voxel_net = self.val_data_iterator.next()
             except:
                 self.val_data_iterator = self.val_loader.__iter__()
-                points, label, voxel_net = self.val_data_iterator.next()
+                points, intensity, label, voxel_net = self.val_data_iterator.next()
 
-            logits = self.model(points, self.train_voxel_nets[voxel_net])
+            logits = self.model(points, intensity, self.train_voxel_nets[voxel_net])
             
             # loss
             tmp_loss = nn.functional.binary_cross_entropy_with_logits(logits, label)
