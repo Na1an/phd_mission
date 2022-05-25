@@ -84,6 +84,7 @@ class PointWiseModel(nn.Module):
         '''
         v = v.unsqueeze(1)
         #v = torch.permute(v, dims=[0,1,4,2,3])
+        '''
         v = v.permute((0,1,4,2,3))
         p_x = p[...,0].clone().detach()
         p_y = p[...,1].clone().detach()
@@ -91,12 +92,13 @@ class PointWiseModel(nn.Module):
         p[...,0] = p_z
         p[...,1] = p_x
         p[...,2] = p_y
+        '''
         p = p.unsqueeze(1).unsqueeze(1)
         #p = torch.cat([p + d for d in self.displacments], dim=2)
-        '''
+        
         print("what is points, p.shape={}".format(p.shape))
         print("what is v_cuboid, v.shape={}".format(v.shape))
-        '''
+        
         
         # feature_0
         feature_0 = F.grid_sample(v, p)
