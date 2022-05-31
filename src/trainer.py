@@ -94,10 +94,13 @@ class Trainer():
             loader_len = 0
             # points, labels, v_cuboid
             for points, intensity, label, voxel_net in self.train_loader:
+
+                
                 self.model.train() # tell torch we are traning
                 self.optimizer.zero_grad()
+
                 logits = self.model(points, intensity, self.train_voxel_nets[voxel_net])
-                
+
                 '''
                 Visualization model
                 ll = make_dot(logits.mean(), params=dict(self.model.named_parameters()))
@@ -109,8 +112,10 @@ class Trainer():
                 tmp_loss.backward()
                 self.optimizer.step()
 
-                preds = (logits>0.5).float()
-                num_correct = torch.eq(preds, label).sum().item()/self.batch_size
+                #preds = logits.argmax(dim=1).float()
+                #label_one_dim = label.argmax(dim=1).float()
+                num_correct = torch.eq(logits.argmax(dim=1).float(), label.argmax(dim=1).float()).sum().item()/self.batch_size
+                #print("num_correct = ", num_correct)
                 epoch_loss = epoch_loss + tmp_loss.item()
                 loader_len = loader_len + 1
                 print("[e={}]>>> [Training] - Current test loss: {} - test accuracy: {}".format(e, tmp_loss.item(), num_correct/self.sample_size))
@@ -161,14 +166,79 @@ class Trainer():
                 points, intensity, label, voxel_net = self.val_data_iterator.next()
 
             logits = self.model(points, intensity, self.train_voxel_nets[voxel_net])
+            #logits = output.argmax(dim=1).float()
             
             # loss
             tmp_loss = nn.functional.binary_cross_entropy_with_logits(logits, label)
             sum_val_loss = sum_val_loss + tmp_loss.item()
 
             # accuracy
-            preds = (logits>0.5).float()
-            num_correct = torch.eq(preds, label).sum().item()/self.batch_size
+            #preds = logits.argmax(dim=1).float()
+            num_correct = torch.eq(logits.argmax(dim=1).float(), label.argmax(dim=1).float()).sum().item()/self.batch_size
             predict_correct = predict_correct + num_correct
             
         return sum_val_loss/num_batches, predict_correct/num_batches
+
+'''
+single dim output train function
+def train_model(self, nb_epoch=200):
+        
+        Args:
+            nb_epoch : a integer. How many epochs you want to train.
+            train_data : a np.darray. (x, y, z, label)
+
+        Return:
+            None.
+        
+        
+        print("len(self.train_loader.dataset=", len(self.train_loader.dataset))
+        start = self.load_checkpoint()
+        for e in range(start, nb_epoch):            
+            print('======= Start epoch {} ============='.format(e))
+            epoch_loss = 0.0
+            epoch_acc = 0.0
+            num_correct= 0
+
+            if e % 1 == 0:
+                self.save_checkpoint(e)
+                val_loss, predict_correct = self.compute_val_loss()
+
+                if self.val_min is None:
+                    self.val_min = val_loss 
+
+                if val_loss < self.val_min:
+                    self.val_min = val_loss
+                    for path in glob(self.gradient_clipping_path + '/val_min=*'):
+                        os.remove(path)
+                    np.save(self.gradient_clipping_path + '/val_min={}'.format(e),[e,val_loss])
+
+                print("<<Epoch {}>> - val loss average {} - val accuracy average {}".format(e, val_loss, predict_correct/self.sample_size))
+
+            loader_len = 0
+            # points, labels, v_cuboid
+            for points, intensity, label, voxel_net in self.train_loader:
+                self.model.train() # tell torch we are traning
+                self.optimizer.zero_grad()
+                # logits.shape [4, 5000]
+                logits = self.model(points, intensity, self.train_voxel_nets[voxel_net])
+                
+                Visualization model
+                ll = make_dot(logits.mean(), params=dict(self.model.named_parameters()))
+                ll.view()
+                
+                
+                #criterion
+                tmp_loss = nn.functional.binary_cross_entropy_with_logits(logits, label)
+                tmp_loss.backward()
+                self.optimizer.step()
+
+                preds = (logits>0.5).float()
+                num_correct = torch.eq(preds, label).sum().item()/self.batch_size
+                epoch_loss = epoch_loss + tmp_loss.item()
+                loader_len = loader_len + 1
+                print("[e={}]>>> [Training] - Current test loss: {} - test accuracy: {}".format(e, tmp_loss.item(), num_correct/self.sample_size))
+
+            print("============ Epoch {}/{} is trained - epoch_loss - {} - e_loss average - {}===========".format(e+1, nb_epoch, epoch_loss, epoch_loss/loader_len))
+
+        return None
+'''

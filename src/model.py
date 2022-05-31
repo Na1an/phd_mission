@@ -5,7 +5,7 @@ import torch.nn.functional as F
 class PointWiseModel(nn.Module):
 
     # initialization
-    def __init__(self, device, hidden_dim=256):
+    def __init__(self, device, num_classes=2, hidden_dim=256):
         '''
         Args:
             
@@ -16,6 +16,7 @@ class PointWiseModel(nn.Module):
         # define architecture here
         self.actvn = nn.ReLU()
         self.maxpool = nn.MaxPool3d(2)
+        self.num_classes = num_classes
         self.show_net_shape = False
         
         #nn.Conv3d(N batch_size, Cin 输入图像通道数, D深度/高度, H图像高, W图像宽, padding=1)
@@ -45,9 +46,8 @@ class PointWiseModel(nn.Module):
         self.fc_0 = nn.Conv1d(feature_size, hidden_dim*2, 1)
         self.fc_1 = nn.Conv1d(hidden_dim*2, hidden_dim, 1)
         self.fc_2 = nn.Conv1d(hidden_dim, hidden_dim, 1)
-        #self.fc_out = nn.Conv1d(hidden_dim, num_classes, 1)
-        # plus log_softmax, x = F.log_softmax(x, dim=1), we will have a more flexible model -> predict more class 
-        self.fc_out = nn.Conv1d(hidden_dim, 1, 1)
+        #self.fc_out = nn.Conv1d(hidden_dim, 1, 1)
+        self.fc_out = nn.Conv1d(hidden_dim, self.num_classes, 1)
 
         self.conv1_1_bn = nn.BatchNorm3d(64)
         self.conv2_1_bn = nn.BatchNorm3d(128)
@@ -95,11 +95,11 @@ class PointWiseModel(nn.Module):
         p[...,2] = p_y
         '''
         p = p.unsqueeze(1).unsqueeze(1)
+        # displacements
         #p = torch.cat([p + d for d in self.displacments], dim=2)
         
-        print("what is points, p.shape={}".format(p.shape))
-        print("what is v_cuboid, v.shape={}".format(v.shape))
-        
+        #print("what is points, p.shape={}".format(p.shape))
+        #print("what is v_cuboid, v.shape={}".format(v.shape))
         
         # feature_0
         feature_0 = F.grid_sample(v, p)
@@ -158,25 +158,26 @@ class PointWiseModel(nn.Module):
         net = self.actvn(self.fc_2(net))
         net = self.fc_out(net)
         out = net.squeeze(1)
+
         '''
         print("out shape:", out.shape)
         print("out is {}", out)
         '''
-
-        '''
-        feature_0.shape torch.Size([4, 1, 1, 7, 5000])
-        after first conv_1, net= torch.Size([4, 32, 100, 10, 10])
-        after first conv_1_1, net= torch.Size([4, 64, 100, 10, 10])
-        feature_1.shape torch.Size([4, 64, 1, 7, 5000])
-        after first conv_2, net= torch.Size([4, 128, 50, 5, 5])
-        after first conv_2_1, net= torch.Size([4, 128, 50, 5, 5])
-        feature_2.shape torch.Size([4, 128, 1, 7, 5000])
-        after first conv_3, net= torch.Size([4, 128, 25, 2, 2])
-        after first conv_3_1, net= torch.Size([4, 128, 25, 2, 2])
-        feature_3.shape torch.Size([4, 128, 1, 7, 5000])
-        features.shape torch.Size([4, 321, 1, 7, 5000])
-        features.shape torch.Size([4, 2247, 5000])
-        out shape: torch.Size([4, 5000])
-        '''
         return out
+
+'''
+feature_0.shape torch.Size([4, 1, 1, 7, 5000])
+after first conv_1, net= torch.Size([4, 32, 100, 10, 10])
+after first conv_1_1, net= torch.Size([4, 64, 100, 10, 10])
+feature_1.shape torch.Size([4, 64, 1, 7, 5000])
+after first conv_2, net= torch.Size([4, 128, 50, 5, 5])
+after first conv_2_1, net= torch.Size([4, 128, 50, 5, 5])
+feature_2.shape torch.Size([4, 128, 1, 7, 5000])
+after first conv_3, net= torch.Size([4, 128, 25, 2, 2])
+after first conv_3_1, net= torch.Size([4, 128, 25, 2, 2])
+feature_3.shape torch.Size([4, 128, 1, 7, 5000])
+features.shape torch.Size([4, 321, 1, 7, 5000])
+features.shape torch.Size([4, 2247, 5000])
+out shape: torch.Size([4, 5000])
+'''
     

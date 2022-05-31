@@ -1,4 +1,5 @@
 import torch
+import numpy as np
 from torch.utils.data import Dataset
 
 # dataset for training
@@ -11,12 +12,13 @@ class TrainDataSet(Dataset):
         sample_cuboid_index: (nb_sample, index of nb_cuboid).
         voxelized_cuboids: (nb_voxel, 4:x+y+z+[1 or 0]).
     '''
-    def __init__(self, samples, sample_cuboid_index, device):
+    def __init__(self, samples, sample_cuboid_index, device, num_classes=2):
         self.samples = samples
         self.sample_cuboid_index = sample_cuboid_index
         #self.voxelized_cuboids = voxelized_cuboids
         self.device = device
         self.adjust_label = 2
+        self.num_classes = num_classes
 
     def __len__(self):
         return len(self.samples)
@@ -29,6 +31,8 @@ class TrainDataSet(Dataset):
         # now, label=1 -> leaf, label=0 -> wood
         intensity = self.samples[index][:,3]
         labels = self.samples[index][:,4] - self.adjust_label
+        # convert to one-hot form
+        labels = np.eye(self.num_classes)[labels.astype(int)].transpose()
 
         # put them into self.device
         points = torch.from_numpy(points.copy()).type(torch.float).to(self.device)
@@ -58,10 +62,11 @@ class TestDataSet(Dataset):
         sample_cuboid_index: (nb_sample, index of nb_cuboid).
         voxelized_cuboids: (nb_voxel, 4:x+y+z+[1 or 0]).
     '''
-    def __init__(self, samples, sample_cuboid_index, device):
+    def __init__(self, samples, sample_cuboid_index, device, num_classes=2):
         self.samples = samples
         self.sample_cuboid_index = sample_cuboid_index
         self.device = device
+        self.num_classes = num_classes
 
     def __len__(self):
         return len(self.samples)
@@ -82,7 +87,7 @@ class TestDataSet(Dataset):
 
     # print the info
     def show_info(self):
-        print(">> TrainDataSet is prepared:")
+        print(">> TestDataSet is prepared:")
         print(">>> device={}".format(self.device))
         print(">>> samples.shape={}".format(self.samples.shape))
         print(">>> samples_cuboid_index.shape={}".format(len(self.sample_cuboid_index)))
