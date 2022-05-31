@@ -53,7 +53,7 @@ if __name__ == "__main__":
     # create a model
     #global_height = z_max - z_min # the absolute height, set to 50 for the moment
     my_model = PointWiseModel(device=my_device)
-
+    
     my_trainer = Trainer(
                 my_model, 
                 my_device, 

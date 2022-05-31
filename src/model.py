@@ -65,6 +65,7 @@ class PointWiseModel(nn.Module):
         self.device = device
         self.displacments = torch.Tensor(displacments).to(self.device)
         '''
+        #别扯淡了，0.5阈值改[1. , 0.]吧
 
     # forward propagation
     def forward(self, p, intensity, v):

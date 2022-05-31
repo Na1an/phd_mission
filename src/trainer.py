@@ -4,6 +4,7 @@ import torch.nn as nn
 from utility import *
 from glob import glob
 from torch.utils.data import DataLoader
+#from torchviz import make_dot
 
 class Trainer():
     def __init__(self, model, device, train_dataset, train_voxel_nets, val_dataset, val_voxel_nets, batch_size, sample_size, predict_threshold, num_workers, shuffle=True, opt="Adam"):
@@ -66,6 +67,7 @@ class Trainer():
         Return:
             None.
         '''
+        
         print("len(self.train_loader.dataset=", len(self.train_loader.dataset))
         start = self.load_checkpoint()
         for e in range(start, nb_epoch):            
@@ -95,6 +97,13 @@ class Trainer():
                 self.model.train() # tell torch we are traning
                 self.optimizer.zero_grad()
                 logits = self.model(points, intensity, self.train_voxel_nets[voxel_net])
+                
+                '''
+                Visualization model
+                ll = make_dot(logits.mean(), params=dict(self.model.named_parameters()))
+                ll.view()
+                '''
+                
                 #criterion
                 tmp_loss = nn.functional.binary_cross_entropy_with_logits(logits, label)
                 tmp_loss.backward()
