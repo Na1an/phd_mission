@@ -132,12 +132,12 @@ class Trainer():
             self.writer.add_scalar('training loss - epoch avg', epoch_loss/loader_len, e)
             self.writer.add_scalar('training accuracy - epoch avg', epoch_acc/loader_len, e)
 
-            self.writer.add_scalars('train loss(epoch avg) vs val loss', 
+            self.writer.add_scalars('loss train (epoch avg) vs val', 
                 {
                     'train_loss': epoch_loss/loader_len,
                     'val_loss': val_loss
                 }, e)
-            self.writer.add_scalars('train acc(epoch avg) vs val acc', 
+            self.writer.add_scalars('acc train (epoche avg) vs val', 
                 {
                     'train_acc': epoch_acc/loader_len,
                     'val_acc': predict_correct/self.sample_size
@@ -167,7 +167,7 @@ class Trainer():
         path = self.checkpoint_path + '/checkpoint_epoch_{}.tar'.format(checkpoints[-1])
 
         print('Loaded checkpoint from: {}'.format(path))
-        checkpoint = torch.load(path, map_location=torch.device('cpu'))
+        checkpoint = torch.load(path, map_location=torch.device(self.device))
         self.model.load_state_dict(checkpoint['model_state_dict'])
         self.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
         epoch = checkpoint['epoch']
