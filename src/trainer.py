@@ -131,7 +131,18 @@ class Trainer():
             print("============ Epoch {}/{} is trained - epoch_loss - {} - epoch_acc - {}===========".format(e, nb_epoch, epoch_loss/loader_len, epoch_acc/loader_len))
             self.writer.add_scalar('training loss - epoch avg', epoch_loss/loader_len, e)
             self.writer.add_scalar('training accuracy - epoch avg', epoch_acc/loader_len, e)
-        
+
+            self.writer.add_scalars('train loss(epoch avg) vs val loss', 
+                {
+                    'train_loss': epoch_loss/loader_len,
+                    'val_loss': val_loss
+                }, e)
+            self.writer.add_scalars('train acc(epoch avg) vs val acc', 
+                {
+                    'train_acc': epoch_acc/loader_len,
+                    'val_acc': predict_correct/self.sample_size
+                }, e)
+
         self.writer.close()
 
         return None
