@@ -5,6 +5,7 @@ from utility import *
 from glob import glob
 from torch.utils.data import DataLoader
 #from torchviz import make_dot
+from torch.utils.tensorboard import SummaryWriter
 
 class Trainer():
     def __init__(self, model, device, train_dataset, train_voxel_nets, val_dataset, val_voxel_nets, batch_size, sample_size, predict_threshold, num_workers, shuffle=True, opt="Adam"):
@@ -44,11 +45,15 @@ class Trainer():
             os.makedirs(self.gradient_clipping_path)
         else:
             print(">> So gradient clipping folder exist, the path is:", self.checkpoint_path)
+        
         # gradient_clipping
         self.val_min = None
         self.threshold = predict_threshold
         self.sample_size = sample_size
         self.batch_size = batch_size
+
+        #
+        self.writer = SummaryWriter(get_current_direct_path() + "/tensorboard")
 
     # this is a cute function for calculating the loss
     def compute_loss(points, label, voxel_net):
@@ -74,7 +79,7 @@ class Trainer():
             print('======= Start epoch {} ============='.format(e))
             epoch_loss = 0.0
             epoch_acc = 0.0
-            num_correct= 0
+            #epoch_num_correct= 0
 
             if e % 1 == 0:
                 self.save_checkpoint(e)
@@ -90,6 +95,8 @@ class Trainer():
                     np.save(self.gradient_clipping_path + '/val_min={}'.format(e),[e,val_loss])
 
                 print("<<Epoch {}>> - val loss average {} - val accuracy average {}".format(e, val_loss, predict_correct/self.sample_size))
+                self.writer.add_scalar('validation loss - avg', val_loss, e)
+                self.writer.add_scalar('validation accuracy - avg', predict_correct/self.sample_size, e)
 
             loader_len = 0
             # points, labels, v_cuboid
@@ -117,10 +124,15 @@ class Trainer():
                 num_correct = torch.eq(logits.argmax(dim=1).float(), label.argmax(dim=1).float()).sum().item()/self.batch_size
                 #print("num_correct = ", num_correct)
                 epoch_loss = epoch_loss + tmp_loss.item()
+                epoch_acc = epoch_acc + num_correct/self.sample_size
                 loader_len = loader_len + 1
                 print("[e={}]>>> [Training] - Current test loss: {} - test accuracy: {}".format(e, tmp_loss.item(), num_correct/self.sample_size))
 
-            print("============ Epoch {}/{} is trained - epoch_loss - {} - e_loss average - {}===========".format(e+1, nb_epoch, epoch_loss, epoch_loss/loader_len))
+            print("============ Epoch {}/{} is trained - epoch_loss - {} - epoch_acc - {}===========".format(e, nb_epoch, epoch_loss/loader_len, epoch_acc/loader_len))
+            self.writer.add_scalar('training loss - epoch avg', epoch_loss/loader_len, e)
+            self.writer.add_scalar('training accuracy - epoch avg', epoch_acc/loader_len, e)
+        
+        self.writer.close()
 
         return None
     
