@@ -47,15 +47,22 @@ if __name__ == "__main__":
     my_model.eval()
 
     las = read_header(data_path)
+    las.add_extra_dim(laspy.ExtraBytesParams(name="wood_proba", type=np.float64))
+    las.add_extra_dim(laspy.ExtraBytesParams(name="leave_proba", type=np.float64))
     get_info(las)
     print("dataset len =", test_dataset.__len__())
     # batch_size must be 1!!!
     test_loader = DataLoader(test_dataset, batch_size=1, shuffle=False)
     train_voxel_nets = torch.from_numpy(train_voxel_nets.copy()).type(torch.float).to(my_device)
+    
     i = 0
-    for points, v, index_sw in test_loader:
-        logits = my_model(points, train_voxel_nets[v])
-        predict = (logits>0.5).float()
+    #predict label possibilty
+    for points, intensity, v, index_sw in test_loader:
+        logits = my_model(points, intensity, train_voxel_nets[v])
+        predict = logits.squeeze(0).float()
+        predict_label = logits.argmax(dim=1).float()
+        print("predict.shape", predict.shape)
+        print("predict_label.shape", predict_label.shape)
         local_x, local_y, local_z, adjust_x, adjust_y, adjust_z = sw[int(index_sw[0])]
         new_file = laspy.create(point_format=las.point_format, file_version="1.2")
         points = points.squeeze(0).cpu().detach().numpy()
@@ -65,7 +72,10 @@ if __name__ == "__main__":
         new_file.z = points[:,2] + adjust_z + local_z
         
         las.points = new_file.points
-        las['llabel'] = predict.cpu().detach().numpy()
+        
+        las.wood_proba = predict[0,:].cpu().detach().numpy()
+        las.leave_proba = predict[1,:].cpu().detach().numpy()
+        las['llabel'] = predict_label.cpu().detach().numpy()
         las.write(os.getcwd()+"/predict_res/res_{:04}.las".format(i))
         i = i+1
         print(">>> cube - N°{} predicted ".format(i))

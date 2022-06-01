@@ -148,7 +148,7 @@ class Trainer():
         return None
     
     def save_checkpoint(self, epoch):
-        path = self.checkpoint_path + '/checkpoint_epoch_{}.tar'.format(epoch)
+        path = self.checkpoint_path + '/checkpoint_epoch_{:04}.tar'.format(epoch)
         if not os.path.exists(path):
             torch.save({'epoch':epoch,
                         'model_state_dict': self.model.state_dict(),
