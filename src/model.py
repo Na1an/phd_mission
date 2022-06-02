@@ -32,12 +32,13 @@ class PointWiseModel(nn.Module):
         groups(int, optional) – 从输入通道到输出通道的阻塞连接数；没用到，没细看
         bias(bool, optional) - 如果bias=True，添加偏置；没用到，没细看 
         """
+        # padding_mode added
         self.conv_1 = nn.Conv3d(1, 32, 3, padding=1)  # out: 32
-        self.conv_1_1 = nn.Conv3d(32, 64, 3, padding=1)  # out: 32
-        self.conv_2 = nn.Conv3d(64, 128, 3, padding=1)  # out: 16
-        self.conv_2_1 = nn.Conv3d(128, 128, 3, padding=1)  # out: 16
-        self.conv_3 = nn.Conv3d(128, 128, 3, padding=1)  # out: 8
-        self.conv_3_1 = nn.Conv3d(128, 128, 3, padding=1)  # out: 8
+        self.conv_1_1 = nn.Conv3d(32, 64, 3, padding=1)  # out: 64
+        self.conv_2 = nn.Conv3d(64, 128, 3, padding=1)  # out: 128
+        self.conv_2_1 = nn.Conv3d(128, 128, 3, padding=1)  # out: 128
+        self.conv_3 = nn.Conv3d(128, 128, 3, padding=1)  # out: 128
+        self.conv_3_1 = nn.Conv3d(128, 128, 3, padding=1)  # out: 128
 
         # feature_size was setting 7 for displacements
         #feature_size = (1 + 64 + 128 + 128 ) * 7 
@@ -77,12 +78,17 @@ class PointWiseModel(nn.Module):
         Returns: 
             None.
         '''
+        
         '''
+        [*] points, p.shape=torch.Size([4, 20000, 3])
+        [*] intensity.shape torch.Size([4, 20000])
+        [*] v_cuboid, v.shape=torch.Size([4, 25, 25, 250])
         print("[*] points, p.shape={}".format(p.shape))
         print("[*] intensity.shape", intensity.shape)
         print("[*] v_cuboid, v.shape={}".format(v.shape))
         '''
-        
+        # swap x y z to z y x
+        p[:,:] = p[:,:,[2,1,0]]
         v = v.unsqueeze(1)
         #v = torch.permute(v, dims=[0,1,4,2,3])
         '''
@@ -94,6 +100,7 @@ class PointWiseModel(nn.Module):
         p[...,1] = p_x
         p[...,2] = p_y
         '''
+
         p = p.unsqueeze(1).unsqueeze(1)
         
         '''
@@ -106,12 +113,17 @@ class PointWiseModel(nn.Module):
         
         #print("what is points, p.shape={}".format(p.shape))
         #print("what is v_cuboid, v.shape={}".format(v.shape))
-        
+
+        # grid_sample 
+        # align_corner = True, consider the center of pixels/voxels 
+        # align_corner = False, consider the corner of pixels/voxels
+        # 
         # feature_0
-        feature_0 = F.grid_sample(v, p)
+        feature_0 = F.grid_sample(v, p, align_corners=True)
         net = self.actvn(self.conv_1(v))
         net = self.actvn(self.conv_1_1(net))
         net = self.conv1_1_bn(net)
+
         '''
         print("feature_0.shape", feature_0.shape) # feature_0.shape torch.Size([4, 1, 1, 7, 5000])
         print("after first conv_1, net=", net.shape)
@@ -119,7 +131,7 @@ class PointWiseModel(nn.Module):
         '''
 
         # feature_1
-        feature_1 = F.grid_sample(net, p)  # out : (B,C (of x), 1,1,sample_num)
+        feature_1 = F.grid_sample(net, p, align_corners=True)  # out : (B,C (of x), 1,1,sample_num)
         net = self.maxpool(net)
         net = self.actvn(self.conv_2(net))
         net = self.actvn(self.conv_2_1(net))
@@ -131,7 +143,7 @@ class PointWiseModel(nn.Module):
         '''
 
         # feature_3
-        feature_2 = F.grid_sample(net, p)
+        feature_2 = F.grid_sample(net, p, align_corners=True)
         net = self.maxpool(net)
         net = self.actvn(self.conv_3(net))
         net = self.actvn(self.conv_3_1(net))
@@ -143,7 +155,7 @@ class PointWiseModel(nn.Module):
         '''
 
         # feature_3
-        feature_3 = F.grid_sample(net, p)
+        feature_3 = F.grid_sample(net, p, align_corners=True)
 
         # here every channel corresponse to one feature.
         # !!!!!!!!!!!!!!!!!! see here, it is easy to add one extra feature non?
@@ -164,7 +176,7 @@ class PointWiseModel(nn.Module):
         net = self.actvn(self.fc_2(net))
         net = self.fc_out(net)
         out = net.squeeze(1)
-
+        p[:,:,:,:] = p[:,:,:,:,[2,1,0]]
         '''
         print("out shape:", out.shape)
         print("out is {}", out)

@@ -221,21 +221,26 @@ def prepare_dataset(data, coords_sw, grid_size, voxel_size, global_height, voxel
             local_points[:,0] = local_points[:,0] - local_x
             local_points[:,1] = local_points[:,1] - local_y
             local_abs_height = np.max(local_points[:,2]) - np.min(local_points[:,2])
+            # local_abs_height
             local_points[:,2] = local_points[:,2] - np.min(local_points[:,2])
-            local_points[:,:3] = local_points[:,:3] - np.mean(local_points[:, :3], axis=0) 
-            
-            if detail:
-                print(">>> local abs height :", local_abs_height)
-                print(">>> local data.shape :", local_points.shape)
-                print(">>> local_data (points in cuboid) zero-centered and standardization/normalization")
-            
+
             # voxelization
             key_points_in_voxel, nb_points_per_voxel, voxel = voxel_grid_sample(local_points, voxel_size, voxel_sample_mode)
             voxel_skeleton_cuboid[w_nb] = voxel
             #visualize_voxel_key_points(voxel, nb_points_per_voxel, "TLS voxelized data")
 
-
-
+            # centralization in (x y z) thress axis by the center of voxels
+            #local_points[:,:3] = local_points[:,:3] - np.mean(local_points[:, :3], axis=0)
+            local_points[:,:3] = local_points[:,:3] - np.array([grid_size/2, grid_size/2, global_height/2])
+            local_points[:,:2] = local_points[:,:2]/grid_size
+            local_points[:,2] = local_points[:,2]/global_height
+            
+            if detail:
+                print(">>> local abs height :", local_abs_height)
+                print(">>> local data.shape :", local_points.shape)
+                print(">>> local_data (points in cuboid) zero-centered and standardization/normalization")
+                #print(">>> local_points=", local_points[:,:3][0:100])
+            
             # the number of local_points
             tmp_nb_sample = int(len(local_points)/sample_size)
             
@@ -369,6 +374,7 @@ def prepare_dataset_predict(data, coords_sw, grid_size, voxel_size, global_heigh
             print(">> reigon ({},{}) - ({},{})".format(local_x,local_y, local_x+grid_size, local_y+grid_size))
             # shift points to local origin (0, 0, 0)
             # zero-centered
+            '''
             #local_points = copy.deepcopy(data[local_index])
             local_points = data[local_index]
             local_z = np.min(local_points[:,2])
@@ -378,8 +384,31 @@ def prepare_dataset_predict(data, coords_sw, grid_size, voxel_size, global_heigh
             local_points[:,2] = local_points[:,2] - local_z
             adjust = np.mean(local_points[:, :3], axis=0) 
             local_points[:,:3] = local_points[:,:3] - adjust
+            '''
+            # shift points to local origin (0, 0, 0)
+            # zero-centered
+            #local_points = copy.deepcopy(data[local_index])
+            local_points = data[local_index]
+            local_z = np.min(local_points[:,2])
+            local_points[:,0] = local_points[:,0] - local_x
+            local_points[:,1] = local_points[:,1] - local_y
+            local_abs_height = np.max(local_points[:,2]) - local_z
+            # local_abs_height
+            local_points[:,2] = local_points[:,2] - local_z
+
+            # voxelization
+            key_points_in_voxel, nb_points_per_voxel, voxel = voxel_grid_sample(local_points, voxel_size, voxel_sample_mode)
+            voxel_skeleton_cuboid[w_nb] = voxel
+            #visualize_voxel_key_points(voxel, nb_points_per_voxel, "TLS voxelized data")
+
+            # centralization in (x y z) thress axis by the center of voxels
+            #local_points[:,:3] = local_points[:,:3] - np.mean(local_points[:, :3], axis=0)
+            local_points[:,:3] = local_points[:,:3] - np.array([grid_size/2, grid_size/2, global_height/2])
+            local_points[:,:2] = local_points[:,:2]/grid_size
+            local_points[:,2] = local_points[:,2]/global_height
             
-            sw.append((local_x, local_y, local_z, adjust[0], adjust[1], adjust[2]))
+            #sw.append((local_x, local_y, local_z, adjust[0], adjust[1], adjust[2]))
+            sw.append((local_x, local_y, local_z, grid_size/2, grid_size/2, global_height/2))
             local_points[:,4] = index_sw
             index_sw = index_sw + 1
 
@@ -388,10 +417,6 @@ def prepare_dataset_predict(data, coords_sw, grid_size, voxel_size, global_heigh
                 print(">>> local data.shape :", local_points.shape)
                 print(">>> local_data (points in cuboid) zero-centered but no standardization/normalization")
             
-            # voxelization
-            key_points_in_voxel, nb_points_per_voxel, voxel = voxel_grid_sample(local_points, voxel_size, voxel_sample_mode)
-            voxel_skeleton_cuboid[w_nb] = voxel
-            #visualize_voxel_key_points(voxel, nb_points_per_voxel, "TLS voxelized data")
 
             # the number of local_points
             tmp_nb_sample = int(len(local_points)/sample_size)
@@ -417,7 +442,7 @@ def prepare_dataset_predict(data, coords_sw, grid_size, voxel_size, global_heigh
             
     return np.array(samples), sample_cuboid_index, voxel_skeleton_cuboid, sw
 
-def prepare_procedure_predict(path, grid_size, voxel_size, voxel_sample_mode, sample_size, label_name="llabel", detail=False, naif_sliding=False):
+def prepare_procedure_predict(path, grid_size, voxel_size, voxel_sample_mode, sample_size, label_name="llabel", global_height=50, detail=False, naif_sliding=False):
     '''
     Args:
         path : raw_data_path. The path of training/validation/test file.
@@ -441,7 +466,6 @@ def prepare_procedure_predict(path, grid_size, voxel_size, voxel_sample_mode, sa
     nb_cuboid = d1 * d2
     print("> coords.shape={}, size={}, sw={}".format(coords_sw.shape, coords_sw.size, coords_sw))
     
-    global_height = 50
     samples, sample_cuboid_index, voxel_skeleton_cuboid, sw = prepare_dataset_predict(data_preprocessed, coords_sw, grid_size, voxel_size, global_height, voxel_sample_mode, sample_size, detail=detail)
     print(">>> samples.shape={}, sample_cuboid_index.shape={}, voxel_skele.len={}".format(samples.shape, len(sample_cuboid_index), len(voxel_skeleton_cuboid)))
     

@@ -164,7 +164,7 @@ class Trainer():
         checkpoints = [os.path.splitext(os.path.basename(path))[0][17:] for path in checkpoints]
         checkpoints = np.array(checkpoints, dtype=int)
         checkpoints = np.sort(checkpoints)
-        path = self.checkpoint_path + '/checkpoint_epoch_{}.tar'.format(checkpoints[-1])
+        path = self.checkpoint_path + '/checkpoint_epoch_{:04}.tar'.format(checkpoints[-1])
 
         print('Loaded checkpoint from: {}'.format(path))
         checkpoint = torch.load(path, map_location=torch.device(self.device))
