@@ -192,6 +192,7 @@ class Trainer():
             #logits = output.argmax(dim=1).float()
             
             # loss
+            # binary_cross_entropy_with_logits : input doesn't need to be [0,1], but target/label need to be [0, N-1] (therwise the loss will be wired)
             tmp_loss = nn.functional.binary_cross_entropy_with_logits(logits, label)
             sum_val_loss = sum_val_loss + tmp_loss.item()
 

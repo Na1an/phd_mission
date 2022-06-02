@@ -1,4 +1,5 @@
 import argparse as ap
+import torch.nn.functional as F
 from model import *
 from trainer import *
 from build_dataset import *
@@ -59,10 +60,11 @@ if __name__ == "__main__":
     #predict label possibilty
     for points, intensity, v, index_sw in test_loader:
         logits = my_model(points, intensity, train_voxel_nets[v])
+        logits = F.softmax(logits, dim=1)
         predict = logits.squeeze(0).float()
         predict_label = logits.argmax(dim=1).float()
-        print("predict.shape", predict.shape)
-        print("predict_label.shape", predict_label.shape)
+        #print("predict.shape", predict.shape)
+        #print("predict_label.shape", predict_label.shape)
         local_x, local_y, local_z, adjust_x, adjust_y, adjust_z = sw[int(index_sw[0])]
         new_file = laspy.create(point_format=las.point_format, file_version="1.2")
         points = points.squeeze(0).cpu().detach().numpy()

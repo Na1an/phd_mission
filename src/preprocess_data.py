@@ -234,6 +234,8 @@ def prepare_dataset(data, coords_sw, grid_size, voxel_size, global_height, voxel
             voxel_skeleton_cuboid[w_nb] = voxel
             #visualize_voxel_key_points(voxel, nb_points_per_voxel, "TLS voxelized data")
 
+
+
             # the number of local_points
             tmp_nb_sample = int(len(local_points)/sample_size)
             
@@ -378,7 +380,7 @@ def prepare_dataset_predict(data, coords_sw, grid_size, voxel_size, global_heigh
             local_points[:,:3] = local_points[:,:3] - adjust
             
             sw.append((local_x, local_y, local_z, adjust[0], adjust[1], adjust[2]))
-            local_points[:,3] = index_sw
+            local_points[:,4] = index_sw
             index_sw = index_sw + 1
 
             if detail:
@@ -425,7 +427,7 @@ def prepare_procedure_predict(path, grid_size, voxel_size, voxel_sample_mode, sa
     '''
     # (1) preprocess data and get set of sliding window coordinates
     print("> input data:", path)
-    data_preprocessed, x_min, x_max, y_min, y_max, z_min, z_max = read_data(path, label_name, detail=True)
+    data_preprocessed, x_min, x_max, y_min, y_max, z_min, z_max = read_data_with_intensity(path, label_name, detail=True)
     print("\n> data_preprocess.shape =", data_preprocessed.shape)
     
     # sliding window

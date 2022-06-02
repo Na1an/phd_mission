@@ -77,12 +77,12 @@ class PointWiseModel(nn.Module):
         Returns: 
             None.
         '''
-
         '''
         print("[*] points, p.shape={}".format(p.shape))
-        print("[*] v_cuboid, v.shape={}".format(v.shape))
         print("[*] intensity.shape", intensity.shape)
+        print("[*] v_cuboid, v.shape={}".format(v.shape))
         '''
+        
         v = v.unsqueeze(1)
         #v = torch.permute(v, dims=[0,1,4,2,3])
         '''
@@ -95,6 +95,12 @@ class PointWiseModel(nn.Module):
         p[...,2] = p_y
         '''
         p = p.unsqueeze(1).unsqueeze(1)
+        
+        '''
+        [*] points, p.shape=torch.Size([4, 1, 1, 20000, 3])
+        [*] intensity.shape torch.Size([4, 20000])
+        [*] v_cuboid, v.shape=torch.Size([4, 1, 25, 25, 250])
+        '''
         # displacements
         #p = torch.cat([p + d for d in self.displacments], dim=2)
         

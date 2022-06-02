@@ -75,15 +75,16 @@ class TestDataSet(Dataset):
     def __getitem__(self, index):
         # (x,y,z,label), label index is 3
         points = self.samples[index][:,:3]
-        index_sw = self.samples[index][:,3][0]
-
+        index_sw = self.samples[index][:,4][0]
+        intensity = self.samples[index][:,3]
         # put them into self.device
         points = torch.from_numpy(points.copy()).type(torch.float).to(self.device)
+        intensity = torch.from_numpy(intensity.copy()).type(torch.float).to(self.device)
         #v_cuboid = torch.from_numpy(self.voxelized_cuboids[self.sample_cuboid_index[index]]).type(torch.int).to(self.device)
         index_of_voxel_net = self.sample_cuboid_index[index]
 
         #return points, v_cuboid
-        return points, index_of_voxel_net, index_sw
+        return points, intensity, index_of_voxel_net, index_sw
 
     # print the info
     def show_info(self):
