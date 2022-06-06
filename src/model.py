@@ -69,7 +69,7 @@ class PointWiseModel(nn.Module):
         #别扯淡了，0.5阈值改[1. , 0.]吧
 
     # forward propagation
-    def forward(self, p, intensity, v):
+    def forward(self, points, intensity, v):
         '''
         Args:
             p: points, a 3d pytorch tensor.
@@ -88,17 +88,11 @@ class PointWiseModel(nn.Module):
         print("[*] v_cuboid, v.shape={}".format(v.shape))
         '''
         # swap x y z to z y x
-        p[:,:] = p[:,:,[2,1,0]]
+        p = points[:,:,[2,1,0]]
         v = v.unsqueeze(1)
         #v = torch.permute(v, dims=[0,1,4,2,3])
         '''
         v = v.permute((0,1,4,2,3))
-        p_x = p[...,0].clone().detach()
-        p_y = p[...,1].clone().detach()
-        p_z = p[...,2].clone().detach()
-        p[...,0] = p_z
-        p[...,1] = p_x
-        p[...,2] = p_y
         '''
 
         p = p.unsqueeze(1).unsqueeze(1)
@@ -176,7 +170,7 @@ class PointWiseModel(nn.Module):
         net = self.actvn(self.fc_2(net))
         net = self.fc_out(net)
         out = net.squeeze(1)
-        p[:,:,:,:] = p[:,:,:,:,[2,1,0]]
+        #p[:,:,:,:] = p[:,:,:,:,[2,1,0]]
         '''
         print("out shape:", out.shape)
         print("out is {}", out)
