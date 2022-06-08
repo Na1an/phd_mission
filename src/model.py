@@ -43,7 +43,8 @@ class PointWiseModel(nn.Module):
         # feature_size was setting 7 for displacements
         #feature_size = (1 + 64 + 128 + 128 ) * 7 
         # intensity added
-        feature_size = (1 + 64 + 128 + 128+1)
+        feature_size = (1 + 64 + 128 + 128 + 1)
+        # conditionnal VAE, co-variabale, regression
         self.fc_0 = nn.Conv1d(feature_size, hidden_dim*2, 1)
         self.fc_1 = nn.Conv1d(hidden_dim*2, hidden_dim, 1)
         self.fc_2 = nn.Conv1d(hidden_dim, hidden_dim, 1)

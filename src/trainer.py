@@ -93,6 +93,7 @@ class Trainer():
                     for path in glob(self.gradient_clipping_path + '/val_min=*'):
                         os.remove(path)
                     np.save(self.gradient_clipping_path + '/val_min={}'.format(e),[e,val_loss])
+                    #print(">> val_min saved here :",self.gradient_clipping_path,"val_min=".format(e))
 
                 print("<<Epoch {}>> - val loss average {} - val accuracy average {}".format(e, val_loss, predict_correct/self.sample_size))
                 self.writer.add_scalar('validation loss - avg', val_loss, e)
