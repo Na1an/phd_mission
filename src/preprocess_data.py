@@ -135,7 +135,6 @@ def voxel_grid_sample(cuboid, voxel_size, mode):
     # index : the positions of [new elements in old array]
     # index_inversed : the positions of [old elements in new array]
     # nb_pts_per_voxel : nb of points in each voxels
-    #tmp = copy.deepcopy(points//voxel_size).astype(int)
     non_empty_voxel, index, index_inversed, nb_points_per_voxel = np.unique((points//voxel_size).astype(int), axis=0, return_index=True, return_inverse=True, return_counts=True)
     index_points_on_voxel_sorted = np.argsort(index_inversed)
     # we can then access the points that are linked to each voxel through index_points_on_voxel_sorted and how many they are (nb_pts_per_voxel)
@@ -185,8 +184,8 @@ def analyse_voxel_in_cuboid(voxel_skeleton_cuboid, h, side):
         #print("k=",k, "y.shape=", v.shape)
         # 加个numpy 搜索key什么的,然后赋值给点的数量
         for c in v:
-            x,y,z = c
-            res[k,x,y,z] = 1
+            v_x,v_y,v_z, v_p = c
+            res[k,x,y,z] = v_p
 
     return res
 
@@ -263,7 +262,13 @@ def prepare_dataset(data, coords_sw, grid_size, voxel_size, global_height, voxel
 
             # (4) voxelization
             key_points_in_voxel, nb_points_per_voxel, voxel = voxel_grid_sample(local_points, voxel_size, voxel_sample_mode)
-            voxel_skeleton_cuboid[count_voxel_skeleton] = voxel
+            
+            nb_p_max = np.max(nb_points_per_voxel)
+            nb_p_min = np.min(nb_points_per_voxel)
+            nb_points_per_voxel = (nb_points_per_voxel - nb_p_min)/(nb_p_max - nb_p_min)
+            voxel_and_points = np.concatenate((voxel, np.array([nb_points_per_voxel]).T), axis=1)
+            print("voxel.shape={}, nb_points_per_voxel.shape={}, voxel_and_points.shape={}".format(voxel.shape, voxel.shape, voxel_and_points.shape))
+            voxel_skeleton_cuboid[count_voxel_skeleton] = voxel_and_points
             #visualize_voxel_key_points(voxel, nb_points_per_voxel, "TLS voxelized data")
 
             # (5) centralization in (x y z) thress axis by the center of voxels
