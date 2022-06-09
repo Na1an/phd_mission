@@ -158,8 +158,12 @@ def voxel_grid_sample(cuboid, voxel_size, mode):
         voxel_grid[tuple(v)] = points[index_points_on_voxel_sorted[loc_select:loc_select+nb_points]]
         res.append(key_point_in_voxel(v))
         loc_select = loc_select + nb_points
-        
-    return np.array(res), np.array(nb_points_per_voxel), non_empty_voxel
+    
+    nb_p_max = np.max(nb_points_per_voxel)
+    nb_p_min = np.min(nb_points_per_voxel)
+    voxel_and_points = np.concatenate((voxel, np.array([(nb_points_per_voxel - nb_p_min)/(nb_p_max - nb_p_min)]).T), axis=1)
+
+    return np.array(res), np.array(nb_points_per_voxel), voxel_and_points
 
 # analyse
 def analyse_voxel_in_cuboid(voxel_skeleton_cuboid, h, side):
@@ -178,14 +182,14 @@ def analyse_voxel_in_cuboid(voxel_skeleton_cuboid, h, side):
     '''
     print(">> voxel_net, h={} side={}".format(h,side))
     nb_cuboid = len(voxel_skeleton_cuboid)
-    print(voxel_skeleton_cuboid[0].shape)
+    print(">> voxel_skeleton_cuboid[0].shape=", voxel_skeleton_cuboid[0].shape)
     res = np.zeros([nb_cuboid, side, side, h])
     for k,v in voxel_skeleton_cuboid.items():
-        #print("k=",k, "y.shape=", v.shape)
+        print("k=",k, "v.shape=", v.shape)
         # 加个numpy 搜索key什么的,然后赋值给点的数量
         for c in v:
             v_x,v_y,v_z, v_p = c
-            res[k,x,y,z] = v_p
+            res[k,int(v_x),int(v_y),int(v_z)] = v_p
 
     return res
 
@@ -263,12 +267,14 @@ def prepare_dataset(data, coords_sw, grid_size, voxel_size, global_height, voxel
             # (4) voxelization
             key_points_in_voxel, nb_points_per_voxel, voxel = voxel_grid_sample(local_points, voxel_size, voxel_sample_mode)
             
+            '''
             nb_p_max = np.max(nb_points_per_voxel)
             nb_p_min = np.min(nb_points_per_voxel)
             nb_points_per_voxel = (nb_points_per_voxel - nb_p_min)/(nb_p_max - nb_p_min)
             voxel_and_points = np.concatenate((voxel, np.array([nb_points_per_voxel]).T), axis=1)
             print("voxel.shape={}, nb_points_per_voxel.shape={}, voxel_and_points.shape={}".format(voxel.shape, voxel.shape, voxel_and_points.shape))
-            voxel_skeleton_cuboid[count_voxel_skeleton] = voxel_and_points
+            '''
+            voxel_skeleton_cuboid[count_voxel_skeleton] = voxel
             #visualize_voxel_key_points(voxel, nb_points_per_voxel, "TLS voxelized data")
 
             # (5) centralization in (x y z) thress axis by the center of voxels
