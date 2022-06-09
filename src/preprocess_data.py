@@ -135,7 +135,7 @@ def voxel_grid_sample(cuboid, voxel_size, mode):
     # index : the positions of [new elements in old array]
     # index_inversed : the positions of [old elements in new array]
     # nb_pts_per_voxel : nb of points in each voxels
-    non_empty_voxel, index, index_inversed, nb_points_per_voxel = np.unique((points//voxel_size).astype(int), axis=0, return_index=True, return_inverse=True, return_counts=True)
+    no_empty_voxel, index, index_inversed, nb_points_per_voxel = np.unique((points//voxel_size).astype(int), axis=0, return_index=True, return_inverse=True, return_counts=True)
     index_points_on_voxel_sorted = np.argsort(index_inversed)
     # we can then access the points that are linked to each voxel through index_points_on_voxel_sorted and how many they are (nb_pts_per_voxel)
 
@@ -161,7 +161,7 @@ def voxel_grid_sample(cuboid, voxel_size, mode):
     
     nb_p_max = np.max(nb_points_per_voxel)
     nb_p_min = np.min(nb_points_per_voxel)
-    voxel_and_points = np.concatenate((voxel, np.array([(nb_points_per_voxel - nb_p_min)/(nb_p_max - nb_p_min)]).T), axis=1)
+    voxel_and_points = np.concatenate((no_empty_voxel, np.array([(nb_points_per_voxel - nb_p_min)/(nb_p_max - nb_p_min)]).T), axis=1)
 
     return np.array(res), np.array(nb_points_per_voxel), voxel_and_points
 
@@ -185,7 +185,7 @@ def analyse_voxel_in_cuboid(voxel_skeleton_cuboid, h, side):
     print(">> voxel_skeleton_cuboid[0].shape=", voxel_skeleton_cuboid[0].shape)
     res = np.zeros([nb_cuboid, side, side, h])
     for k,v in voxel_skeleton_cuboid.items():
-        print("k=",k, "v.shape=", v.shape)
+        #print("k=",k, "v.shape=", v.shape)
         # 加个numpy 搜索key什么的,然后赋值给点的数量
         for c in v:
             v_x,v_y,v_z, v_p = c
@@ -379,7 +379,7 @@ def prepare_procedure(path, grid_size, voxel_size, voxel_sample_mode, sample_siz
         print("v_k_c[0]=type",type(voxel_skeleton_cuboid[0]))
         print("v_k_c[0]=",voxel_skeleton_cuboid[0])
         print("voxel_nets.shape=", voxel_nets.shape)
-        print("> data_count", data_count)
+        #print("> data_count", data_count)
 
     return samples, sample_cuboid_index, voxel_nets
 
