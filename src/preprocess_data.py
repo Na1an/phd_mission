@@ -41,7 +41,7 @@ def read_data_with_intensity(path, feature, detail=False):
     mean_z = np.mean(data_las.z)
     std_z = np.std(data_las.z)
     data = np.vstack((data_las.x - x_min, data_las.y - y_min, data_las.z, ((data_las.z - mean_z/std_z)), data_las[feature])).transpose()
-
+    
     print(">>>[!data with intensity] data shape =", data.shape, " type =", type(data))
 
     return data, x_min, x_max, y_min, y_max, z_min, z_max
@@ -153,7 +153,7 @@ def voxel_grid_sample(cuboid, voxel_size, mode):
         raise RuntimeError("Function : voxel_grid_sample, select point mode unknowm (neither mc nor cmc)")
 
     # i - index, v - coordinate of non empty voxel
-    for i,v in enumerate(non_empty_voxel):
+    for i,v in enumerate(no_empty_voxel):
         nb_points = nb_points_per_voxel[i]
         voxel_grid[tuple(v)] = points[index_points_on_voxel_sorted[loc_select:loc_select+nb_points]]
         res.append(key_point_in_voxel(v))
@@ -267,13 +267,6 @@ def prepare_dataset(data, coords_sw, grid_size, voxel_size, global_height, voxel
             # (4) voxelization
             key_points_in_voxel, nb_points_per_voxel, voxel = voxel_grid_sample(local_points, voxel_size, voxel_sample_mode)
             
-            '''
-            nb_p_max = np.max(nb_points_per_voxel)
-            nb_p_min = np.min(nb_points_per_voxel)
-            nb_points_per_voxel = (nb_points_per_voxel - nb_p_min)/(nb_p_max - nb_p_min)
-            voxel_and_points = np.concatenate((voxel, np.array([nb_points_per_voxel]).T), axis=1)
-            print("voxel.shape={}, nb_points_per_voxel.shape={}, voxel_and_points.shape={}".format(voxel.shape, voxel.shape, voxel_and_points.shape))
-            '''
             voxel_skeleton_cuboid[count_voxel_skeleton] = voxel
             #visualize_voxel_key_points(voxel, nb_points_per_voxel, "TLS voxelized data")
 
@@ -338,7 +331,7 @@ def prepare_dataset(data, coords_sw, grid_size, voxel_size, global_height, voxel
                 
     return np.array(samples), sample_cuboid_index, voxel_skeleton_cuboid
 
-def prepare_procedure(path, grid_size, voxel_size, voxel_sample_mode, sample_size, label_name="llabel", detail=False, naif_sliding=False):
+def prepare_procedure(path, grid_size, voxel_size, voxel_sample_mode, sample_size, global_height=50, label_name="llabel", detail=False, naif_sliding=False):
     '''
     Args:
         path : raw_data_path. The path of training/validation/test file.
@@ -362,7 +355,7 @@ def prepare_procedure(path, grid_size, voxel_size, voxel_sample_mode, sample_siz
     #print("> coords.shape={}, size={}".format(coords_sw.shape, coords_sw.size))
     
     #global_height = z_max - z_min
-    global_height = 50
+    #global_height = 50
     samples, sample_cuboid_index, voxel_skeleton_cuboid = prepare_dataset(data_preprocessed, coords_sw, grid_size, voxel_size, global_height, voxel_sample_mode, sample_size, detail=detail)
     print(">>> samples.shape={}, sample_cuboid_index.shape={}, voxel_skele.len={}".format(samples.shape, len(sample_cuboid_index), len(voxel_skeleton_cuboid)))
     
@@ -435,16 +428,15 @@ def prepare_dataset_predict(data, coords_sw, grid_size, voxel_size, global_heigh
     sw = []
     index_sw = 0
     for i in range(coord_x):
-        for j in range(coord_y):
-            
-            # (1) cut data to cubes
-            # local origin
-            local_x, local_y = coords_sw[i, j]
-            print("\n>> sliding window n°", w_nb, "bottom left coordinate :(",local_x, ',',local_y,')')
-
-            # find index of the data_preprocessed in this sliding window
-            local_index = get_region_index(data, local_x, local_x+grid_size, local_y, local_y+grid_size)
-            print(">> reigon ({},{}) - ({},{})".format(local_x,local_y, local_x+grid_size, local_y+grid_size))
+        for j in range(coord_y):           #local_points = copy.deepcopy(data[local_index])
+            local_points = data[local_index]
+            local_z = np.min(local_points[:,2])
+            local_points[:,0] = local_points[:,0] - local_x
+            local_points[:,1] = local_points[:,1] - local_y
+            local_abs_height = np.max(local_points[:,2]) - local_z
+            local_points[:,2] = local_points[:,2] - local_z
+            adjust = np.mean(local_points[:, :3], axis=0) 
+            local_points[:,:3] = local_points[:,:3] - adjustal_x+grid_size, local_y+grid_size))
             # shift points to local origin (0, 0, 0)
             # zero-centered
             '''
@@ -467,7 +459,7 @@ def prepare_dataset_predict(data, coords_sw, grid_size, voxel_size, global_heigh
             local_points[:,1] = local_points[:,1] - local_y
             local_abs_height = np.max(local_points[:,2]) - local_z
             # local_abs_height
-            local_points[:,2] = local_points[:,2] - local_z
+            #local_points[:,2] = local_points[:,2] - local_z
 
             # voxelization
             key_points_in_voxel, nb_points_per_voxel, voxel = voxel_grid_sample(local_points, voxel_size, voxel_sample_mode)

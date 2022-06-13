@@ -16,6 +16,7 @@ if __name__ == "__main__":
     parser.add_argument("--nb_epoch", help="The epoch number.", type=int, default=300)
     parser.add_argument("--batch_size", help="The batch size.", type=int, default=4)
     parser.add_argument("--predict_threshold", help="The predict threshold.", type=float, default=0.5)
+    parser.add_argument("--global_height", help="The global_height.", type=int, default=50)
     args = parser.parse_args()
 
     # take arguments
@@ -27,6 +28,7 @@ if __name__ == "__main__":
     nb_epoch = args.nb_epoch
     predict_threshold = args.predict_threshold
     batch_size = args.batch_size
+    global_height = args.global_height
 
     # set by default
     voxel_sample_mode = 'mc'
@@ -40,11 +42,11 @@ if __name__ == "__main__":
 
     
     # (2) prepare train dataset and validation dataset
-    samples_train, sample_cuboid_index_train, train_voxel_nets = prepare_procedure(train_data_path, grid_size, voxel_size, voxel_sample_mode, sample_size, label_name="llabel", detail=True)
+    samples_train, sample_cuboid_index_train, train_voxel_nets = prepare_procedure(train_data_path, grid_size, voxel_size, voxel_sample_mode, sample_size, global_height=global_height, label_name="llabel", detail=True)
     train_dataset = TrainDataSet(samples_train, sample_cuboid_index_train, my_device)
     train_dataset.show_info()
     
-    samples_val, sample_cuboid_index_val, val_voxel_nets = prepare_procedure(val_data_path, grid_size, voxel_size, voxel_sample_mode, sample_size, label_name="llabel", detail=True)
+    samples_val, sample_cuboid_index_val, val_voxel_nets = prepare_procedure(val_data_path, grid_size, voxel_size, voxel_sample_mode, sample_size, global_height=global_height, label_name="llabel", detail=True)
     val_dataset = TrainDataSet(samples_val, sample_cuboid_index_val, my_device)
     val_dataset.show_info()
 
