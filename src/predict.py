@@ -15,6 +15,7 @@ if __name__ == "__main__":
     parser.add_argument("--grid_size", help="The sliding window size.", type=float, default=5.0)
     parser.add_argument("--voxel_size", help="The voxel size.", type=float, default=0.2)
     parser.add_argument("--sample_size", help="The sample size : number of points in one-time training.", type=int, default=5000)
+    parser.add_argument("--global_height", help="The global height.", type=int, default=50)
     
     args = parser.parse_args()
 
@@ -24,6 +25,7 @@ if __name__ == "__main__":
     grid_size = args.grid_size
     voxel_size = args.voxel_size
     sample_size = args.sample_size
+    global_height = args.global_height
 
     # set by default
     voxel_sample_mode = 'mc'
@@ -37,7 +39,7 @@ if __name__ == "__main__":
 
     
     # (2) prepare train dataset and validation dataset
-    global_height = 50
+    
     samples_test, sample_cuboid_index_test, train_voxel_nets, sw = prepare_procedure_predict(data_path, grid_size, voxel_size, voxel_sample_mode, sample_size, global_height=global_height,label_name="llabel", detail=False, naif_sliding=True)
     test_dataset = TestDataSet(samples_test, sample_cuboid_index_test, device=my_device)
     test_dataset.show_info()
@@ -85,6 +87,7 @@ if __name__ == "__main__":
     print("\n###### End ######")
 
 # laspy read and write incorrectly
+# this explain why the scale is different
 def error_not_urgent():
     las = read_header(data_path)
     get_info(las)

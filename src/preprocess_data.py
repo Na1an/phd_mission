@@ -38,9 +38,11 @@ def read_data_with_intensity(path, feature, detail=False):
     intensity_min = np.log(np.min(data_las['intensity']))
     data = np.vstack((data_las.x - x_min, data_las.y - y_min, data_las.z, ((np.log(data_las['intensity'])-intensity_min)/(intensity_max-intensity_min)), data_las[feature])).transpose()
     '''
+    data_las.z = data_las.z - int(z_min)
+    print(">> data_las.z min={} max={}".format(np.min(data_las.z), np.max(data_las.z)))
     mean_z = np.mean(data_las.z)
     std_z = np.std(data_las.z)
-    data = np.vstack((data_las.x - x_min, data_las.y - y_min, data_las.z, ((data_las.z - mean_z/std_z)), data_las[feature])).transpose()
+    data = np.vstack((data_las.x - x_min, data_las.y - y_min, data_las.z, ((data_las.z - mean_z)/std_z), data_las[feature])).transpose()
     
     print(">>>[!data with intensity] data shape =", data.shape, " type =", type(data))
 
@@ -194,7 +196,7 @@ def analyse_voxel_in_cuboid(voxel_skeleton_cuboid, h, side):
     return res
 
 # for prepare dataset
-def prepare_dataset(data, coords_sw, grid_size, voxel_size, global_height, voxel_sample_mode, sample_size, detail=False):
+def prepare_dataset(data, coords_sw, grid_size, voxel_size, global_height, voxel_sample_mode, sample_size, detail=False, data_augmentation=True):
     '''
     Args:
         data: a numpy.ndarray (x,y,z,label). 
@@ -253,7 +255,7 @@ def prepare_dataset(data, coords_sw, grid_size, voxel_size, global_height, voxel
             local_points[:,1] = local_points[:,1] - local_y
             local_abs_height = np.max(local_points[:,2]) - np.min(local_points[:,2])
             # local_abs_height
-            local_points[:,2] = local_points[:,2] - np.min(local_points[:,2])
+            #local_points[:,2] = local_points[:,2] - np.min(local_points[:,2])
 
             if detail:
                 print(">>> local abs height :", local_abs_height)
@@ -292,39 +294,39 @@ def prepare_dataset(data, coords_sw, grid_size, voxel_size, global_height, voxel
             tmp_samples = [local_points_tmp[sample_size*i_t:sample_size*(i_t+1)] for i_t in range(tmp_nb_sample)]
             [samples.append(item) for item in tmp_samples]
 
-            
-            # data augmentation
-            rotation = Rotation.from_euler('z', [90, 180, 270], degrees=True)
-            for angle in range(3):
-                print(">>> [data augmentation - sample rotated:{}°]".format((angle+1)*90))
-                #rotation[angle]
-                local_points_tmp = local_points.copy()
-                local_points_tmp[:,:3] = local_points_tmp[:,:3] - np.array([grid_size/2, grid_size/2, global_height/2])
-                local_points_tmp[:,:3] = rotation[angle].apply(local_points_tmp[:,:3])
-                local_points_tmp[:,:3] = local_points_tmp[:,:3] + np.array([grid_size/2, grid_size/2, global_height/2])
+            if data_augmentation:            
+                # data augmentation
+                rotation = Rotation.from_euler('z', [90, 180, 270], degrees=True)
+                for angle in range(3):
+                    #rotation[angle]
+                    local_points_tmp = local_points.copy()
+                    local_points_tmp[:,:2] = local_points_tmp[:,:2] - np.array([grid_size/2, grid_size/2])
+                    local_points_tmp[:,:3] = rotation[angle].apply(local_points_tmp[:,:3])
+                    local_points_tmp[:,:2] = local_points_tmp[:,:2] + np.array([grid_size/2, grid_size/2])
 
-                # (4) voxelization
-                key_points_in_voxel, nb_points_per_voxel, voxel = voxel_grid_sample(local_points_tmp, voxel_size, voxel_sample_mode)
-                voxel_skeleton_cuboid[count_voxel_skeleton] = voxel
-                #visualize_voxel_key_points(voxel, nb_points_per_voxel, "TLS voxelized data")
+                    # (4) voxelization
+                    key_points_in_voxel, nb_points_per_voxel, voxel = voxel_grid_sample(local_points_tmp, voxel_size, voxel_sample_mode)
+                    voxel_skeleton_cuboid[count_voxel_skeleton] = voxel
+                    #visualize_voxel_key_points(voxel, nb_points_per_voxel, "TLS voxelized data")
 
-                local_points_tmp[:,:3] = local_points_tmp[:,:3] - np.array([grid_size/2, grid_size/2, global_height/2])
-                local_points_tmp[:,:2] = local_points_tmp[:,:2]/grid_size
-                local_points_tmp[:,2] = local_points_tmp[:,2]/global_height
-                
-                # set sample_cuboid_index
-                for i_s in range(nb_sample, nb_sample+tmp_nb_sample):
-                    sample_cuboid_index[i_s] = count_voxel_skeleton
-                count_voxel_skeleton = count_voxel_skeleton + 1
-                nb_sample = nb_sample + tmp_nb_sample
+                    local_points_tmp[:,:3] = local_points_tmp[:,:3] - np.array([grid_size/2, grid_size/2, global_height/2])
+                    local_points_tmp[:,:2] = local_points_tmp[:,:2]/grid_size
+                    local_points_tmp[:,2] = local_points_tmp[:,2]/global_height
+                    
+                    # set sample_cuboid_index
+                    for i_s in range(nb_sample, nb_sample+tmp_nb_sample):
+                        sample_cuboid_index[i_s] = count_voxel_skeleton
+                    count_voxel_skeleton = count_voxel_skeleton + 1
+                    nb_sample = nb_sample + tmp_nb_sample
 
-                if detail:
-                    print(">>> tmp_nb_sample={}, nb_sample+tmp={}".format(tmp_nb_sample, nb_sample))
-                
-                # set samples
-                np.random.shuffle(local_points_tmp)
-                tmp_samples = [local_points_tmp[sample_size*i_t:sample_size*(i_t+1)] for i_t in range(tmp_nb_sample)]
-                [samples.append(item) for item in tmp_samples]
+                    if detail:
+                        print(">>> [data augmentation - sample rotated:{}°]".format((angle+1)*90))
+                        print(">>> tmp_nb_sample={}, nb_sample+tmp={}".format(tmp_nb_sample, nb_sample))
+                    
+                    # set samples
+                    np.random.shuffle(local_points_tmp)
+                    tmp_samples = [local_points_tmp[sample_size*i_t:sample_size*(i_t+1)] for i_t in range(tmp_nb_sample)]
+                    [samples.append(item) for item in tmp_samples]
                 
             # sliding_window added 1
             w_nb = w_nb + 1
@@ -428,15 +430,16 @@ def prepare_dataset_predict(data, coords_sw, grid_size, voxel_size, global_heigh
     sw = []
     index_sw = 0
     for i in range(coord_x):
-        for j in range(coord_y):           #local_points = copy.deepcopy(data[local_index])
-            local_points = data[local_index]
-            local_z = np.min(local_points[:,2])
-            local_points[:,0] = local_points[:,0] - local_x
-            local_points[:,1] = local_points[:,1] - local_y
-            local_abs_height = np.max(local_points[:,2]) - local_z
-            local_points[:,2] = local_points[:,2] - local_z
-            adjust = np.mean(local_points[:, :3], axis=0) 
-            local_points[:,:3] = local_points[:,:3] - adjustal_x+grid_size, local_y+grid_size))
+        for j in range(coord_y):           
+            
+            # (1) cut data to cubes
+            # local origin
+            local_x, local_y = coords_sw[i, j]
+            print("\n>> sliding window n°", w_nb, "bottom left coordinate :(",local_x, ',',local_y,')')
+
+            # find index of the data_preprocessed in this sliding window
+            local_index = get_region_index(data, local_x, local_x+grid_size, local_y, local_y+grid_size)
+            print(">> reigon ({},{}) - ({},{})".format(local_x,local_y, local_x+grid_size, local_y+grid_size))
             # shift points to local origin (0, 0, 0)
             # zero-centered
             '''

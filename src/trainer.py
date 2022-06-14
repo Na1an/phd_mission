@@ -76,11 +76,7 @@ class Trainer():
         print("len(self.train_loader.dataset=", len(self.train_loader.dataset))
         start = self.load_checkpoint()
         for e in range(start, nb_epoch):            
-            print('======= Start epoch {} ============='.format(e))
-            epoch_loss = 0.0
-            epoch_acc = 0.0
-            #epoch_num_correct= 0
-
+            
             if e % 1 == 0:
                 self.save_checkpoint(e)
                 val_loss, predict_correct = self.compute_val_loss()
@@ -99,6 +95,10 @@ class Trainer():
                 self.writer.add_scalar('validation loss - avg', val_loss, e)
                 self.writer.add_scalar('validation accuracy - avg', predict_correct/self.sample_size, e)
 
+            print('======= Start epoch {} ============='.format(e))
+            epoch_loss = 0.0
+            epoch_acc = 0.0
+            #epoch_num_correct= 0
             loader_len = 0
             # points, labels, v_cuboid
             for points, intensity, label, voxel_net in self.train_loader:
