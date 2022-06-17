@@ -184,7 +184,7 @@ class Trainer():
         sum_val_loss = 0
         num_batches = 5
         predict_correct = 0
-        for lll in range(num_batches):
+        for nb in range(num_batches):
             #output = self.model(points, self.train_voxel_nets[voxel_net])
             #tmp_loss = nn.functional.binary_cross_entropy_with_logits(output, label)
             try:
@@ -195,7 +195,7 @@ class Trainer():
 
             logits = self.model(points, intensity, self.train_voxel_nets[voxel_net])
             #logits = output.argmax(dim=1).float()
-            
+            '''
             classes = ('leaf', 'wood')
             
             y_true = label.detach().numpy()[0].T.astype('int64')
@@ -206,7 +206,8 @@ class Trainer():
                                 columns = [i for i in classes])
             plt.figure(figsize = (12,7))
             sn.heatmap(df_cm, annot=True)
-            plt.savefig('output_{}.png'.format(lll))
+            plt.savefig('output_{}.png'.format(nb))
+            '''
 
             # loss
             # binary_cross_entropy_with_logits : input doesn't need to be [0,1], but target/label need to be [0, N-1] (therwise the loss will be wired)
