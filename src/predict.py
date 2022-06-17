@@ -74,7 +74,8 @@ if __name__ == "__main__":
         
         new_file.x = points[:,0]*grid_size + adjust_x + local_x
         new_file.y = points[:,1]*grid_size + adjust_y + local_y
-        new_file.z = points[:,2]*global_height + adjust_z + local_z
+        #new_file.z = points[:,2]*global_height + adjust_z + local_z
+        new_file.z = points[:,2]*global_height + adjust_z
         
         las.points = new_file.points
         

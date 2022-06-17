@@ -7,6 +7,10 @@ from torch.utils.data import DataLoader
 #from torchviz import make_dot
 from torch.utils.tensorboard import SummaryWriter
 
+from sklearn.metrics import confusion_matrix
+import seaborn as sn
+import pandas as pd
+
 class Trainer():
     def __init__(self, model, device, train_dataset, train_voxel_nets, val_dataset, val_voxel_nets, batch_size, sample_size, predict_threshold, num_workers, shuffle=True, opt="Adam"):
         '''
@@ -180,7 +184,7 @@ class Trainer():
         sum_val_loss = 0
         num_batches = 5
         predict_correct = 0
-        for _ in range(num_batches):
+        for lll in range(num_batches):
             #output = self.model(points, self.train_voxel_nets[voxel_net])
             #tmp_loss = nn.functional.binary_cross_entropy_with_logits(output, label)
             try:
@@ -192,6 +196,18 @@ class Trainer():
             logits = self.model(points, intensity, self.train_voxel_nets[voxel_net])
             #logits = output.argmax(dim=1).float()
             
+            classes = ('leaf', 'wood')
+            
+            y_true = label.detach().numpy()[0].T.astype('int64')
+            y_predict = logits.detach().numpy()[0].T.astype('int64')
+            print("shape: y_true={}, y_predict={}".format(y_true.shape, y_predict.shape))
+            cf_matrix = confusion_matrix(np.argmax(y_true, axis=1), np.argmax(y_predict, axis=1))
+            df_cm = pd.DataFrame(cf_matrix/np.sum(cf_matrix), index = [i for i in classes],
+                                columns = [i for i in classes])
+            plt.figure(figsize = (12,7))
+            sn.heatmap(df_cm, annot=True)
+            plt.savefig('output_{}.png'.format(lll))
+
             # loss
             # binary_cross_entropy_with_logits : input doesn't need to be [0,1], but target/label need to be [0, N-1] (therwise the loss will be wired)
             tmp_loss = nn.functional.binary_cross_entropy_with_logits(logits, label)
