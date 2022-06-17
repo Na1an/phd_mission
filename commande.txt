@@ -1,5 +1,6 @@
 # installation
-conda install --yes --file requirements.txt
+#conda install --yes --file requirements.txt
+conda create --name <env> --file requirements.txt
 
 # for training
 python main.py "/home/yuchen/Documents/PhD/data_for_project/22-04-11_transposed_data/dls_only_sutdy_region_train.las" "/home/yuchen/Documents/PhD/data_for_project/22-04-11_transposed_data/dls_only_sutdy_region_val.las" --grid_size=3 --voxel_size=0.1 --sample_size=5000 --nb_epoch=300 --batch_size=4 --global_height=45
