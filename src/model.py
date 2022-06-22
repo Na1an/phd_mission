@@ -8,7 +8,9 @@ class PointWiseModel(nn.Module):
     def __init__(self, device, num_classes=2, hidden_dim=256):
         '''
         Args:
-            
+            device : 'cuda' GPU or 'cpu' CPU.
+            num_classes: a integer. The number of class.
+            hidden_dim: a integer. The hidden layer dimension.
         Returns: 
             None.
         '''
@@ -32,7 +34,7 @@ class PointWiseModel(nn.Module):
         groups(int, optional) – 从输入通道到输出通道的阻塞连接数；没用到，没细看
         bias(bool, optional) - 如果bias=True，添加偏置；没用到，没细看 
         """
-        # padding_mode added
+        # kernel_size = 3
         self.conv_1 = nn.Conv3d(1, 32, 3, padding=1)  # out: 32
         self.conv_1_1 = nn.Conv3d(32, 64, 3, padding=1)  # out: 64
         self.conv_2 = nn.Conv3d(64, 128, 3, padding=1)  # out: 128
@@ -40,10 +42,25 @@ class PointWiseModel(nn.Module):
         self.conv_3 = nn.Conv3d(128, 128, 3, padding=1)  # out: 128
         self.conv_3_1 = nn.Conv3d(128, 128, 3, padding=1)  # out: 128
 
-        # feature_size was setting 7 for displacements
-        #feature_size = (1 + 64 + 128 + 128 ) * 7 
-        # intensity added
-        feature_size = (1 + 64 + 128 + 128 + 1)
+        # kernel_size = 5
+        self.conv_1_ks5 = nn.Conv3d(1, 32, 5, padding=1)  # out: 32
+        self.conv_1_1_ks5 = nn.Conv3d(32, 64, 5, padding=1)  # out: 64
+        self.conv_2_ks5 = nn.Conv3d(64, 128, 5, padding=1)  # out: 128
+        self.conv_2_1_ks5 = nn.Conv3d(128, 128, 5, padding=1)  # out: 128
+        self.conv_3_ks5 = nn.Conv3d(128, 128, 5, padding=1)  # out: 128
+        self.conv_3_1_ks5 = nn.Conv3d(128, 128, 5, padding=1)  # out: 128
+
+        # kernel_size = 7
+        self.conv_1_ks7 = nn.Conv3d(1, 32, 7, padding=1)  # out: 32
+        self.conv_1_1_ks7 = nn.Conv3d(32, 64, 7, padding=1)  # out: 64
+        self.conv_2_ks7 = nn.Conv3d(64, 128, 7, padding=1)  # out: 128
+        self.conv_2_1_ks7 = nn.Conv3d(128, 128, 7, padding=1)  # out: 128
+        self.conv_3_ks7 = nn.Conv3d(128, 128, 7, padding=1)  # out: 128
+        self.conv_3_1_ks7 = nn.Conv3d(128, 128, 7, padding=1)  # out: 128
+
+        # feature_size was setting 3 times for multi-scale learning/multi receptive field
+        # intensity added : in the last place '+ 1'
+        feature_size = 1 + (64 + 128 + 128)*3 + 1
         # conditionnal VAE, co-variabale, regression
         self.fc_0 = nn.Conv1d(feature_size, hidden_dim*2, 1)
         self.fc_1 = nn.Conv1d(hidden_dim*2, hidden_dim, 1)
@@ -55,19 +72,14 @@ class PointWiseModel(nn.Module):
         self.conv2_1_bn = nn.BatchNorm3d(128)
         self.conv3_1_bn = nn.BatchNorm3d(128)
 
-        '''
-        displacment = 0.035
-        displacments = []
-        displacments.append([0, 0, 0])
-        for x in range(3):
-            for y in [-1, 1]:
-                input = [0, 0, 0]
-                input[x] = y * displacment
-                displacments.append(input)
-        self.device = device
-        self.displacments = torch.Tensor(displacments).to(self.device)
-        '''
-        #别扯淡了，0.5阈值改[1. , 0.]吧
+        self.conv1_1_bn_ks5 = nn.BatchNorm3d(64)
+        self.conv2_1_bn_ks5 = nn.BatchNorm3d(128)
+        self.conv3_1_bn_ks5 = nn.BatchNorm3d(128)
+
+        self.conv1_1_bn_ks7 = nn.BatchNorm3d(64)
+        self.conv2_1_bn_ks7 = nn.BatchNorm3d(128)
+        self.conv3_1_bn_ks7 = nn.BatchNorm3d(128)
+
 
     # forward propagation
     def forward(self, points, intensity, v):
@@ -95,7 +107,6 @@ class PointWiseModel(nn.Module):
         '''
         v = v.permute((0,1,4,2,3))
         '''
-
         p = p.unsqueeze(1).unsqueeze(1)
         
         '''
@@ -115,9 +126,18 @@ class PointWiseModel(nn.Module):
         # 
         # feature_0
         feature_0 = F.grid_sample(v, p, align_corners=True)
+        
         net = self.actvn(self.conv_1(v))
         net = self.actvn(self.conv_1_1(net))
         net = self.conv1_1_bn(net)
+
+        net5 = self.actvn(self.conv_1_ks5(v))
+        net5 = self.actvn(self.conv_1_1_ks5(net5))
+        net5 = self.conv1_1_bn_ks5(net5)
+
+        net7 = self.actvn(self.conv_1_ks7(v))
+        net7 = self.actvn(self.conv_1_1_ks7(net7))
+        net7 = self.conv1_1_bn_ks7(net7)
 
         '''
         print("feature_0.shape", feature_0.shape) # feature_0.shape torch.Size([4, 1, 1, 7, 5000])
@@ -127,10 +147,25 @@ class PointWiseModel(nn.Module):
 
         # feature_1
         feature_1 = F.grid_sample(net, p, align_corners=True)  # out : (B,C (of x), 1,1,sample_num)
+        feature_1_ks5 = F.grid_sample(net5, p, align_corners=True)
+        feature_1_ks7 = F.grid_sample(net7, p, align_corners=True)
+
         net = self.maxpool(net)
+        net5 = self.maxpool(net5)
+        net7 = self.maxpool(net7)
+
         net = self.actvn(self.conv_2(net))
         net = self.actvn(self.conv_2_1(net))
         net = self.conv2_1_bn(net)
+
+        net5 = self.actvn(self.conv_2_ks5(net5))
+        net5 = self.actvn(self.conv_2_1_ks5(net5))
+        net5 = self.conv2_1_bn_ks5(net5)
+
+        net7 = self.actvn(self.conv_2_ks7(net7))
+        net7 = self.actvn(self.conv_2_1_ks7(net7))
+        net7 = self.conv2_1_bn_ks7(net7)
+
         '''
         print("feature_1.shape {}".format(feature_1.shape))
         print("after first conv_2, net=", net.shape)
@@ -139,10 +174,24 @@ class PointWiseModel(nn.Module):
 
         # feature_3
         feature_2 = F.grid_sample(net, p, align_corners=True)
+        feature_2_ks5 = F.grid_sample(net5, p, align_corners=True)
+        feature_2_ks7 = F.grid_sample(net7, p, align_corners=True)
+
         net = self.maxpool(net)
+        net5 = self.maxpool(net5)
+        net7 = self.maxpool(net7)
+
         net = self.actvn(self.conv_3(net))
         net = self.actvn(self.conv_3_1(net))
         net = self.conv3_1_bn(net)
+
+        net5 = self.actvn(self.conv_3_ks5(net5))
+        #net5 = self.actvn(self.conv_3_1_ks5(net5))
+        net5 = self.conv3_1_bn_ks5(net5)
+
+        net7 = self.actvn(self.conv_3_ks7(net7))
+        #net7 = self.actvn(self.conv_3_1_ks7(net7))
+        net7 = self.conv3_1_bn_ks7(net7)
         '''
         print("feature_2.shape {}".format(feature_2.shape))
         print("after first conv_3, net=", net.shape)
@@ -151,11 +200,12 @@ class PointWiseModel(nn.Module):
 
         # feature_3
         feature_3 = F.grid_sample(net, p, align_corners=True)
+        feature_3_ks5 = F.grid_sample(net5, p, align_corners=True)
+        feature_3_ks7 = F.grid_sample(net7, p, align_corners=True)
 
         # here every channel corresponse to one feature.
-        # !!!!!!!!!!!!!!!!!! see here, it is easy to add one extra feature non?
         feature_intensity = intensity.unsqueeze(1).unsqueeze(1).unsqueeze(1)
-        features = torch.cat((feature_0, feature_1, feature_2, feature_3, feature_intensity), dim=1)  # (B, features, 1,7,sample_num)
+        features = torch.cat((feature_0, feature_1, feature_1_ks5, feature_1_ks7, feature_2, feature_2_ks5, feature_2_ks7, feature_3, feature_3_ks5, feature_3_ks7, feature_intensity), dim=1)  # (B, features, 1,7,sample_num)
         shape = features.shape
         features = torch.reshape(features, (shape[0], shape[1] * shape[3], shape[4]))  # (B, featues_per_sample, samples_num)
         
@@ -166,11 +216,11 @@ class PointWiseModel(nn.Module):
         print("features.shape {}".format(features.shape))
         '''
 
-        net = self.actvn(self.fc_0(features))
-        net = self.actvn(self.fc_1(net))
-        net = self.actvn(self.fc_2(net))
-        net = self.fc_out(net)
-        out = net.squeeze(1)
+        net_out = self.actvn(self.fc_0(features))
+        net_out = self.actvn(self.fc_1(net_out))
+        net_out = self.actvn(self.fc_2(net_out))
+        net_out = self.fc_out(net_out)
+        out = net_out.squeeze(1)
         #p[:,:,:,:] = p[:,:,:,:,[2,1,0]]
         '''
         print("out shape:", out.shape)
