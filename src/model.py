@@ -1,9 +1,95 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import numpy as np
+from torch.autograd import Variable
 
+# PointNet++
+# spatial transformer networks k-D
+# transform the feature
+class STNkd(nn.Module):
+    def __init__(self, k=64):
+        super(STNkd, self).__init__()
+        self.conv1 = torch.nn.Conv1d(k, 64, 1)
+        self.conv2 = torch.nn.Conv1d(64, 128, 1)
+        self.conv3 = torch.nn.Conv1d(128, 1024, 1)
+        self.fc1 = nn.Linear(1024, 512)
+        self.fc2 = nn.Linear(512, 256)
+        self.fc3 = nn.Linear(256, k*k)
+        self.relu = nn.ReLU()
+ 
+        self.bn1 = nn.BatchNorm1d(64)
+        self.bn2 = nn.BatchNorm1d(128)
+        self.bn3 = nn.BatchNorm1d(1024)
+        self.bn4 = nn.BatchNorm1d(512)
+        self.bn5 = nn.BatchNorm1d(256)
+ 
+        self.k = k
+ 
+    def forward(self, x):
+        batchsize = x.size()[0]
+        x = F.relu(self.bn1(self.conv1(x)))
+        x = F.relu(self.bn2(self.conv2(x)))
+        x = F.relu(self.bn3(self.conv3(x)))
+        x = torch.max(x, 2, keepdim=True)[0]
+        x = x.view(-1, 1024)
+ 
+        x = F.relu(self.bn4(self.fc1(x)))
+        x = F.relu(self.bn5(self.fc2(x)))
+        x = self.fc3(x)
+ 
+        iden = Variable(torch.from_numpy(np.eye(self.k).flatten().astype(np.float32))).view(1,self.k*self.k).repeat(batchsize,1)
+        if x.is_cuda:
+            iden = iden.cuda()
+        x = x + iden
+        x = x.view(-1, self.k, self.k)
+        return x
+
+# PointNet
+class PointNetfeat(nn.Module):
+    def __init__(self, global_feat = True, feature_transform = False):
+        super(PointNetfeat, self).__init__()
+        self.stn = STNkd(k=3)
+        self.conv1 = torch.nn.Conv1d(3, 64, 1)
+        self.conv2 = torch.nn.Conv1d(64, 128, 1)
+        self.conv3 = torch.nn.Conv1d(128, 1024, 1)
+        self.bn1 = nn.BatchNorm1d(64)
+        self.bn2 = nn.BatchNorm1d(128)
+        self.bn3 = nn.BatchNorm1d(1024)
+        self.global_feat = global_feat
+        self.feature_transform = feature_transform
+        if self.feature_transform:
+            self.fstn = STNkd(k=64)
+
+    def forward(self, x):
+        n_pts = x.size()[2]
+        trans = self.stn(x)
+        x = x.transpose(2, 1)
+        x = torch.bmm(x, trans)
+        x = x.transpose(2, 1)
+        x = F.relu(self.bn1(self.conv1(x)))
+
+        if self.feature_transform:
+            trans_feat = self.fstn(x)
+            x = x.transpose(2,1)
+            x = torch.bmm(x, trans_feat)
+            x = x.transpose(2,1)
+        else:
+            trans_feat = None
+
+        pointfeat = x
+        x = F.relu(self.bn2(self.conv2(x)))
+        x = self.bn3(self.conv3(x))
+        x = torch.max(x, 2, keepdim=True)[0]
+        x = x.view(-1, 1024)
+        if self.global_feat:
+            x = x.view(-1, 1024, 1).repeat(1, 1, n_pts)
+            return torch.cat([x, pointfeat], 1), trans, trans_feat
+        else:
+            return x, trans, trans_feat
+
+# MPVCNN: multi-scale Point Voxel CNN
 class PointWiseModel(nn.Module):
-
     # initialization
     def __init__(self, device, num_classes=2, hidden_dim=256):
         '''
@@ -34,6 +120,8 @@ class PointWiseModel(nn.Module):
         groups(int, optional) – 从输入通道到输出通道的阻塞连接数；没用到，没细看
         bias(bool, optional) - 如果bias=True，添加偏置；没用到，没细看 
         """
+
+        # voxel-based branch: if-net
         # kernel_size = 3
         self.conv_1 = nn.Conv3d(1, 32, 3, padding=1)  # out: 32
         self.conv_1_1 = nn.Conv3d(32, 64, 3, padding=1)  # out: 64
@@ -42,6 +130,7 @@ class PointWiseModel(nn.Module):
         self.conv_3 = nn.Conv3d(128, 128, 3, padding=1)  # out: 128
         self.conv_3_1 = nn.Conv3d(128, 128, 3, padding=1)  # out: 128
 
+        '''
         # kernel_size = 5
         self.conv_1_ks5 = nn.Conv3d(1, 32, 5, padding=1)  # out: 32
         self.conv_1_1_ks5 = nn.Conv3d(32, 64, 5, padding=1)  # out: 64
@@ -57,21 +146,24 @@ class PointWiseModel(nn.Module):
         self.conv_2_1_ks7 = nn.Conv3d(128, 128, 7, padding=1)  # out: 128
         self.conv_3_ks7 = nn.Conv3d(128, 128, 7, padding=1)  # out: 128
         self.conv_3_1_ks7 = nn.Conv3d(128, 128, 7, padding=1)  # out: 128
+        '''
 
         # feature_size was setting 3 times for multi-scale learning/multi receptive field
         # intensity added : in the last place '+ 1'
-        feature_size = 1 + (64 + 128 + 128)*3 + 1
+        #feature_size = 1 + (64 + 128 + 128)*3 + 1
+        feature_size = 1 + (64 + 128 + 128) + 1 + 1088
         # conditionnal VAE, co-variabale, regression
-        self.fc_0 = nn.Conv1d(feature_size, hidden_dim*2, 1)
-        self.fc_1 = nn.Conv1d(hidden_dim*2, hidden_dim, 1)
-        self.fc_2 = nn.Conv1d(hidden_dim, hidden_dim, 1)
-        #self.fc_out = nn.Conv1d(hidden_dim, 1, 1)
+        self.fc_0 = nn.Conv1d(feature_size, hidden_dim*4, 1)
+        self.fc_1 = nn.Conv1d(hidden_dim*4, hidden_dim*2, 1)
+        self.fc_2 = nn.Conv1d(hidden_dim*2, hidden_dim, 1)
+        #self.fc_out = nn.Conv1d(hidden_dim, 1, 1) chang  1 to self.num_classes
         self.fc_out = nn.Conv1d(hidden_dim, self.num_classes, 1)
 
         self.conv1_1_bn = nn.BatchNorm3d(64)
         self.conv2_1_bn = nn.BatchNorm3d(128)
         self.conv3_1_bn = nn.BatchNorm3d(128)
-
+        
+        '''
         self.conv1_1_bn_ks5 = nn.BatchNorm3d(64)
         self.conv2_1_bn_ks5 = nn.BatchNorm3d(128)
         self.conv3_1_bn_ks5 = nn.BatchNorm3d(128)
@@ -79,7 +171,10 @@ class PointWiseModel(nn.Module):
         self.conv1_1_bn_ks7 = nn.BatchNorm3d(64)
         self.conv2_1_bn_ks7 = nn.BatchNorm3d(128)
         self.conv3_1_bn_ks7 = nn.BatchNorm3d(128)
+        '''
 
+        # point-based branch: PointNet++
+        self.point_base_model = PointNetfeat(global_feat=True, feature_transform=True)
 
     # forward propagation
     def forward(self, points, intensity, v):
@@ -100,6 +195,11 @@ class PointWiseModel(nn.Module):
         print("[*] intensity.shape", intensity.shape)
         print("[*] v_cuboid, v.shape={}".format(v.shape))
         '''
+        p_pn = points.transpose(1,2)
+        point_features,_,_ = self.point_base_model(p_pn)
+        print(">> point_features.shape={}".format(point_features.shape))
+        point_features = point_features.unsqueeze(2).unsqueeze(2)
+
         # swap x y z to z y x
         p = points[:,:,[2,1,0]]
         v = v.unsqueeze(1)
@@ -131,6 +231,7 @@ class PointWiseModel(nn.Module):
         net = self.actvn(self.conv_1_1(net))
         net = self.conv1_1_bn(net)
 
+        '''
         net5 = self.actvn(self.conv_1_ks5(v))
         net5 = self.actvn(self.conv_1_1_ks5(net5))
         net5 = self.conv1_1_bn_ks5(net5)
@@ -138,7 +239,7 @@ class PointWiseModel(nn.Module):
         net7 = self.actvn(self.conv_1_ks7(v))
         net7 = self.actvn(self.conv_1_1_ks7(net7))
         net7 = self.conv1_1_bn_ks7(net7)
-
+        '''
         '''
         print("feature_0.shape", feature_0.shape) # feature_0.shape torch.Size([4, 1, 1, 7, 5000])
         print("after first conv_1, net=", net.shape)
@@ -147,17 +248,18 @@ class PointWiseModel(nn.Module):
 
         # feature_1
         feature_1 = F.grid_sample(net, p, align_corners=True)  # out : (B,C (of x), 1,1,sample_num)
-        feature_1_ks5 = F.grid_sample(net5, p, align_corners=True)
-        feature_1_ks7 = F.grid_sample(net7, p, align_corners=True)
+        #feature_1_ks5 = F.grid_sample(net5, p, align_corners=True)
+        #feature_1_ks7 = F.grid_sample(net7, p, align_corners=True)
 
         net = self.maxpool(net)
-        net5 = self.maxpool(net5)
-        net7 = self.maxpool(net7)
+        #net5 = self.maxpool(net5)
+        #net7 = self.maxpool(net7)
 
         net = self.actvn(self.conv_2(net))
         net = self.actvn(self.conv_2_1(net))
         net = self.conv2_1_bn(net)
 
+        '''
         net5 = self.actvn(self.conv_2_ks5(net5))
         net5 = self.actvn(self.conv_2_1_ks5(net5))
         net5 = self.conv2_1_bn_ks5(net5)
@@ -165,6 +267,7 @@ class PointWiseModel(nn.Module):
         net7 = self.actvn(self.conv_2_ks7(net7))
         net7 = self.actvn(self.conv_2_1_ks7(net7))
         net7 = self.conv2_1_bn_ks7(net7)
+        '''
 
         '''
         print("feature_1.shape {}".format(feature_1.shape))
@@ -174,24 +277,26 @@ class PointWiseModel(nn.Module):
 
         # feature_3
         feature_2 = F.grid_sample(net, p, align_corners=True)
-        feature_2_ks5 = F.grid_sample(net5, p, align_corners=True)
-        feature_2_ks7 = F.grid_sample(net7, p, align_corners=True)
+        #feature_2_ks5 = F.grid_sample(net5, p, align_corners=True)
+        #feature_2_ks7 = F.grid_sample(net7, p, align_corners=True)
 
         net = self.maxpool(net)
-        net5 = self.maxpool(net5)
-        net7 = self.maxpool(net7)
+        #net5 = self.maxpool(net5)
+        #net7 = self.maxpool(net7)
 
         net = self.actvn(self.conv_3(net))
         net = self.actvn(self.conv_3_1(net))
         net = self.conv3_1_bn(net)
 
+        '''
         net5 = self.actvn(self.conv_3_ks5(net5))
         #net5 = self.actvn(self.conv_3_1_ks5(net5))
         net5 = self.conv3_1_bn_ks5(net5)
 
-        net7 = self.actvn(self.conv_3_ks7(net7))
+        #net7 = self.actvn(self.conv_3_ks7(net7))
         #net7 = self.actvn(self.conv_3_1_ks7(net7))
         net7 = self.conv3_1_bn_ks7(net7)
+        '''
         '''
         print("feature_2.shape {}".format(feature_2.shape))
         print("after first conv_3, net=", net.shape)
@@ -200,12 +305,13 @@ class PointWiseModel(nn.Module):
 
         # feature_3
         feature_3 = F.grid_sample(net, p, align_corners=True)
-        feature_3_ks5 = F.grid_sample(net5, p, align_corners=True)
-        feature_3_ks7 = F.grid_sample(net7, p, align_corners=True)
+        #feature_3_ks5 = F.grid_sample(net5, p, align_corners=True)
+        #feature_3_ks7 = F.grid_sample(net7, p, align_corners=True)
 
         # here every channel corresponse to one feature.
         feature_intensity = intensity.unsqueeze(1).unsqueeze(1).unsqueeze(1)
-        features = torch.cat((feature_0, feature_1, feature_1_ks5, feature_1_ks7, feature_2, feature_2_ks5, feature_2_ks7, feature_3, feature_3_ks5, feature_3_ks7, feature_intensity), dim=1)  # (B, features, 1,7,sample_num)
+        #features = torch.cat((feature_0, feature_1, feature_1_ks5, feature_1_ks7, feature_2, feature_2_ks5, feature_2_ks7, feature_3, feature_3_ks5, feature_3_ks7, feature_intensity), dim=1)  # (B, features, 1,7,sample_num)
+        features = torch.cat((feature_0, feature_1, feature_2, feature_3, feature_intensity, point_features), dim=1)  # (B, features, 1,7,sample_num)
         shape = features.shape
         features = torch.reshape(features, (shape[0], shape[1] * shape[3], shape[4]))  # (B, featues_per_sample, samples_num)
         
@@ -221,11 +327,13 @@ class PointWiseModel(nn.Module):
         net_out = self.actvn(self.fc_2(net_out))
         net_out = self.fc_out(net_out)
         out = net_out.squeeze(1)
+        
         #p[:,:,:,:] = p[:,:,:,:,[2,1,0]]
         '''
         print("out shape:", out.shape)
         print("out is {}", out)
         '''
+
         return out
 
 '''
@@ -244,3 +352,70 @@ features.shape torch.Size([4, 2247, 5000])
 out shape: torch.Size([4, 5000])
 '''
     
+'''
+# spatial transformer networks 3-D 
+class STN3d(nn.Module):
+    def __init__(self):
+        super(STN3d, self).__init__()
+        self.conv1 = torch.nn.Conv1d(3, 64, 1)
+        self.conv2 = torch.nn.Conv1d(64, 128, 1)
+        self.conv3 = torch.nn.Conv1d(128, 1024, 1)
+        self.fc1 = nn.Linear(1024, 512)
+        self.fc2 = nn.Linear(512, 256)
+        self.fc3 = nn.Linear(256, 9)
+        self.relu = nn.ReLU()
+ 
+        self.bn1 = nn.BatchNorm1d(64)
+        self.bn2 = nn.BatchNorm1d(128)
+        self.bn3 = nn.BatchNorm1d(1024)
+        self.bn4 = nn.BatchNorm1d(512)
+        self.bn5 = nn.BatchNorm1d(256)
+ 
+ 
+    def forward(self, x):
+        batchsize = x.size()[0]
+        x = F.relu(self.bn1(self.conv1(x)))
+        x = F.relu(self.bn2(self.conv2(x)))
+        x = F.relu(self.bn3(self.conv3(x)))
+        x = torch.max(x, 2, keepdim=True)[0]
+        x = x.view(-1, 1024)
+ 
+        x = F.relu(self.bn4(self.fc1(x)))
+        x = F.relu(self.bn5(self.fc2(x)))
+        x = self.fc3(x)
+ 
+        iden = Variable(torch.from_numpy(np.array([1,0,0,0,1,0,0,0,1]).astype(np.float32))).view(1,9).repeat(batchsize,1)
+        if x.is_cuda:
+            iden = iden.cuda()
+        x = x + iden
+        x = x.view(-1, 3, 3)
+        return x
+'''
+
+# Point Segmentation
+class PointNetSemSeg(nn.Module):
+    def __init__(self, k = 2, feature_transform=False):
+        super(PointNetSemSeg, self).__init__()
+        self.k = k
+        self.feature_transform=feature_transform
+        self.feat = PointNetfeat(global_feat=False, feature_transform=feature_transform)
+        self.conv1 = torch.nn.Conv1d(1088, 512, 1)
+        self.conv2 = torch.nn.Conv1d(512, 256, 1)
+        self.conv3 = torch.nn.Conv1d(256, 128, 1)
+        self.conv4 = torch.nn.Conv1d(128, self.k, 1)
+        self.bn1 = nn.BatchNorm1d(512)
+        self.bn2 = nn.BatchNorm1d(256)
+        self.bn3 = nn.BatchNorm1d(128)
+
+    def forward(self, x):
+        batchsize = x.size()[0]
+        n_pts = x.size()[2]
+        x, trans, trans_feat = self.feat(x)
+        x = F.relu(self.bn1(self.conv1(x)))
+        x = F.relu(self.bn2(self.conv2(x)))
+        x = F.relu(self.bn3(self.conv3(x)))
+        x = self.conv4(x)
+        x = x.transpose(2,1).contiguous()
+        x = F.log_softmax(x.view(-1,self.k), dim=-1)
+        x = x.view(batchsize, n_pts, self.k)
+        return x, trans, trans_feat
