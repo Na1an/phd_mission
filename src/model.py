@@ -151,7 +151,8 @@ class PointWiseModel(nn.Module):
         # feature_size was setting 3 times for multi-scale learning/multi receptive field
         # intensity added : in the last place '+ 1'
         #feature_size = 1 + (64 + 128 + 128)*3 + 1
-        feature_size = 1 + (64 + 128 + 128) + 1 + 1088
+        # the last term (1) is the elevation
+        feature_size = 1 + (64 + 128 + 128) + 1 + 1088 + (1)
         # conditionnal VAE, co-variabale, regression
         self.fc_0 = nn.Conv1d(feature_size, hidden_dim*4, 1)
         self.fc_1 = nn.Conv1d(hidden_dim*4, hidden_dim*2, 1)
@@ -197,7 +198,7 @@ class PointWiseModel(nn.Module):
         '''
         p_pn = points.transpose(1,2)
         point_features,_,_ = self.point_base_model(p_pn)
-        print(">> point_features.shape={}".format(point_features.shape))
+        #print(">> point_features.shape={}".format(point_features.shape))
         point_features = point_features.unsqueeze(2).unsqueeze(2)
 
         # swap x y z to z y x
@@ -310,8 +311,10 @@ class PointWiseModel(nn.Module):
 
         # here every channel corresponse to one feature.
         feature_intensity = intensity.unsqueeze(1).unsqueeze(1).unsqueeze(1)
+        # take 0 because coordinate have been set to z y x before
+        feature_elevation = (p[...,0]/45.0).unsqueeze(1)
         #features = torch.cat((feature_0, feature_1, feature_1_ks5, feature_1_ks7, feature_2, feature_2_ks5, feature_2_ks7, feature_3, feature_3_ks5, feature_3_ks7, feature_intensity), dim=1)  # (B, features, 1,7,sample_num)
-        features = torch.cat((feature_0, feature_1, feature_2, feature_3, feature_intensity, point_features), dim=1)  # (B, features, 1,7,sample_num)
+        features = torch.cat((feature_0, feature_1, feature_2, feature_3, feature_intensity, point_features, feature_elevation), dim=1)  # (B, features, 1,7,sample_num)
         shape = features.shape
         features = torch.reshape(features, (shape[0], shape[1] * shape[3], shape[4]))  # (B, featues_per_sample, samples_num)
         

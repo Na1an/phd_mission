@@ -20,7 +20,7 @@ def read_data(path, feature, detail=False):
     return data, x_min, x_max, y_min, y_max, z_min, z_max
 
 # This function works for the preprocessing the data with intensity
-def read_data_with_intensity(path, feature, detail=False):
+def read_data_with_intensity(path, feature, feature2='intensity', detail=False):
     '''
     Args:
         path : a string. The path of the data file.
@@ -32,17 +32,22 @@ def read_data_with_intensity(path, feature, detail=False):
     data_las = laspy.read(path)
     x_min, x_max, y_min, y_max, z_min, z_max = get_info(data_las)
     
+    data_las.z = data_las.z - int(z_min)
+    print(">> data_las.z min={} max={}".format(np.min(data_las.z), np.max(data_las.z)))
+
     '''
     # intensity put it here
     intensity_max = np.log(np.max(data_las['intensity']))
     intensity_min = np.log(np.min(data_las['intensity']))
     data = np.vstack((data_las.x - x_min, data_las.y - y_min, data_las.z, ((np.log(data_las['intensity'])-intensity_min)/(intensity_max-intensity_min)), data_las[feature])).transpose()
-    '''
-    data_las.z = data_las.z - int(z_min)
-    print(">> data_las.z min={} max={}".format(np.min(data_las.z), np.max(data_las.z)))
+    
     mean_z = np.mean(data_las.z)
     std_z = np.std(data_las.z)
     data = np.vstack((data_las.x - x_min, data_las.y - y_min, data_las.z, ((data_las.z - mean_z)/std_z), data_las[feature])).transpose()
+    '''
+    f2_max = np.log(np.max(data_las[feature2]))
+    f2_min = np.log(np.min(data_las[feature2]))
+    data = np.vstack((data_las.x - x_min, data_las.y - y_min, data_las.z, ((np.log(data_las[feature2])-f2_min)/(f2_max-f2_min)), data_las[feature])).transpose()
     
     print(">>>[!data with intensity] data shape =", data.shape, " type =", type(data))
 
