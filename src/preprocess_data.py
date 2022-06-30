@@ -76,7 +76,7 @@ def read_header(path, detail=True):
         print(">> LAS File Format:", point_format.id)
         print(">> Dimension names:", list(point_format.dimension_names))
 
-    return laspy.read(path)
+    return las
 
 # return the set of sliding window coordinates
 def sliding_window(x_min, x_max, y_min, y_max, grid_size):
@@ -136,13 +136,13 @@ def voxel_grid_sample(cuboid, voxel_size, mode):
     '''
 
     res = []
-    points = cuboid[:,:3]
+    #points = cuboid[:,:3]
     
     # non_empy_voxel : no empty voxel :)
     # index : the positions of [new elements in old array]
     # index_inversed : the positions of [old elements in new array]
     # nb_pts_per_voxel : nb of points in each voxels
-    no_empty_voxel, index, index_inversed, nb_points_per_voxel = np.unique((points//voxel_size).astype(int), axis=0, return_index=True, return_inverse=True, return_counts=True)
+    no_empty_voxel, index, index_inversed, nb_points_per_voxel = np.unique((cuboid[:,:3]//voxel_size).astype(int), axis=0, return_index=True, return_inverse=True, return_counts=True)
     index_points_on_voxel_sorted = np.argsort(index_inversed)
     # we can then access the points that are linked to each voxel through index_points_on_voxel_sorted and how many they are (nb_pts_per_voxel)
 
@@ -159,18 +159,22 @@ def voxel_grid_sample(cuboid, voxel_size, mode):
     else:
         raise RuntimeError("Function : voxel_grid_sample, select point mode unknowm (neither mc nor cmc)")
 
+    intensity_std = []
     # i - index, v - coordinate of non empty voxel
     for i,v in enumerate(no_empty_voxel):
         nb_points = nb_points_per_voxel[i]
-        voxel_grid[tuple(v)] = points[index_points_on_voxel_sorted[loc_select:loc_select+nb_points]]
-        res.append(key_point_in_voxel(v))
+        voxel_grid[tuple(v)] = cuboid[index_points_on_voxel_sorted[loc_select:loc_select+nb_points]]
+        intensity_std.append(np.std(cuboid[index_points_on_voxel_sorted[loc_select:loc_select+nb_points]][:,3]))
+        #res.append(key_point_in_voxel(v))
         loc_select = loc_select + nb_points
     
-    nb_p_max = np.max(nb_points_per_voxel)
-    nb_p_min = np.min(nb_points_per_voxel)
-    voxel_and_points = np.concatenate((no_empty_voxel, np.array([(nb_points_per_voxel - nb_p_min)/(nb_p_max - nb_p_min)]).T), axis=1)
+    #nb_p_max = np.max(nb_points_per_voxel)
+    #nb_p_min = np.min(nb_points_per_voxel)
+    #voxel_and_points = np.concatenate((no_empty_voxel, np.array([(nb_points_per_voxel - nb_p_min)/(nb_p_max - nb_p_min)]).T), axis=1)
+    voxel_and_points = np.append(no_empty_voxel, np.array(intensity_std).reshape(-1, 1), axis=1)
 
-    return np.array(res), np.array(nb_points_per_voxel), voxel_and_points
+    #return np.array(res), np.array(nb_points_per_voxel), voxel_and_points
+    return voxel_grid, np.array(nb_points_per_voxel), voxel_and_points
 
 # analyse
 def analyse_voxel_in_cuboid(voxel_skeleton_cuboid, h, side):
@@ -650,3 +654,73 @@ def prepare_dataset_copy(data, coords_sw, grid_size, voxel_size, global_height, 
             w_nb = w_nb + 1
             
     return np.array(samples), sample_cuboid_index, voxel_skeleton_cuboid
+
+# laspy read and write incorrectly
+# this explain why the scale is different
+# point format error, change [point_format=las.point_format, file_version="1.2"] to [point_format=3], all is ok
+def error_not_urgent():
+    las = read_header(data_path)
+    get_info(las)
+    data,_,_,_,_,_,_ = read_data(data_path, "llabel")
+    local_index = get_region_index(data, 286624.0, 286699, 583755, 583799)
+    # see here [!!!] new_file = laspy.create(point_format=las.point_format, file_version="1.2")
+    new_file = laspy.create(point_format=3)
+    new_file.x = data[local_index][:,0]
+    new_file.y = data[local_index][:,1]
+    new_file.z = data[local_index][:,2]
+    las.points = new_file.points
+    #las['llabel'] = predict.cpu().detach().numpy()
+    las.write(os.getcwd()+"/predict_res/res_{:04}.las".format(110))
+    exit()
+
+def voxel_grid_sample_copy(cuboid, voxel_size, mode):
+    '''
+    Args:
+        points : a (n,4) numpy.darray. The data to process.
+        voxel_size : a float. The resolution of the voxel. 
+        mode : a string. How to select points in voxel. ('mc': mean_center, 'cmc' : closest point to mean center)
+        #grid_size : a interger/float. The side length of a grid.
+        #height : a float. The max height of the raw data. Not local height!
+    Returns:
+        res : a voxelized data. key points in each voxel.
+        nb_points_per_voxel : a list integer. The total voxel number.
+        non_empty_voxel : a (n,3) np.darray. The index of occupied voxel.
+    '''
+
+    res = []
+    #points = cuboid[:,:3]
+    
+    # non_empy_voxel : no empty voxel :)
+    # index : the positions of [new elements in old array]
+    # index_inversed : the positions of [old elements in new array]
+    # nb_pts_per_voxel : nb of points in each voxels
+    no_empty_voxel, index, index_inversed, nb_points_per_voxel = np.unique((cuboid[:,:3]//voxel_size).astype(int), axis=0, return_index=True, return_inverse=True, return_counts=True)
+    index_points_on_voxel_sorted = np.argsort(index_inversed)
+    # we can then access the points that are linked to each voxel through index_points_on_voxel_sorted and how many they are (nb_pts_per_voxel)
+
+    voxel_grid = {}
+    loc_select = 0
+
+    # inner fucntion
+    if mode == "mc":
+        def key_point_in_voxel(v):
+            return np.mean(voxel_grid[tuple(v)],axis=0)
+    elif mode == "cmc":
+        def key_point_in_voxel(v):
+            return voxel_grid[tuple(v)][np.linalg.norm(voxel_grid[tuple(v)] - np.mean(voxel_grid[tuple(v)],axis=0),axis=1).argmin()]
+    else:
+        raise RuntimeError("Function : voxel_grid_sample, select point mode unknowm (neither mc nor cmc)")
+
+    # i - index, v - coordinate of non empty voxel
+    for i,v in enumerate(no_empty_voxel):
+        nb_points = nb_points_per_voxel[i]
+        voxel_grid[tuple(v)] = cuboid[index_points_on_voxel_sorted[loc_select:loc_select+nb_points]]
+        res.append(key_point_in_voxel(v))
+        loc_select = loc_select + nb_points
+    
+    nb_p_max = np.max(nb_points_per_voxel)
+    nb_p_min = np.min(nb_points_per_voxel)
+    voxel_and_points = np.concatenate((no_empty_voxel, np.array([(nb_points_per_voxel - nb_p_min)/(nb_p_max - nb_p_min)]).T), axis=1)
+
+    #return np.array(res), np.array(nb_points_per_voxel), voxel_and_points
+    return voxel_grid, np.array(nb_points_per_voxel), voxel_and_points
