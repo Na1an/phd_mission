@@ -153,7 +153,7 @@ class Trainer():
         return None
     
     def save_checkpoint(self, epoch):
-        path = self.checkpoint_path + '/checkpoint_epoch_{:04}.tar'.format(epoch)
+        path = self.checkpoint_path + '/checkpoint_epoch_{:04}.pth'.format(epoch)
         if not os.path.exists(path):
             torch.save({'epoch':epoch,
                         'model_state_dict': self.model.state_dict(),
@@ -169,7 +169,7 @@ class Trainer():
         checkpoints = [os.path.splitext(os.path.basename(path))[0][17:] for path in checkpoints]
         checkpoints = np.array(checkpoints, dtype=int)
         checkpoints = np.sort(checkpoints)
-        path = self.checkpoint_path + '/checkpoint_epoch_{:04}.tar'.format(checkpoints[-1])
+        path = self.checkpoint_path + '/checkpoint_epoch_{:04}.pth'.format(checkpoints[-1])
 
         print('Loaded checkpoint from: {}'.format(path))
         checkpoint = torch.load(path, map_location=torch.device(self.device))
