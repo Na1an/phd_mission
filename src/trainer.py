@@ -10,6 +10,7 @@ from torch.utils.tensorboard import SummaryWriter
 from sklearn.metrics import confusion_matrix
 import seaborn as sn
 import pandas as pd
+from captum.attr import LayerGradCam, Saliency
 
 class Trainer():
     def __init__(self, model, device, train_dataset, train_voxel_nets, val_dataset, val_voxel_nets, batch_size, sample_size, predict_threshold, num_workers, shuffle=True, opt="Adam"):
@@ -81,32 +82,12 @@ class Trainer():
         start = self.load_checkpoint()
         for e in range(start, nb_epoch):            
             
-            if e % 1 == 0:
-                self.save_checkpoint(e)
-                val_loss, predict_correct = self.compute_val_loss()
-
-                if self.val_min is None:
-                    self.val_min = val_loss 
-
-                if val_loss < self.val_min:
-                    self.val_min = val_loss
-                    for path in glob(self.gradient_clipping_path + '/val_min=*'):
-                        os.remove(path)
-                    np.save(self.gradient_clipping_path + '/val_min={}'.format(e),[e,val_loss])
-                    #print(">> val_min saved here :",self.gradient_clipping_path,"val_min=".format(e))
-
-                print("<<Epoch {}>> - val loss average {} - val accuracy average {}".format(e, val_loss, predict_correct/self.sample_size))
-                self.writer.add_scalar('validation loss - avg', val_loss, e)
-                self.writer.add_scalar('validation accuracy - avg', predict_correct/self.sample_size, e)
-
             print('======= Start epoch {} ============='.format(e))
             epoch_loss = 0.0
             epoch_acc = 0.0
-            #epoch_num_correct= 0
             loader_len = 0
             # points, labels, v_cuboid
             for points, intensity, label, voxel_net in self.train_loader:
-
                 
                 self.model.train() # tell torch we are traning
                 self.optimizer.zero_grad()
@@ -148,7 +129,27 @@ class Trainer():
                     'val_acc': predict_correct/self.sample_size
                 }, e)
 
+            if e % 1 == 0:
+                self.save_checkpoint(e)
+                val_loss, predict_correct = self.compute_val_loss()
+
+                if self.val_min is None:
+                    self.val_min = val_loss
+
+                if val_loss < self.val_min:
+                    self.val_min = val_loss
+                    for path in glob(self.gradient_clipping_path + '/val_min=*'):
+                        os.remove(path)
+                    np.save(self.gradient_clipping_path + '/val_min={}'.format(e),[e,val_loss])
+                    #print(">> val_min saved here :",self.gradient_clipping_path,"val_min=".format(e))
+
+                print("<<Epoch {}>> - val loss average {} - val accuracy average {}".format(e, val_loss, predict_correct/self.sample_size))
+                self.writer.add_scalar('validation loss - avg', val_loss, e)
+                self.writer.add_scalar('validation accuracy - avg', predict_correct/self.sample_size, e)
+
         self.writer.close()
+
+        
 
         return None
     
@@ -207,6 +208,28 @@ class Trainer():
             plt.figure(figsize = (12,7))
             sn.heatmap(df_cm, annot=True)
             plt.savefig('output_{}.png'.format(nb))
+            '''
+
+            # evaluate the contribution of layers
+            
+            layer_act = LayerActivation(self.model, self.model.fc_0)
+            attribution = layer_act.attribute(points, intensity, self.train_voxel_nets[voxel_net])
+            print("attribution=", attribution)
+            plt.plot(attribution.to('cpu').numpy(),output.to('cpu').numpy())
+
+            '''
+            layer_gc = LayerGradCam(self.model, self.model.fc_0)
+            vv = self.train_voxel_nets[voxel_net]
+            attr0 = layer_gc.attribute(points, intensity, vv, target=1)
+            #attr1 = layer_gc.attribute(points, intensity, self.train_voxel_nets[voxel_net])
+            print("atttr0=", attr0)
+            #print("atttr1=", attr1)
+            plt.plot(attr0.to('cpu').numpy(),output.to('cpu').numpy())
+            #plt.plot(attr1.to('cpu').numpy(),output.to('cpu').numpy())
+            '''
+            '''
+            saliency = Saliency(self.model)
+            attribution = saliency.attribute(points, intensity, self.train_voxel_nets[voxel_net],target=0)
             '''
 
             # loss

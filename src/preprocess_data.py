@@ -164,7 +164,7 @@ def voxel_grid_sample(cuboid, voxel_size, mode):
     for i,v in enumerate(no_empty_voxel):
         nb_points = nb_points_per_voxel[i]
         voxel_grid[tuple(v)] = cuboid[index_points_on_voxel_sorted[loc_select:loc_select+nb_points]]
-        intensity_std.append(np.std(cuboid[index_points_on_voxel_sorted[loc_select:loc_select+nb_points]][:,3]))
+        intensity_std.append(np.mean(cuboid[index_points_on_voxel_sorted[loc_select:loc_select+nb_points]][:,3]))
         #res.append(key_point_in_voxel(v))
         loc_select = loc_select + nb_points
     

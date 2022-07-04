@@ -5,6 +5,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits import mplot3d
 
+
 # print info of the laspy data
 def get_info(las):
     '''
@@ -63,7 +64,7 @@ def visualize_voxel_key_points(points, points_per_voxel, title):
 # get current directory path
 def get_current_direct_path():
     return os.path.dirname(os.path.abspath(__file__))
-    
+
 # to do
 # setting device
 def setting_device():

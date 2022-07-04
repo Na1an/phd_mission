@@ -36,7 +36,6 @@ if __name__ == "__main__":
     else:
         my_device = torch.device('cpu')
     print('> Device : {}'.format(my_device))
-
     
     # (2) prepare train dataset and validation dataset
     
@@ -50,10 +49,6 @@ if __name__ == "__main__":
     my_model.load_state_dict(checkpoint['model_state_dict'])
     my_model.eval()
 
-    las = read_header(data_path)
-    las.add_extra_dim(laspy.ExtraBytesParams(name="wood_proba", type=np.float64))
-    las.add_extra_dim(laspy.ExtraBytesParams(name="leave_proba", type=np.float64))
-    get_info(las)
     print("dataset len =", test_dataset.__len__())
     # batch_size must be 1!!!
     test_loader = DataLoader(test_dataset, batch_size=1, shuffle=False)
@@ -69,7 +64,10 @@ if __name__ == "__main__":
         #print("predict.shape", predict.shape)
         #print("predict_label.shape", predict_label.shape)
         local_x, local_y, local_z, adjust_x, adjust_y, adjust_z = sw[int(index_sw[0])]
-        new_file = laspy.create(point_format=las.point_format, file_version="1.2")
+        new_file = laspy.create(point_format=3)
+        new_file.add_extra_dim(laspy.ExtraBytesParams(name="wood_proba", type=np.float64))
+        new_file.add_extra_dim(laspy.ExtraBytesParams(name="leave_proba", type=np.float64))
+        new_file.add_extra_dim(laspy.ExtraBytesParams(name="llabel", type=np.float64))
         points = points.squeeze(0).cpu().detach().numpy()
         
         new_file.x = points[:,0]*grid_size + adjust_x + local_x
@@ -77,29 +75,12 @@ if __name__ == "__main__":
         #new_file.z = points[:,2]*global_height + adjust_z + local_z
         new_file.z = points[:,2]*global_height + adjust_z
         
-        las.points = new_file.points
-        
-        las.wood_proba = predict[0,:].cpu().detach().numpy()
-        las.leave_proba = predict[1,:].cpu().detach().numpy()
-        las['llabel'] = predict_label.cpu().detach().numpy()
-        las.write(os.getcwd()+"/predict_res/res_{:04}.las".format(i))
+        new_file.wood_proba = predict[0,:].cpu().detach().numpy()
+        new_file.leave_proba = predict[1,:].cpu().detach().numpy()
+        new_file.llabel = predict_label.cpu().detach().numpy()
+        new_file.write(os.getcwd()+"/predict_res/res_{:04}.las".format(i))
         i = i+1
         print(">>> cube - N°{} predicted ".format(i))
     print("\n###### End ######")
 
-# laspy read and write incorrectly
-# this explain why the scale is different
-def error_not_urgent():
-    las = read_header(data_path)
-    get_info(las)
-    data,_,_,_,_,_,_ = read_data(data_path, "llabel")
-    local_index = get_region_index(data, 286624.0, 286699, 583755, 583799)
-    new_file = laspy.create(point_format=las.point_format, file_version="1.2")
-    new_file.x = data[local_index][:,0]
-    new_file.y = data[local_index][:,1]
-    new_file.z = data[local_index][:,2]
-    las.points = new_file.points
-    #las['llabel'] = predict.cpu().detach().numpy()
-    las.write(os.getcwd()+"/predict_res/res_{:04}.las".format(110))
-    exit()
         
