@@ -441,10 +441,12 @@ def prepare_dataset_predict(data, coords_sw, grid_size, voxel_size, global_heigh
             local_index = get_region_index(data, local_x, local_x+grid_size, local_y, local_y+grid_size)
             print(">> reigon ({},{}) - ({},{})".format(local_x,local_y, local_x+grid_size, local_y+grid_size))
             print(">> there are {} points in this cuboid".format(len(local_index[0])))
+            '''
             if len(local_index[0]) < sample_size:
                 print(">> point number not enough, cuboid-{} skiped".format(w_nb))
                 w_nb = w_nb + 1
                 continue
+            '''
 
             # shift points to local origin (0, 0, 0)
             # zero-centered

@@ -4,7 +4,9 @@ import laspy
 import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits import mplot3d
-
+from sklearn.metrics import confusion_matrix, matthews_corrcoef
+import seaborn as sns
+import pandas as pd
 
 # print info of the laspy data
 def get_info(las):
@@ -64,6 +66,32 @@ def visualize_voxel_key_points(points, points_per_voxel, title):
 # get current directory path
 def get_current_direct_path():
     return os.path.dirname(os.path.abspath(__file__))
+
+# create confusion matrix
+def createConfusionMatrix(loader):
+    y_pred = [] # save predction
+    y_true = [] # save ground truth
+
+    # iterate over data
+    for inputs, labels in loader:
+        output = net(inputs)  # Feed Network
+
+        output = (torch.max(torch.exp(output), 1)[1]).data.cpu().numpy()
+        y_pred.extend(output)  # save prediction
+
+        labels = labels.data.cpu().numpy()
+        y_true.extend(labels)  # save ground truth
+
+    # constant for classes
+    classes = ('T-shirt/top', 'Trouser', 'Pullover', 'Dress', 'Coat',
+               'Sandal', 'Shirt', 'Sneaker', 'Bag', 'Ankle Boot')
+
+    # Build confusion matrix
+    cf_matrix = confusion_matrix(y_true, y_pred)
+    df_cm = pd.DataFrame(cf_matrix/np.sum(cf_matrix) * 10, index=[i for i in classes],
+                         columns=[i for i in classes])
+    plt.figure(figsize=(12, 7))    
+    return sn.heatmap(df_cm, annot=True).get_figure()
 
 # to do
 # setting device

@@ -6,10 +6,6 @@ from glob import glob
 from torch.utils.data import DataLoader
 #from torchviz import make_dot
 from torch.utils.tensorboard import SummaryWriter
-
-from sklearn.metrics import confusion_matrix, matthews_corrcoef
-import seaborn as sn
-import pandas as pd
 from captum.attr import LayerGradCam, Saliency, LayerActivation
 
 class Trainer():
@@ -119,7 +115,7 @@ class Trainer():
 
             if e % 1 == 0:
                 self.save_checkpoint(e)
-                val_loss, predict_correct, mcc = self.compute_val_loss()
+                val_loss, predict_correct, mcc, df_cm = self.compute_val_loss()
 
                 if self.val_min is None:
                     self.val_min = val_loss
@@ -136,6 +132,9 @@ class Trainer():
                 self.writer.add_scalar('validation accuracy - avg', predict_correct/self.sample_size, e)
                 # add matthew correlation coefficient
                 self.writer.add_scalar('validation matthew correlation coefficient - avg', mcc, e)
+                fig = sns.heatmap(df_cm, annot=True, cmap='Spectral').get_figure()
+                plt.close(fig_)
+                self.writer.add_figure("Confusion matrix", fig, e)
 
             self.writer.add_scalars('loss train (epoch avg) vs val', 
                 {
@@ -185,6 +184,8 @@ class Trainer():
         num_batches = 5
         predict_correct = 0
         mcc = 0
+        y_true_all = np.zeros(num_batches, sample_size)
+        y_predict_all = np.zeros(num_batches, sample_size)
         for nb in range(num_batches):
             #output = self.model(points, self.train_voxel_nets[voxel_net])
             #tmp_loss = nn.functional.binary_cross_entropy_with_logits(output, label)
@@ -199,8 +200,8 @@ class Trainer():
             #preds, answer_id = nn.functional.softmax(logits, dim=1).data.cpu().max(dim=1)
             y_true = label.detach().numpy()[0].T.astype('int64')
             y_predict = logits.detach().numpy()[0].T.astype('int64')
-            print("shape: y_true={}, y_predict={}".format(y_true.shape, y_predict.shape))
-            mcc = mcc + matthews_corrcoef(y_true, y_predict)
+            y_true_all[nb] = y_true
+            y_predict_all[nb] = y_predict
             
             '''
             classes = ('leaf', 'wood')
@@ -246,8 +247,16 @@ class Trainer():
             #preds = logits.argmax(dim=1).float()
             num_correct = torch.eq(logits.argmax(dim=1).float(), label.argmax(dim=1).float()).sum().item()/self.batch_size
             predict_correct = predict_correct + num_correct
-            
-        return sum_val_loss/num_batches, predict_correct/num_batches, mcc/num_batches
+
+        y_true_all = y_true_all.reshape(num_batches*sample_size)
+        y_predict_all = y_predict_all.reshape(num_batches*sample_size)
+        print("shape: y_true={}, y_predict={}".format(y_true_all.shape, y_predict_all.shape))
+        mcc = matthews_corrcoef(y_true_all, y_predict_all)
+        classes = ('leaf', 'wood')
+        cf_matrix = confusion_matrix(y_true_all, y_predict)
+        df_cm = pd.DataFrame(cf_matrix/np.sum(cf_matrix), index = [i for i in classes], columns = [i for i in classes])
+
+        return sum_val_loss/num_batches, predict_correct/num_batches, mcc, df_cm
 
 '''
 single dim output train function
