@@ -196,8 +196,12 @@ class Trainer():
 
             logits = self.model(points, intensity, self.train_voxel_nets[voxel_net])
             #logits = output.argmax(dim=1).float()
-            preds, answer_id = nn.functional.softmax(logits, dim=1).data.cpu().max(dim=1)
-            mcc = mcc + matthews_corrcoef(label.detach().cpu().numpy(), preds.detach().cpu().numpy())
+            #preds, answer_id = nn.functional.softmax(logits, dim=1).data.cpu().max(dim=1)
+            y_true = label.detach().numpy()[0].T.astype('int64')
+            y_predict = logits.detach().numpy()[0].T.astype('int64')
+            print("shape: y_true={}, y_predict={}".format(y_true.shape, y_predict.shape))
+            mcc = mcc + matthews_corrcoef(y_true, y_predict)
+            
             '''
             classes = ('leaf', 'wood')
             
