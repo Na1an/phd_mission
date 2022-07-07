@@ -7,10 +7,10 @@ from torch.utils.data import DataLoader
 #from torchviz import make_dot
 from torch.utils.tensorboard import SummaryWriter
 
-from sklearn.metrics import confusion_matrix
+from sklearn.metrics import confusion_matrix, matthews_corrcoef
 import seaborn as sn
 import pandas as pd
-from captum.attr import LayerGradCam, Saliency
+from captum.attr import LayerGradCam, Saliency, LayerActivation
 
 class Trainer():
     def __init__(self, model, device, train_dataset, train_voxel_nets, val_dataset, val_voxel_nets, batch_size, sample_size, predict_threshold, num_workers, shuffle=True, opt="Adam"):
@@ -80,8 +80,7 @@ class Trainer():
         
         print("len(self.train_loader.dataset=", len(self.train_loader.dataset))
         start = self.load_checkpoint()
-        for e in range(start, nb_epoch):            
-            
+        for e in range(start, nb_epoch):         
             print('======= Start epoch {} ============='.format(e))
             epoch_loss = 0.0
             epoch_acc = 0.0
@@ -118,20 +117,9 @@ class Trainer():
             self.writer.add_scalar('training loss - epoch avg', epoch_loss/loader_len, e)
             self.writer.add_scalar('training accuracy - epoch avg', epoch_acc/loader_len, e)
 
-            self.writer.add_scalars('loss train (epoch avg) vs val', 
-                {
-                    'train_loss': epoch_loss/loader_len,
-                    'val_loss': val_loss
-                }, e)
-            self.writer.add_scalars('acc train (epoche avg) vs val', 
-                {
-                    'train_acc': epoch_acc/loader_len,
-                    'val_acc': predict_correct/self.sample_size
-                }, e)
-
             if e % 1 == 0:
                 self.save_checkpoint(e)
-                val_loss, predict_correct = self.compute_val_loss()
+                val_loss, predict_correct, mcc = self.compute_val_loss()
 
                 if self.val_min is None:
                     self.val_min = val_loss
@@ -146,10 +134,21 @@ class Trainer():
                 print("<<Epoch {}>> - val loss average {} - val accuracy average {}".format(e, val_loss, predict_correct/self.sample_size))
                 self.writer.add_scalar('validation loss - avg', val_loss, e)
                 self.writer.add_scalar('validation accuracy - avg', predict_correct/self.sample_size, e)
+                # add matthew correlation coefficient
+                self.writer.add_scalar('validation matthew correlation coefficient - avg', mcc, e)
 
-        self.writer.close()
-
+            self.writer.add_scalars('loss train (epoch avg) vs val', 
+                {
+                    'train_loss': epoch_loss/loader_len,
+                    'val_loss': val_loss
+                }, e)
+            self.writer.add_scalars('acc train (epoche avg) vs val', 
+                {
+                    'train_acc': epoch_acc/loader_len,
+                    'val_acc': predict_correct/self.sample_size
+                }, e)
         
+        self.writer.close()
 
         return None
     
@@ -185,6 +184,7 @@ class Trainer():
         sum_val_loss = 0
         num_batches = 5
         predict_correct = 0
+        mcc = 0
         for nb in range(num_batches):
             #output = self.model(points, self.train_voxel_nets[voxel_net])
             #tmp_loss = nn.functional.binary_cross_entropy_with_logits(output, label)
@@ -196,6 +196,8 @@ class Trainer():
 
             logits = self.model(points, intensity, self.train_voxel_nets[voxel_net])
             #logits = output.argmax(dim=1).float()
+            preds, answer_id = nn.functional.softmax(logits, dim=1).data.cpu().max(dim=1)
+            mcc = mcc + matthews_corrcoef(label, preds)
             '''
             classes = ('leaf', 'wood')
             
@@ -204,19 +206,18 @@ class Trainer():
             print("shape: y_true={}, y_predict={}".format(y_true.shape, y_predict.shape))
             cf_matrix = confusion_matrix(np.argmax(y_true, axis=1), np.argmax(y_predict, axis=1))
             df_cm = pd.DataFrame(cf_matrix/np.sum(cf_matrix), index = [i for i in classes],
-                                columns = [i for i in classes])
+            columns = [i for i in classes])
             plt.figure(figsize = (12,7))
             sn.heatmap(df_cm, annot=True)
             plt.savefig('output_{}.png'.format(nb))
             '''
-
+            '''
             # evaluate the contribution of layers
-            
             layer_act = LayerActivation(self.model, self.model.fc_0)
-            attribution = layer_act.attribute(points, intensity, self.train_voxel_nets[voxel_net])
+            attribution = layer_act.attribute(points, intensity, self.train_voxel_nets[voxel_net], target=answer_id)
             print("attribution=", attribution)
             plt.plot(attribution.to('cpu').numpy(),output.to('cpu').numpy())
-
+            '''
             '''
             layer_gc = LayerGradCam(self.model, self.model.fc_0)
             vv = self.train_voxel_nets[voxel_net]
@@ -242,7 +243,7 @@ class Trainer():
             num_correct = torch.eq(logits.argmax(dim=1).float(), label.argmax(dim=1).float()).sum().item()/self.batch_size
             predict_correct = predict_correct + num_correct
             
-        return sum_val_loss/num_batches, predict_correct/num_batches
+        return sum_val_loss/num_batches, predict_correct/num_batches, mcc/num_batches
 
 '''
 single dim output train function

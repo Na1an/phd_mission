@@ -164,14 +164,14 @@ def voxel_grid_sample(cuboid, voxel_size, mode):
     for i,v in enumerate(no_empty_voxel):
         nb_points = nb_points_per_voxel[i]
         voxel_grid[tuple(v)] = cuboid[index_points_on_voxel_sorted[loc_select:loc_select+nb_points]]
-        intensity_std.append(np.mean(cuboid[index_points_on_voxel_sorted[loc_select:loc_select+nb_points]][:,3]))
+        #intensity_std.append(np.mean(cuboid[index_points_on_voxel_sorted[loc_select:loc_select+nb_points]][:,3]))
         #res.append(key_point_in_voxel(v))
         loc_select = loc_select + nb_points
     
-    #nb_p_max = np.max(nb_points_per_voxel)
-    #nb_p_min = np.min(nb_points_per_voxel)
-    #voxel_and_points = np.concatenate((no_empty_voxel, np.array([(nb_points_per_voxel - nb_p_min)/(nb_p_max - nb_p_min)]).T), axis=1)
-    voxel_and_points = np.append(no_empty_voxel, np.array(intensity_std).reshape(-1, 1), axis=1)
+    nb_p_max = np.max(nb_points_per_voxel)
+    nb_p_min = np.min(nb_points_per_voxel)
+    voxel_and_points = np.concatenate((no_empty_voxel, np.array([(nb_points_per_voxel - nb_p_min)/(nb_p_max - nb_p_min)]).T), axis=1)
+    #voxel_and_points = np.append(no_empty_voxel, np.array(intensity_std).reshape(-1, 1), axis=1)
 
     #return np.array(res), np.array(nb_points_per_voxel), voxel_and_points
     return voxel_grid, np.array(nb_points_per_voxel), voxel_and_points
@@ -235,18 +235,6 @@ def prepare_dataset(data, coords_sw, grid_size, voxel_size, global_height, voxel
     w_nb = 0
     nb_sample = 0
     count_voxel_skeleton = 0
-    # inner class
-    def voxelization_and_centralization(local_points_inner, window_nb):
-        # (4) voxelization
-        key_points_in_voxel, nb_points_per_voxel, voxel = voxel_grid_sample(local_points_inner, voxel_size, voxel_sample_mode)
-        voxel_skeleton_cuboid[window_nb] = voxel
-        #visualize_voxel_key_points(voxel, nb_points_per_voxel, "TLS voxelized data")
-
-        # (5) centralization in (x y z) thress axis by the center of voxels
-        local_points_inner[:,:3] = local_points_inner[:,:3] - np.array([grid_size/2, grid_size/2, global_height/2])
-        local_points_inner[:,:2] = local_points_inner[:,:2]/grid_size
-        local_points_inner[:,2] = local_points_inner[:,2]/global_height
-        return None
     
     for i in range(coord_x):
         for j in range(coord_y):   
@@ -256,9 +244,13 @@ def prepare_dataset(data, coords_sw, grid_size, voxel_size, global_height, voxel
 
             # (2) find index of the data_preprocessed in this sliding window
             local_index = get_region_index(data, local_x, local_x+grid_size, local_y, local_y+grid_size)
+            print(">> there are {} points in this cuboid".format(local_index[0]))
+            if local_index[0] < sample_size:
+                print(">> point number not enough, cuboid-{} skiped".format(w_nb))
+                w_nb = w_nb + 1
+                continue
             
             # (3) shift points to local origin (0, 0, 0) and zero-centered
-            #local_points = copy.deepcopy(data[local_index])
             local_points = data[local_index]
             local_points[:,0] = local_points[:,0] - local_x
             local_points[:,1] = local_points[:,1] - local_y
@@ -440,7 +432,6 @@ def prepare_dataset_predict(data, coords_sw, grid_size, voxel_size, global_heigh
     index_sw = 0
     for i in range(coord_x):
         for j in range(coord_y):           
-            
             # (1) cut data to cubes
             # local origin
             local_x, local_y = coords_sw[i, j]
@@ -449,6 +440,12 @@ def prepare_dataset_predict(data, coords_sw, grid_size, voxel_size, global_heigh
             # find index of the data_preprocessed in this sliding window
             local_index = get_region_index(data, local_x, local_x+grid_size, local_y, local_y+grid_size)
             print(">> reigon ({},{}) - ({},{})".format(local_x,local_y, local_x+grid_size, local_y+grid_size))
+            print(">> there are {} points in this cuboid".format(local_index[0]))
+            if local_index[0] < sample_size:
+                print(">> point number not enough, cuboid-{} skiped".format(w_nb))
+                w_nb = w_nb + 1
+                continue
+
             # shift points to local origin (0, 0, 0)
             # zero-centered
             '''
@@ -462,6 +459,7 @@ def prepare_dataset_predict(data, coords_sw, grid_size, voxel_size, global_heigh
             adjust = np.mean(local_points[:, :3], axis=0) 
             local_points[:,:3] = local_points[:,:3] - adjust
             '''
+
             # shift points to local origin (0, 0, 0)
             # zero-centered
             #local_points = copy.deepcopy(data[local_index])
