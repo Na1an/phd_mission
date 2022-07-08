@@ -184,8 +184,8 @@ class Trainer():
         num_batches = 5
         predict_correct = 0
         mcc = 0
-        y_true_all = np.zeros(num_batches, sample_size)
-        y_predict_all = np.zeros(num_batches, sample_size)
+        y_true_all = np.zeros(num_batches, self.sample_size)
+        y_predict_all = np.zeros(num_batches, self.sample_size)
         for nb in range(num_batches):
             #output = self.model(points, self.train_voxel_nets[voxel_net])
             #tmp_loss = nn.functional.binary_cross_entropy_with_logits(output, label)
@@ -200,8 +200,8 @@ class Trainer():
             #preds, answer_id = nn.functional.softmax(logits, dim=1).data.cpu().max(dim=1)
             y_true = label.detach().numpy()[0].T.astype('int64')
             y_predict = logits.detach().numpy()[0].T.astype('int64')
-            y_true_all[nb] = y_true
-            y_predict_all[nb] = y_predict
+            y_true_all[nb] = np.argmax(y_true, axis=1)
+            y_predict_all[nb] = np.argmax(y_predict, axis=1)
             
             '''
             classes = ('leaf', 'wood')
@@ -248,8 +248,8 @@ class Trainer():
             num_correct = torch.eq(logits.argmax(dim=1).float(), label.argmax(dim=1).float()).sum().item()/self.batch_size
             predict_correct = predict_correct + num_correct
 
-        y_true_all = y_true_all.reshape(num_batches*sample_size)
-        y_predict_all = y_predict_all.reshape(num_batches*sample_size)
+        y_true_all = y_true_all.reshape(num_batches*self.sample_size)
+        y_predict_all = y_predict_all.reshape(num_batches*self.sample_size)
         print("shape: y_true={}, y_predict={}".format(y_true_all.shape, y_predict_all.shape))
         mcc = matthews_corrcoef(y_true_all, y_predict_all)
         classes = ('leaf', 'wood')
