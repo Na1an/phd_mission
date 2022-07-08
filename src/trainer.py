@@ -30,7 +30,8 @@ class Trainer():
         self.val_voxel_nets = torch.from_numpy(val_voxel_nets.copy()).type(torch.float).to(self.device)
         
         # optimizer
-        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=1e-4)
+        #self.optimizer = torch.optim.Adam(self.model.parameters(), lr=1e-4)
+        self.optimizer = torch.optim.SGD(self.model.parameters(), lr=1e-2, momentum=0.9, nesterov=True)
 
         # check_point path
         self.checkpoint_path = get_current_direct_path() + "/checkpoints"
@@ -184,8 +185,8 @@ class Trainer():
         num_batches = 5
         predict_correct = 0
         mcc = 0
-        y_true_all = np.zeros(num_batches, self.sample_size)
-        y_predict_all = np.zeros(num_batches, self.sample_size)
+        y_true_all = np.zeros((num_batches, self.sample_size))
+        y_predict_all = np.zeros((num_batches, self.sample_size))
         for nb in range(num_batches):
             #output = self.model(points, self.train_voxel_nets[voxel_net])
             #tmp_loss = nn.functional.binary_cross_entropy_with_logits(output, label)
