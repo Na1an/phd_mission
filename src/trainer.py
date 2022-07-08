@@ -7,6 +7,7 @@ from torch.utils.data import DataLoader
 #from torchviz import make_dot
 from torch.utils.tensorboard import SummaryWriter
 from captum.attr import LayerGradCam, Saliency, LayerActivation
+from sklearn.utils.class_weight import compute_class_weight
 
 class Trainer():
     def __init__(self, model, device, train_dataset, train_voxel_nets, val_dataset, val_voxel_nets, batch_size, sample_size, predict_threshold, num_workers, shuffle=True, opt="Adam"):
@@ -58,11 +59,13 @@ class Trainer():
         self.writer = SummaryWriter(get_current_direct_path() + "/tensorboard")
 
     # this is a cute function for calculating the loss
+    '''
     def compute_loss(points, label, voxel_net):
         loss = 0 
         output = self.model(points, self.train_voxel_nets[voxel_net])
         tmp_loss = nn.functional.binary_cross_entropy_with_logits(output, label)
         return loss
+    '''
 
     # let's train it!
     def train_model(self, nb_epoch=200):
@@ -97,7 +100,12 @@ class Trainer():
                 '''
                 
                 #criterion
-                tmp_loss = nn.functional.binary_cross_entropy_with_logits(logits, label)
+                class_weights=class_weight.compute_class_weight('balanced',np.unique(label.argmax(dim=1)),label.argmax(dim=1).numpy())
+                class_weights=torch.tensor(class_weights,dtype=torch.float)
+                criterion = nn.nn.functional.binary_cross_entropy_with_logits(weight=class_weights,reduction='mean')
+                print("[e={}]>>> [Training] - class_weights = {}".format(e, class_weights))
+                tmp_loss = criterion(logits, label)
+                
                 tmp_loss.backward()
                 self.optimizer.step()
 
