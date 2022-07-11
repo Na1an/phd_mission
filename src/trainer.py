@@ -7,7 +7,7 @@ from torch.utils.data import DataLoader
 #from torchviz import make_dot
 from torch.utils.tensorboard import SummaryWriter
 from captum.attr import LayerGradCam, Saliency, LayerActivation
-from sklearn.utils.class_weight import compute_class_weight
+from sklearn.utils import class_weight
 
 class Trainer():
     def __init__(self, model, device, train_dataset, train_voxel_nets, val_dataset, val_voxel_nets, batch_size, sample_size, predict_threshold, num_workers, shuffle=True, opt="Adam"):
@@ -100,12 +100,33 @@ class Trainer():
                 '''
                 
                 #criterion
-                class_weights=class_weight.compute_class_weight('balanced',np.unique(label.argmax(dim=1)),label.argmax(dim=1).numpy())
+                '''
+                #y_true = label.detach().numpy().transpose(0,2,1).reshape(self.batch_size*self.sample_size, 2).astype('int64')
+                #print("test label.detach().numpy().transpose(0,2,1).reshape(batch_size*sample_size, 2).shape {}".format(y_true.shape))
+                #y_true = label.detach().numpy()[0].T.astype('int64')
+                class_weights = []
+                for bs in range(self.batch_size):
+                    y_true_tmp = label.detach().numpy()[bs].T.astype('int64')
+                    class_weights.append(class_weight.compute_class_weight(class_weight="balanced", classes=np.unique(np.argmax(y_true_tmp, axis=1)), y=np.argmax(y_true_tmp, axis=1)))
+                #class_weights=class_weight.compute_class_weight(class_weight="balanced", classes=np.unique(np.argmax(y_true, axis=1)), y=np.argmax(y_true, axis=1))
                 class_weights=torch.tensor(class_weights,dtype=torch.float)
-                criterion = nn.nn.functional.binary_cross_entropy_with_logits(weight=class_weights,reduction='mean')
                 print("[e={}]>>> [Training] - class_weights = {}".format(e, class_weights))
-                tmp_loss = criterion(logits, label)
+                print("[e={}]>>> [Training] logits.shape={}".format(e, logits.shape))
+                #print("[e={}]>>> [Training] y_true.shape={}".format(e, y_true.shape))
+                print("[e={}]>>> [Training] label.shape={}".format(e, label.shape))
+                # put here a set of weights
+                tmp_loss = nn.functional.binary_cross_entropy_with_logits(weight=class_weights, reduction='mean', input=logits.permute(0,2,1), target=label.permute(0,2,1))
+                '''
+                y_true = label.detach().numpy().transpose(0,2,1).reshape(self.batch_size*self.sample_size, 2).astype('int64')
+                class_weights=class_weight.compute_class_weight(class_weight="balanced", classes=np.unique(np.argmax(y_true, axis=1)), y=np.argmax(y_true, axis=1))
+                class_weights=torch.tensor(class_weights,dtype=torch.float)
                 
+                #tmp_loss = nn.functional.binary_cross_entropy_with_logits(input=logits, target=label)
+                # worked_function
+                logits = torch.reshape(logits, (self.batch_size*self.sample_size, 2))
+                label = torch.reshape(label, (self.batch_size*self.sample_size, 2))
+                tmp_loss = nn.functional.binary_cross_entropy_with_logits(weight=class_weights, reduction='mean', input=logits, target=label)
+                #print("epoch : loss = {}, weighted_loss = {}".format(tmp_loss, tmp_loss_3))
                 tmp_loss.backward()
                 self.optimizer.step()
 
@@ -193,8 +214,8 @@ class Trainer():
         num_batches = 5
         predict_correct = 0
         mcc = 0
-        y_true_all = np.zeros((num_batches, self.sample_size))
-        y_predict_all = np.zeros((num_batches, self.sample_size))
+        y_true_all = np.zeros((num_batches, self.sample_size*self.batch_size))
+        y_predict_all = np.zeros((num_batches, self.sample_size*self.batch_size))
         for nb in range(num_batches):
             #output = self.model(points, self.train_voxel_nets[voxel_net])
             #tmp_loss = nn.functional.binary_cross_entropy_with_logits(output, label)
@@ -207,10 +228,11 @@ class Trainer():
             logits = self.model(points, intensity, self.train_voxel_nets[voxel_net])
             #logits = output.argmax(dim=1).float()
             #preds, answer_id = nn.functional.softmax(logits, dim=1).data.cpu().max(dim=1)
-            y_true = label.detach().numpy()[0].T.astype('int64')
-            y_predict = logits.detach().numpy()[0].T.astype('int64')
+            y_true = label.detach().numpy().transpose(0,2,1).reshape(self.batch_size*self.sample_size, 2).astype('int64')
+            y_predict = logits.detach().numpy().transpose(0,2,1).reshape(self.batch_size*self.sample_size, 2).astype('int64')
             y_true_all[nb] = np.argmax(y_true, axis=1)
             y_predict_all[nb] = np.argmax(y_predict, axis=1)
+            print("shape: y_true={}, y_predict={}".format(y_true.shape, y_predict.shape))
             
             '''
             classes = ('leaf', 'wood')
@@ -249,7 +271,11 @@ class Trainer():
 
             # loss
             # binary_cross_entropy_with_logits : input doesn't need to be [0,1], but target/label need to be [0, N-1] (therwise the loss will be wired)
-            tmp_loss = nn.functional.binary_cross_entropy_with_logits(logits, label)
+            #tmp_loss = nn.functional.binary_cross_entropy_with_logits(logits, label)
+            class_weights=class_weight.compute_class_weight(class_weight="balanced", classes=np.unique(np.argmax(y_true, axis=1)), y=np.argmax(y_true, axis=1))
+            class_weights=torch.tensor(class_weights, dtype=torch.float)
+            print("[val]>>> class_weights = {}".format(class_weights))
+            tmp_loss = nn.functional.binary_cross_entropy_with_logits(weight=class_weights, reduction='mean', input=logits, target=label)
             sum_val_loss = sum_val_loss + tmp_loss.item()
 
             # accuracy
@@ -257,8 +283,8 @@ class Trainer():
             num_correct = torch.eq(logits.argmax(dim=1).float(), label.argmax(dim=1).float()).sum().item()/self.batch_size
             predict_correct = predict_correct + num_correct
 
-        y_true_all = y_true_all.reshape(num_batches*self.sample_size)
-        y_predict_all = y_predict_all.reshape(num_batches*self.sample_size)
+        y_true_all = y_true_all.reshape(num_batches*self.sample_size*self.batch_size)
+        y_predict_all = y_predict_all.reshape(num_batches*self.sample_size*self.batch_size)
         print("shape: y_true={}, y_predict={}".format(y_true_all.shape, y_predict_all.shape))
         mcc = matthews_corrcoef(y_true_all, y_predict_all)
         classes = ('leaf', 'wood')
