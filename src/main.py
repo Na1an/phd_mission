@@ -42,11 +42,11 @@ if __name__ == "__main__":
 
     
     # (2) prepare train dataset and validation dataset
-    samples_train, sample_cuboid_index_train, train_voxel_nets = prepare_procedure(train_data_path, grid_size, voxel_size, voxel_sample_mode, sample_size, global_height=global_height, label_name="llabel", detail=True)
+    samples_train, sample_cuboid_index_train, train_voxel_nets = prepare_procedure(train_data_path, grid_size, voxel_size, voxel_sample_mode, sample_size, global_height=global_height, label_name="WL", detail=True)
     train_dataset = TrainDataSet(samples_train, sample_cuboid_index_train, my_device)
     train_dataset.show_info()
     
-    samples_val, sample_cuboid_index_val, val_voxel_nets = prepare_procedure(val_data_path, grid_size, voxel_size, voxel_sample_mode, sample_size, global_height=global_height, label_name="llabel", detail=True)
+    samples_val, sample_cuboid_index_val, val_voxel_nets = prepare_procedure(val_data_path, grid_size, voxel_size, voxel_sample_mode, sample_size, global_height=global_height, label_name="WL", detail=True)
     val_dataset = TrainDataSet(samples_val, sample_cuboid_index_val, my_device)
     val_dataset.show_info()
 
