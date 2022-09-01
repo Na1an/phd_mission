@@ -1,6 +1,7 @@
 import copy
 from scipy.spatial.transform import Rotation
 from utility import *
+from datetime import datetime
 
 # This function works for the preprocessing the data
 def read_data(path, feature, detail=False):
@@ -32,8 +33,7 @@ def read_data_with_intensity(path, feature, feature2='intensity', detail=False):
     data_las = laspy.read(path)
     x_min, x_max, y_min, y_max, z_min, z_max = get_info(data_las)
     
-    data_las.z = data_las.z - int(z_min)
-    print(">> data_las.z min={} max={}".format(np.min(data_las.z), np.max(data_las.z)))
+    print(">> data_las.z min={} max={} diff={}".format(z_min, z_max, z_max - z_min))
 
     '''
     # intensity put it here
@@ -47,7 +47,7 @@ def read_data_with_intensity(path, feature, feature2='intensity', detail=False):
     '''
     f2_max = np.log(np.max(data_las[feature2]))
     f2_min = np.log(np.min(data_las[feature2]))
-    data = np.vstack((data_las.x - x_min, data_las.y - y_min, data_las.z, ((np.log(data_las[feature2])-f2_min)/(f2_max-f2_min)), data_las[feature])).transpose()
+    data = np.vstack((data_las.x - x_min, data_las.y - y_min, data_las.z - z_min, ((np.log(data_las[feature2])-f2_min)/(f2_max-f2_min)), data_las[feature])).transpose()
     
     print(">>>[!data with intensity] data shape =", data.shape, " type =", type(data))
 
@@ -238,6 +238,7 @@ def prepare_dataset(data, coords_sw, grid_size, voxel_size, global_height, voxel
     
     for i in range(coord_x):
         for j in range(coord_y):   
+            
             # (1) global coordinates of each cuboids
             local_x, local_y = coords_sw[i, j]
             print("\n>> sliding window n°", w_nb, "bottom left coordinate :(",local_x, ',',local_y,')')
@@ -255,9 +256,19 @@ def prepare_dataset(data, coords_sw, grid_size, voxel_size, global_height, voxel
             local_points = data[local_index]
             local_points[:,0] = local_points[:,0] - local_x
             local_points[:,1] = local_points[:,1] - local_y
-            local_abs_height = np.max(local_points[:,2]) - np.min(local_points[:,2])
+            local_z_min = np.min(local_points[:,2])
+            local_abs_height = np.max(local_points[:,2]) - local_z_min
             # local_abs_height
-            #local_points[:,2] = local_points[:,2] - np.min(local_points[:,2])
+            local_points[:,2] = local_points[:,2] - local_z_min
+            
+            '''
+            # $$$$$$$$$$$$$$$$$$$$$$$$$$$$$
+            new_file = laspy.create(point_format=3)
+            new_file.x = local_points[:,0]
+            new_file.y = local_points[:,1]
+            new_file.z = local_points[:,2]
+            new_file.write(os.getcwd()+"/test_{:04}.las".format(101))
+            '''
 
             if detail:
                 print(">>> local abs height :", local_abs_height)
@@ -306,6 +317,15 @@ def prepare_dataset(data, coords_sw, grid_size, voxel_size, global_height, voxel
                     local_points_tmp[:,:3] = rotation[angle].apply(local_points_tmp[:,:3])
                     local_points_tmp[:,:2] = local_points_tmp[:,:2] + np.array([grid_size/2, grid_size/2])
 
+                    '''
+                    # $$$$$$$$$$$$$$$$$$$$$$$$$$$$$
+                    new_file = laspy.create(point_format=3)
+                    new_file.x = local_points_tmp[:,0]
+                    new_file.y = local_points_tmp[:,1]
+                    new_file.z = local_points_tmp[:,2]
+                    new_file.write(os.getcwd()+"/test_"+ datetime.now().strftime('%Y-%m-%d_%H-%M-%S') + "-" + str(angle)+".las")
+                    '''
+
                     # (4) voxelization
                     key_points_in_voxel, nb_points_per_voxel, voxel = voxel_grid_sample(local_points_tmp, voxel_size, voxel_sample_mode)
                     voxel_skeleton_cuboid[count_voxel_skeleton] = voxel
@@ -332,7 +352,7 @@ def prepare_dataset(data, coords_sw, grid_size, voxel_size, global_height, voxel
                 
             # sliding_window added 1
             w_nb = w_nb + 1
-                
+            
     return np.array(samples), sample_cuboid_index, voxel_skeleton_cuboid
 
 def prepare_procedure(path, grid_size, voxel_size, voxel_sample_mode, sample_size, global_height=50, label_name="llabel", detail=False, naif_sliding=False):
@@ -474,7 +494,7 @@ def prepare_dataset_predict(data, coords_sw, grid_size, voxel_size, global_heigh
             local_points[:,1] = local_points[:,1] - local_y
             local_abs_height = np.max(local_points[:,2]) - local_z
             # local_abs_height
-            #local_points[:,2] = local_points[:,2] - local_z
+            local_points[:,2] = local_points[:,2] - local_z
 
             # voxelization
             key_points_in_voxel, nb_points_per_voxel, voxel = voxel_grid_sample(local_points, voxel_size, voxel_sample_mode)
@@ -482,7 +502,8 @@ def prepare_dataset_predict(data, coords_sw, grid_size, voxel_size, global_heigh
             #visualize_voxel_key_points(voxel, nb_points_per_voxel, "TLS voxelized data")
 
             # centralization in (x y z) thress axis by the center of voxels
-            #local_points[:,:3] = local_points[:,:3] - np.mean(local_points[:, :3], axis=0)
+            adjust = np.mean(local_points[:, :3], axis=0) 
+            #local_points[:,:3] = local_points[:,:3] - adjust
             local_points[:,:3] = local_points[:,:3] - np.array([grid_size/2, grid_size/2, global_height/2])
             local_points[:,:2] = local_points[:,:2]/grid_size
             local_points[:,2] = local_points[:,2]/global_height
