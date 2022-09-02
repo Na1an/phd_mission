@@ -31,8 +31,8 @@ class Trainer():
         self.val_voxel_nets = torch.from_numpy(val_voxel_nets.copy()).type(torch.float).to(self.device)
         
         # optimizer
-        #self.optimizer = torch.optim.Adam(self.model.parameters(), lr=1e-4)
-        self.optimizer = torch.optim.SGD(self.model.parameters(), lr=1e-2, momentum=0.9, nesterov=True)
+        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=1e-4)
+        #self.optimizer = torch.optim.SGD(self.model.parameters(), lr=1e-2, momentum=0.9, nesterov=True)
 
         # check_point path
         self.checkpoint_path = get_current_direct_path() + "/checkpoints"
@@ -86,12 +86,14 @@ class Trainer():
             epoch_acc = 0.0
             loader_len = 0
             # points, labels, v_cuboid
-            for points, intensity, label, voxel_net in self.train_loader:
+            for points, pointwise_features, label, voxel_net in self.train_loader:
                 
                 self.model.train() # tell torch we are traning
                 self.optimizer.zero_grad()
 
-                logits = self.model(points, intensity, self.train_voxel_nets[voxel_net])
+                print("pointwise_features[0][1:10]=",pointwise_features[0][1:10])
+                print("pointwise_features[1][1:10]=",pointwise_features[1][1:10])
+                logits = self.model(points, pointwise_features, self.train_voxel_nets[voxel_net])
 
                 '''
                 Visualization model
@@ -126,6 +128,7 @@ class Trainer():
                 logits = torch.reshape(logits, (self.batch_size*self.sample_size, 2))
                 label = torch.reshape(label, (self.batch_size*self.sample_size, 2))
                 tmp_loss = nn.functional.binary_cross_entropy_with_logits(weight=class_weights, reduction='mean', input=logits, target=label)
+                
                 #print("epoch : loss = {}, weighted_loss = {}".format(tmp_loss, tmp_loss_3))
                 tmp_loss.backward()
                 self.optimizer.step()
@@ -223,9 +226,9 @@ class Trainer():
                 points, label, voxel_net = self.val_data_iterator.next()
             except:
                 self.val_data_iterator = self.val_loader.__iter__()
-                points, intensity, label, voxel_net = self.val_data_iterator.next()
+                points, pointwise_features, label, voxel_net = self.val_data_iterator.next()
 
-            logits = self.model(points, intensity, self.train_voxel_nets[voxel_net])
+            logits = self.model(points, pointwise_features, self.train_voxel_nets[voxel_net])
             #logits = output.argmax(dim=1).float()
             #preds, answer_id = nn.functional.softmax(logits, dim=1).data.cpu().max(dim=1)
             y_true = label.detach().numpy().transpose(0,2,1).reshape(self.batch_size*self.sample_size, 2).astype('int64')
@@ -275,7 +278,11 @@ class Trainer():
             class_weights=class_weight.compute_class_weight(class_weight="balanced", classes=np.unique(np.argmax(y_true, axis=1)), y=np.argmax(y_true, axis=1))
             class_weights=torch.tensor(class_weights, dtype=torch.float)
             print("[val]>>> class_weights = {}".format(class_weights))
-            tmp_loss = nn.functional.binary_cross_entropy_with_logits(weight=class_weights, reduction='mean', input=logits, target=label)
+            # with weights
+            #tmp_loss = nn.functional.binary_cross_entropy_with_logits(weight=class_weights, reduction='mean', input=logits, target=label)
+            
+            tmp_loss = nn.functional.binary_cross_entropy_with_logits(reduction='mean', input=logits, target=label)
+            
             sum_val_loss = sum_val_loss + tmp_loss.item()
 
             # accuracy

@@ -149,11 +149,10 @@ class PointWiseModel(nn.Module):
         '''
 
         # feature_size was setting 3 times for multi-scale learning/multi receptive field
-        # intensity added : in the last place '+ 1'
-        #feature_size = 1 + (64 + 128 + 128)*3 + 1
-        # the last term (1) is the elevation
-        #feature_size = 1 + (64 + 128 + 128) + 1 + 1088 + (1)
-        feature_size = 1 + (64 + 128 + 128) + 1 + 1088
+        # intensity added ... + (1) + 1
+        # roughness added ... + 1 + (1)
+        feature_size = 1 + (64 + 128 + 128) + 1 
+
         # conditionnal VAE, co-variabale, regression
         self.fc_0 = nn.Conv1d(feature_size, hidden_dim*4, 1)
         self.fc_1 = nn.Conv1d(hidden_dim*4, hidden_dim*2, 1)
@@ -176,14 +175,15 @@ class PointWiseModel(nn.Module):
         '''
 
         # point-based branch: PointNet++
-        self.point_base_model = PointNetfeat(global_feat=True, feature_transform=True)
+        # remove point-net branch here
+        #self.point_base_model = PointNetfeat(global_feat=True, feature_transform=True)
 
     # forward propagation
-    def forward(self, points, intensity, v):
+    def forward(self, points, pointwise_features, v):
         '''
         Args:
             p: points, a 3d pytorch tensor.
-            intensity: intensity.
+            pointwise_features: pointwise_features[0] = intensity.
             v: voxel net.
         Returns: 
             None.
@@ -191,16 +191,23 @@ class PointWiseModel(nn.Module):
         
         '''
         [*] points, p.shape=torch.Size([4, 20000, 3])
-        [*] intensity.shape torch.Size([4, 20000])
+        [*] intensity.shape=torch.Size([4, 20000])
+        [*] pointwise_features.shape=torch.Size([4, 20000, nb_of_features])
         [*] v_cuboid, v.shape=torch.Size([4, 25, 25, 250])
         print("[*] points, p.shape={}".format(p.shape))
         print("[*] intensity.shape", intensity.shape)
         print("[*] v_cuboid, v.shape={}".format(v.shape))
         '''
         p_pn = points.transpose(1,2)
+        
+        ##########################
+        # point_features removed #
+        ##########################
+        '''
         point_features,_,_ = self.point_base_model(p_pn)
         #print(">> point_features.shape={}".format(point_features.shape))
         point_features = point_features.unsqueeze(2).unsqueeze(2)
+        '''
 
         # swap x y z to z y x
         p = points[:,:,[2,1,0]]
@@ -311,12 +318,21 @@ class PointWiseModel(nn.Module):
         #feature_3_ks7 = F.grid_sample(net7, p, align_corners=True)
 
         # here every channel corresponse to one feature.
-        feature_intensity = intensity.unsqueeze(1).unsqueeze(1).unsqueeze(1)
+        feature_intensity = pointwise_features[0].unsqueeze(1).unsqueeze(1).unsqueeze(1)
+        feature_roughness = pointwise_features[1].unsqueeze(1).unsqueeze(1).unsqueeze(1)
+
         # take 0 because coordinate have been set to z y x before
         #feature_elevation = (p[...,0]/45.0).unsqueeze(1)
         #features = torch.cat((feature_0, feature_1, feature_1_ks5, feature_1_ks7, feature_2, feature_2_ks5, feature_2_ks7, feature_3, feature_3_ks5, feature_3_ks7, feature_intensity), dim=1)  # (B, features, 1,7,sample_num)
         #features = torch.cat((feature_0, feature_1, feature_2, feature_3, feature_intensity, point_features, feature_elevation), dim=1)  # (B, features, 1,7,sample_num)
-        features = torch.cat((feature_0, feature_1, feature_2, feature_3, feature_intensity, point_features), dim=1)
+        
+        ############################
+        # pointnet feature removed #
+        ############################
+        #features = torch.cat((feature_0, feature_1, feature_2, feature_3, feature_intensity, point_features), dim=1)
+
+        features = torch.cat((feature_0, feature_1, feature_2, feature_3, feature_intensity), dim=1)
+        
         shape = features.shape
         features = torch.reshape(features, (shape[0], shape[1] * shape[3], shape[4]))  # (B, featues_per_sample, samples_num)
         
