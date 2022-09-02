@@ -42,33 +42,16 @@ def read_data_with_intensity(path, feature, feature2='intensity', detail=False):
     
     print(">> data_las.z min={} max={} diff={}".format(z_min, z_max, z_max - z_min))
 
-    '''
-    # intensity put it here
-    intensity_max = np.log(np.max(data_las['intensity']))
-    intensity_min = np.log(np.min(data_las['intensity']))
-    data = np.vstack((data_las.x - x_min, data_las.y - y_min, data_las.z, ((np.log(data_las['intensity'])-intensity_min)/(intensity_max-intensity_min)), data_las[feature])).transpose()
-    
-    mean_z = np.mean(data_las.z)
-    std_z = np.std(data_las.z)
-    data = np.vstack((data_las.x - x_min, data_las.y - y_min, data_las.z, ((data_las.z - mean_z)/std_z), data_las[feature])).transpose()
-    '''
-
     # intensity
     f2_max = np.log(np.max(data_las[feature2]))
     f2_min = np.log(np.min(data_las[feature2]))
-    feature_intensity = ((np.log(data_las[feature2])-f2_min)/(f2_max-f2_min))
-    
-    data_las = data_las[~np.isnan(feature_intensity)]
+    f_intensity = ((np.log(data_las[feature2])-f2_min)/(f2_max-f2_min))
+    print(">> f_intensity.shape={}, nan size={}, non nan={}".format(f_intensity.shape, f_intensity[np.isnan(f_intensity)].shape, f_intensity[~np.isnan(f_intensity)].shape))
 
     f_roughness = data_las["Roughness (0.7)"]
-    print("max roughness={}, min roughness={}, type={}".format(max(f_roughness), min(f_roughness), type(f_roughness)))
-    print("size all={}, size nan={}, size non-nan={}".format(f_roughness.shape, f_roughness[np.isnan(f_roughness)].shape, f_roughness[~np.isnan(f_roughness)].shape))
-    print("f_roug =", f_roughness[0:10])
     f_ncr = data_las["Normal change rate (0.7)"]
-    print("max ncr={}, min ncr={}".format(max(f_ncr), min(f_ncr)))
-    print("ncr =", f_ncr[0:10])
 
-    data = np.vstack((data_las.x - x_min, data_las.y - y_min, data_las.z - z_min, feature_intensity, data_las[feature], f_roughness+0.1, f_ncr)).transpose()
+    data = np.vstack((data_las.x - x_min, data_las.y - y_min, data_las.z - z_min, f_intensity, data_las[feature], f_roughness+0.1, f_ncr)).transpose()
     
     print(">>>[!data with intensity] data shape =", data.shape, " type =", type(data))
 

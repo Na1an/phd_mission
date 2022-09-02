@@ -41,7 +41,7 @@ class TrainDataSet(Dataset):
         # put them into self.device
         points = torch.from_numpy(points.copy()).type(torch.float).to(self.device)
         labels = torch.from_numpy(labels.copy()).type(torch.float).to(self.device)
-        intensity = torch.from_numpy(intensity.copy()).type(torch.float).to(self.device)
+        intensity = torch.from_numpy(intensity.copy()).type(torch.double).to(self.device)
         roughness = torch.from_numpy(roughness.copy()).type(torch.float).to(self.device)
         ncr = intensity = torch.from_numpy(ncr.copy()).type(torch.float).to(self.device)
 

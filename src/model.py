@@ -151,6 +151,7 @@ class PointWiseModel(nn.Module):
         # feature_size was setting 3 times for multi-scale learning/multi receptive field
         # intensity added ... + (1) + 1
         # roughness added ... + 1 + (1)
+        #feature_size = 1 + (64 + 128 + 128) + 1 + 1
         feature_size = 1 + (64 + 128 + 128) + 1
 
         # conditionnal VAE, co-variabale, regression

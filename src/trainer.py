@@ -91,8 +91,18 @@ class Trainer():
                 self.model.train() # tell torch we are traning
                 self.optimizer.zero_grad()
 
-                #print("pointwise_features[0] nan size={}, [1:10]={}".format( pointwise_features[0][np.isnan(pointwise_features[0])].shape, pointwise_features[0][1:10]))
-                print("pointwise_features[1] nan size={}, [1:10]={}".format( pointwise_features[1][np.isnan(pointwise_features[1])].shape, pointwise_features[1][1:10]))
+                #print("pointwise_features[0] nan size={}, [1:10]={}".format(pointwise_features[0][np.isnan(pointwise_features[0])].shape, pointwise_features[0][1:10]))
+                #print("pointwise_features[1] nan size={}, [1:10]={}".format( pointwise_features[1][np.isnan(pointwise_features[1])].shape, pointwise_features[1][1:10]))
+                intensity = pointwise_features[0]
+                roughness = pointwise_features[1]
+                '''
+                print("intensity = {}, type={}".format(intensity.shape, type(intensity[0,0])))
+                print("intensity[0] nan size={}".format(intensity[0][np.isnan(intensity[0])].shape))
+                print("intensity[1] nan size={}".format(intensity[1][np.isnan(intensity[1])].shape))
+                print("intensity[2] nan size={}".format(intensity[2][np.isnan(intensity[2])].shape))
+                print("intensity[3] nan size={}".format(intensity[3][np.isnan(intensity[3])].shape))
+                '''
+                #print("roughness = {}, nan size={}".format(roughness[0:10], roughness[np.isnan(roughness)].shape))
                 logits = self.model(points, pointwise_features, self.train_voxel_nets[voxel_net])
                 #print("logits = ", logits[0:10])
 
