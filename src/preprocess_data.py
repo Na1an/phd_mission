@@ -56,20 +56,23 @@ def read_data_with_intensity(path, feature, feature2='intensity', detail=False):
     # intensity
     f2_max = np.log(np.max(data_las[feature2]))
     f2_min = np.log(np.min(data_las[feature2]))
+    feature_intensity = ((np.log(data_las[feature2])-f2_min)/(f2_max-f2_min))
     
+    data_las = data_las[~np.isnan(feature_intensity)]
+
     f_roughness = data_las["Roughness (0.7)"]
-    print("max roughness={}, min roughness={}".format(max(f_roughness), min(f_roughness)))
+    print("max roughness={}, min roughness={}, type={}".format(max(f_roughness), min(f_roughness), type(f_roughness)))
+    print("size all={}, size nan={}, size non-nan={}".format(f_roughness.shape, f_roughness[np.isnan(f_roughness)].shape, f_roughness[~np.isnan(f_roughness)].shape))
     print("f_roug =", f_roughness[0:10])
     f_ncr = data_las["Normal change rate (0.7)"]
     print("max ncr={}, min ncr={}".format(max(f_ncr), min(f_ncr)))
     print("ncr =", f_ncr[0:10])
-    #exit()
 
-    data = np.vstack((data_las.x - x_min, data_las.y - y_min, data_las.z - z_min, ((np.log(data_las[feature2])-f2_min)/(f2_max-f2_min)), data_las[feature], f_roughness, f_ncr)).transpose()
+    data = np.vstack((data_las.x - x_min, data_las.y - y_min, data_las.z - z_min, feature_intensity, data_las[feature], f_roughness+0.1, f_ncr)).transpose()
     
     print(">>>[!data with intensity] data shape =", data.shape, " type =", type(data))
 
-    return data, x_min, x_max, y_min, y_max, z_min, z_max
+    return data[~np.isnan(f_roughness)], x_min, x_max, y_min, y_max, z_min, z_max
 
 # read header
 def read_header(path, detail=True):

@@ -91,9 +91,10 @@ class Trainer():
                 self.model.train() # tell torch we are traning
                 self.optimizer.zero_grad()
 
-                print("pointwise_features[0][1:10]=",pointwise_features[0][1:10])
-                print("pointwise_features[1][1:10]=",pointwise_features[1][1:10])
+                #print("pointwise_features[0] nan size={}, [1:10]={}".format( pointwise_features[0][np.isnan(pointwise_features[0])].shape, pointwise_features[0][1:10]))
+                print("pointwise_features[1] nan size={}, [1:10]={}".format( pointwise_features[1][np.isnan(pointwise_features[1])].shape, pointwise_features[1][1:10]))
                 logits = self.model(points, pointwise_features, self.train_voxel_nets[voxel_net])
+                #print("logits = ", logits[0:10])
 
                 '''
                 Visualization model

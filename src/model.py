@@ -151,7 +151,7 @@ class PointWiseModel(nn.Module):
         # feature_size was setting 3 times for multi-scale learning/multi receptive field
         # intensity added ... + (1) + 1
         # roughness added ... + 1 + (1)
-        feature_size = 1 + (64 + 128 + 128) + 1 
+        feature_size = 1 + (64 + 128 + 128) + 1
 
         # conditionnal VAE, co-variabale, regression
         self.fc_0 = nn.Conv1d(feature_size, hidden_dim*4, 1)
@@ -331,7 +331,7 @@ class PointWiseModel(nn.Module):
         ############################
         #features = torch.cat((feature_0, feature_1, feature_2, feature_3, feature_intensity, point_features), dim=1)
 
-        features = torch.cat((feature_0, feature_1, feature_2, feature_3, feature_intensity), dim=1)
+        features = torch.cat((feature_0, feature_1, feature_2, feature_3, feature_roughness), dim=1)
         
         shape = features.shape
         features = torch.reshape(features, (shape[0], shape[1] * shape[3], shape[4]))  # (B, featues_per_sample, samples_num)
@@ -348,12 +348,6 @@ class PointWiseModel(nn.Module):
         net_out = self.actvn(self.fc_2(net_out))
         net_out = self.fc_out(net_out)
         out = net_out.squeeze(1)
-        
-        #p[:,:,:,:] = p[:,:,:,:,[2,1,0]]
-        '''
-        print("out shape:", out.shape)
-        print("out is {}", out)
-        '''
 
         return out
 
