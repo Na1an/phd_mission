@@ -4,7 +4,7 @@ import laspy
 import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits import mplot3d
-from sklearn.metrics import confusion_matrix, matthews_corrcoef
+from sklearn.metrics import confusion_matrix, matthews_corrcoef, f1_score
 import seaborn as sns
 import pandas as pd
 
@@ -97,6 +97,28 @@ def createConfusionMatrix(loader):
 # setting device
 def setting_device():
     return None
+
+# once we have tn, fp, fn, tp = cf_matrix.ravel()
+# we then calculate recall, precision
+def calculate_recall_precision(tn, fp, fn, tp):
+    # Sensitivity, hit rate, recall, or true positive rate
+    recall = tp/(tp+fn)
+    # Specificity or true negative rate
+    specificity = tn/(tn+fp)
+    # Precision or positive predictive value
+    precision = tp/(tp+fp)
+    # Negative predictive value
+    npv = tn/(tn+fn)
+    # Fall out or false positive rate
+    fpr = fp/(fp+tn)
+    # False negative rate
+    fnr = fn/(tp+fn)
+    # False discovery rate
+    fdr = fp/(tp+fp)
+
+    # Overall accuracy
+    acc = (tp+tn)/(tp+fp+fn+tn)
+    return recall, specificity, precision, npv, fpr, fnr, fdr, acc
 
 # for prepare dataset
 def old_prepare_dataset_copy(data, coords_sw, grid_size, voxel_size, global_height, voxel_sample_mode, sample_size, detail=False):

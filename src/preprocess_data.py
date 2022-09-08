@@ -51,6 +51,12 @@ def read_data_with_intensity(path, feature, feature2='intensity', detail=False):
     f_roughness = data_las["Roughness (0.7)"]
     f_ncr = data_las["Normal change rate (0.7)"]
 
+    '''
+    I think here the problem is clear, cuz when we use ~np.isnan() to remove NAN value
+    only manipulating the index is not ok for the delete operation
+    need to use deepcopy or other way to guarantee that we have a clean data.
+     
+    '''
     data = np.vstack((data_las.x - x_min, data_las.y - y_min, data_las.z - z_min, f_intensity, data_las[feature], f_roughness+0.1, f_ncr)).transpose()
     
     print(">>>[!data with intensity] data shape =", data.shape, " type =", type(data))

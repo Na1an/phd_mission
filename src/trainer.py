@@ -9,6 +9,7 @@ from torch.utils.tensorboard import SummaryWriter
 from captum.attr import LayerGradCam, Saliency, LayerActivation
 from sklearn.utils import class_weight
 
+
 class Trainer():
     def __init__(self, model, device, train_dataset, train_voxel_nets, val_dataset, val_voxel_nets, batch_size, sample_size, predict_threshold, num_workers, shuffle=True, opt="Adam"):
         '''
@@ -31,7 +32,7 @@ class Trainer():
         self.val_voxel_nets = torch.from_numpy(val_voxel_nets.copy()).type(torch.float).to(self.device)
         
         # optimizer
-        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=1e-4)
+        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=1e-3)
         #self.optimizer = torch.optim.SGD(self.model.parameters(), lr=1e-2, momentum=0.9, nesterov=True)
 
         # check_point path
@@ -139,7 +140,9 @@ class Trainer():
                 logits = torch.reshape(logits, (self.batch_size*self.sample_size, 2))
                 label = torch.reshape(label, (self.batch_size*self.sample_size, 2))
                 tmp_loss = nn.functional.binary_cross_entropy_with_logits(weight=class_weights, reduction='mean', input=logits, target=label)
-                
+                #cf_matrix = confusion_matrix(label, logits)
+                #tn, fp, fn, tp = cf_matrix.ravel()
+                #recall, specificity, precision, npv, fpr, fnr, fdr, acc = calculate_recall_precision(tn, fp, fn, tp)
                 #print("epoch : loss = {}, weighted_loss = {}".format(tmp_loss, tmp_loss_3))
                 tmp_loss.backward()
                 self.optimizer.step()
@@ -152,7 +155,7 @@ class Trainer():
                 epoch_acc = epoch_acc + num_correct/self.sample_size
                 loader_len = loader_len + 1
                 print("[e={}]>>> [Training] - Current test loss: {} - test accuracy: {}".format(e, tmp_loss.item(), num_correct/self.sample_size))
-
+                #print("tn-{} fp-{} fn-{} tp-{} recall-{} specificity-{} precision-{} npv-{} fpr-{} fnr-{} fdr-{} acc-{}".format(tn, fp, fn, tp, recall, specificity, precision, npv, fpr, fnr, fdr, acc))
             print("============ Epoch {}/{} is trained - epoch_loss - {} - epoch_acc - {}===========".format(e, nb_epoch, epoch_loss/loader_len, epoch_acc/loader_len))
             self.writer.add_scalar('training loss - epoch avg', epoch_loss/loader_len, e)
             self.writer.add_scalar('training accuracy - epoch avg', epoch_acc/loader_len, e)
@@ -176,23 +179,21 @@ class Trainer():
                 self.writer.add_scalar('validation accuracy - avg', predict_correct/self.sample_size, e)
                 # add matthew correlation coefficient
                 self.writer.add_scalar('validation matthew correlation coefficient - avg', mcc, e)
-                fig = sns.heatmap(df_cm, annot=True, cmap='Spectral').get_figure()
-                plt.close(fig_)
-                self.writer.add_figure("Confusion matrix", fig, e)
+                #fig = sns.heatmap(df_cm, annot=True, cmap='Spectral').get_figure()
+                #plt.close(fig_)
+                #self.writer.add_figure("Confusion matrix", fig, e)
 
-            self.writer.add_scalars('loss train (epoch avg) vs val', 
+            self.writer.add_scalars('Loss', 
                 {
-                    'train_loss': epoch_loss/loader_len,
+                    'train_loss (epoch average)': epoch_loss/loader_len,
                     'val_loss': val_loss
                 }, e)
-            self.writer.add_scalars('acc train (epoche avg) vs val', 
+            self.writer.add_scalars('Accuracy', 
                 {
-                    'train_acc': epoch_acc/loader_len,
+                    'train_acc (epoch average)': epoch_acc/loader_len,
                     'val_acc': predict_correct/self.sample_size
                 }, e)
-        
         self.writer.close()
-
         return None
     
     def save_checkpoint(self, epoch):
@@ -306,7 +307,12 @@ class Trainer():
         print("shape: y_true={}, y_predict={}".format(y_true_all.shape, y_predict_all.shape))
         mcc = matthews_corrcoef(y_true_all, y_predict_all)
         classes = ('leaf', 'wood')
-        cf_matrix = confusion_matrix(y_true_all, y_predict)
+        cf_matrix = confusion_matrix(y_true_all, y_predict_all)
+        tn, fp, fn, tp = cf_matrix.ravel()
+        # precision, recall, f1-score
+        recall, specificity, precision, npv, fpr, fnr, fdr, acc = calculate_recall_precision(tn, fp, fn, tp)
+        f1_score_val = f1_score(y_true_all, y_pred_all)
+        print("tn-{} fp-{} fn-{} tp-{} recall-{} specificity-{} precision-{} npv-{} fpr-{} fnr-{} fdr-{} acc-{} f1_score-{}".format(tn, fp, fn, tp, recall, specificity, precision, npv, fpr, fnr, fdr, acc, f1_score_val))
         df_cm = pd.DataFrame(cf_matrix/np.sum(cf_matrix), index = [i for i in classes], columns = [i for i in classes])
 
         return sum_val_loss/num_batches, predict_correct/num_batches, mcc, df_cm
