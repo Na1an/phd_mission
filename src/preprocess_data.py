@@ -43,25 +43,25 @@ def read_data_with_intensity(path, feature, feature2='intensity', detail=False):
     print(">> data_las.z min={} max={} diff={}".format(z_min, z_max, z_max - z_min))
 
     # intensity
+    #data_las[np.isnan(data_las["Roughness (0.7)"])]["Roughness (0.7)"] = 0.0
     f2_max = np.log(np.max(data_las[feature2]))
     f2_min = np.log(np.min(data_las[feature2]))
     f_intensity = ((np.log(data_las[feature2])-f2_min)/(f2_max-f2_min))
     print(">> f_intensity.shape={}, nan size={}, non nan={}".format(f_intensity.shape, f_intensity[np.isnan(f_intensity)].shape, f_intensity[~np.isnan(f_intensity)].shape))
 
     f_roughness = data_las["Roughness (0.7)"]
+    f_roughness[np.isnan(f_roughness)] = -0.1
     f_ncr = data_las["Normal change rate (0.7)"]
 
     '''
     I think here the problem is clear, cuz when we use ~np.isnan() to remove NAN value
     only manipulating the index is not ok for the delete operation
     need to use deepcopy or other way to guarantee that we have a clean data.
-     
     '''
-    data = np.vstack((data_las.x - x_min, data_las.y - y_min, data_las.z - z_min, f_intensity, data_las[feature], f_roughness+0.1, f_ncr)).transpose()
-    
+    data = np.vstack((data_las.x - x_min, data_las.y - y_min, data_las.z - z_min, f_intensity, data_las[feature], f_roughness+0.1, f_ncr))
     print(">>>[!data with intensity] data shape =", data.shape, " type =", type(data))
 
-    return data[~np.isnan(f_roughness)], x_min, x_max, y_min, y_max, z_min, z_max
+    return data.transpose(), x_min, x_max, y_min, y_max, z_min, z_max
 
 # read header
 def read_header(path, detail=True):
@@ -270,15 +270,6 @@ def prepare_dataset(data, coords_sw, grid_size, voxel_size, global_height, voxel
             local_abs_height = np.max(local_points[:,2]) - local_z_min
             # local_abs_height
             local_points[:,2] = local_points[:,2] - local_z_min
-            
-            '''
-            # $$$$$$$$$$$$$$$$$$$$$$$$$$$$$
-            new_file = laspy.create(point_format=3)
-            new_file.x = local_points[:,0]
-            new_file.y = local_points[:,1]
-            new_file.z = local_points[:,2]
-            new_file.write(os.getcwd()+"/test_{:04}.las".format(101))
-            '''
 
             if detail:
                 print(">>> local abs height :", local_abs_height)
@@ -376,7 +367,10 @@ def prepare_procedure(path, grid_size, voxel_size, voxel_sample_mode, sample_siz
     print("> input data:", path)
     data_preprocessed, x_min, x_max, y_min, y_max, z_min, z_max = read_data_with_intensity(path, label_name, detail=True)
     print("\n> data_preprocess.shape =", data_preprocessed.shape)
-    
+    check_nan_in_array("data_preprocess intensity", data_preprocessed.transpose()[3])
+    check_nan_in_array("data_preprocess roughness", data_preprocessed.transpose()[5])
+    check_nan_in_array("data_preprocess ncr", data_preprocessed.transpose()[6])
+
     # sliding window
     if naif_sliding:
         print(">> ok, we do naif sliding")

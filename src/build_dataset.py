@@ -1,7 +1,9 @@
 import torch
 import numpy as np
 from torch.utils.data import Dataset
-
+def check_nan_in_array(feature_name,a):
+    print(feature_name + "shape={} nan size={}".format(a.shape, a[np.isnan(a)].shape))
+    return None
 # dataset for training
 class TrainDataSet(Dataset):
     '''
@@ -41,9 +43,9 @@ class TrainDataSet(Dataset):
         # put them into self.device
         points = torch.from_numpy(points.copy()).type(torch.float).to(self.device)
         labels = torch.from_numpy(labels.copy()).type(torch.float).to(self.device)
-        intensity = torch.from_numpy(intensity.copy()).type(torch.double).to(self.device)
+        intensity = torch.from_numpy(intensity.copy()).to(self.device)
         roughness = torch.from_numpy(roughness.copy()).type(torch.float).to(self.device)
-        ncr = intensity = torch.from_numpy(ncr.copy()).type(torch.float).to(self.device)
+        ncr = torch.from_numpy(ncr.copy()).type(torch.float).to(self.device)
 
         pointwise_features = [intensity, roughness, ncr]
 
@@ -95,7 +97,7 @@ class TestDataSet(Dataset):
         intensity = torch.from_numpy(intensity.copy()).type(torch.float).to(self.device)
         roughness = torch.from_numpy(roughness.copy()).type(torch.float).to(self.device)
         ncr = intensity = torch.from_numpy(ncr.copy()).type(torch.float).to(self.device)
-        pointwise_features = [intensity, roughness, ncr]
+        pointwise_features = [intensity, roughness]
 
         #v_cuboid = torch.from_numpy(self.voxelized_cuboids[self.sample_cuboid_index[index]]).type(torch.int).to(self.device)
         index_of_voxel_net = self.sample_cuboid_index[index]

@@ -120,6 +120,10 @@ def calculate_recall_precision(tn, fp, fn, tp):
     acc = (tp+tn)/(tp+fp+fn+tn)
     return recall, specificity, precision, npv, fpr, fnr, fdr, acc
 
+def check_nan_in_array(feature_name,a):
+    print(feature_name + "shape={} nan size={}".format(a.shape, a[np.isnan(a)].shape))
+    return None
+
 # for prepare dataset
 def old_prepare_dataset_copy(data, coords_sw, grid_size, voxel_size, global_height, voxel_sample_mode, sample_size, detail=False):
     '''
