@@ -328,7 +328,7 @@ class Trainer():
         tn, fp, fn, tp = cf_matrix.ravel()
         # precision, recall, f1-score
         recall, specificity, precision, npv, fpr, fnr, fdr, acc = calculate_recall_precision(tn, fp, fn, tp)
-        f1_score_val = f1_score(y_true_all, y_pred_all)
+        f1_score_val = f1_score(y_true_all, y_predict_all)
         print("tn-{} fp-{} fn-{} tp-{} recall-{} specificity-{} precision-{} npv-{} fpr-{} fnr-{} fdr-{} acc-{} f1_score-{}".format(tn, fp, fn, tp, recall, specificity, precision, npv, fpr, fnr, fdr, acc, f1_score_val))
         df_cm = pd.DataFrame(cf_matrix/np.sum(cf_matrix), index = [i for i in classes], columns = [i for i in classes])
 
