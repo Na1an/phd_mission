@@ -130,8 +130,8 @@ class Trainer():
                 # version cluster
                 y_true = label.detach().clone().cpu().data.numpy().transpose(0,2,1).reshape(self.batch_size*self.sample_size, 2).astype('int64')
 
-                class_weights=class_weight.compute_class_weight(class_weight="balanced", classes=np.unique(np.argmax(y_true, axis=1)), y=np.argmax(y_true, axis=1))
-                class_weights=torch.tensor(class_weights,dtype=torch.float)
+                #class_weights=class_weight.compute_class_weight(class_weight="balanced", classes=np.unique(np.argmax(y_true, axis=1)), y=np.argmax(y_true, axis=1))
+                #class_weights=torch.tensor(class_weights,dtype=torch.float)
                 
                 #tmp_loss = nn.functional.binary_cross_entropy_with_logits(input=logits, target=label)
                 # worked_function
