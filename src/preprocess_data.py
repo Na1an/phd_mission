@@ -43,22 +43,33 @@ def read_data_with_intensity(path, feature, feature2='intensity', detail=False):
     print(">> data_las.z min={} max={} diff={}".format(z_min, z_max, z_max - z_min))
 
     # intensity
-    #data_las[np.isnan(data_las["Roughness (0.7)"])]["Roughness (0.7)"] = 0.0
-    f2_max = np.log(np.max(data_las[feature2]))
-    f2_min = np.log(np.min(data_las[feature2]))
-    f_intensity = ((np.log(data_las[feature2])-f2_min)/(f2_max-f2_min))
-    print(">> f_intensity.shape={}, nan size={}, non nan={}".format(f_intensity.shape, f_intensity[np.isnan(f_intensity)].shape, f_intensity[~np.isnan(f_intensity)].shape))
+    #f2_max = np.log(np.max(data_las[feature2]))
+    #f2_min = np.log(np.min(data_las[feature2]))
+    #f_intensity = ((np.log(data_las[feature2])-f2_min)/(f2_max-f2_min))
+    
+    #(data_target['intensity']/65535)*35 - 30 for TLS
+    f_intensity = (data_las[feature2]/65535)*40 - 40
+    
+    #print(">> f_intensity.shape={}, nan size={}, non nan={}".format(f_intensity.shape, f_intensity[np.isnan(f_intensity)].shape, f_intensity[~np.isnan(f_intensity)].shape))
 
     f_roughness = data_las["Roughness (0.7)"]
     f_roughness[np.isnan(f_roughness)] = -0.1
+    f_roughness = f_roughness + 0.1
+    
     f_ncr = data_las["Normal change rate (0.7)"]
+    f_ncr[np.isnan(f_ncr)] = -0.1
+    f_ncr = f_ncr + 0.1
 
     '''
-    I think here the problem is clear, cuz when we use ~np.isnan() to remove NAN value
-    only manipulating the index is not ok for the delete operation
-    need to use deepcopy or other way to guarantee that we have a clean data.
+    show_numpy_stat(f_intensity)
+    show_numpy_stat(f_roughness)
+    show_numpy_stat(f_ncr)
+    show_numpy_stat(normalize_feature(f_intensity))
+    show_numpy_stat(normalize_feature(f_roughness))
+    show_numpy_stat(normalize_feature(f_ncr))
     '''
-    data = np.vstack((data_las.x - x_min, data_las.y - y_min, data_las.z - z_min, f_intensity, data_las[feature], f_roughness+0.1, f_ncr))
+
+    data = np.vstack((data_las.x - x_min, data_las.y - y_min, data_las.z - z_min, normalize_feature(f_intensity), data_las[feature], normalize_feature(f_roughness), normalize_feature(f_ncr)))
     print(">>>[!data with intensity] data shape =", data.shape, " type =", type(data))
 
     return data.transpose(), x_min, x_max, y_min, y_max, z_min, z_max

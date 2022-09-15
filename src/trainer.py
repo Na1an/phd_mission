@@ -9,7 +9,6 @@ from torch.utils.tensorboard import SummaryWriter
 from captum.attr import LayerGradCam, Saliency, LayerActivation
 from sklearn.utils import class_weight
 
-
 class Trainer():
     def __init__(self, model, device, train_dataset, train_voxel_nets, val_dataset, val_voxel_nets, batch_size, sample_size, predict_threshold, num_workers, shuffle=True, opt="Adam"):
         '''
@@ -79,7 +78,7 @@ class Trainer():
             None.
         '''
         
-        print("len(self.train_loader.dataset=", len(self.train_loader.dataset))
+        print("len(self.train_loader.dataset) =", len(self.train_loader.dataset))
         start = self.load_checkpoint()
         for e in range(start, nb_epoch):         
             print('======= Start epoch {} ============='.format(e))
@@ -125,7 +124,12 @@ class Trainer():
                 # put here a set of weights
                 tmp_loss = nn.functional.binary_cross_entropy_with_logits(weight=class_weights, reduction='mean', input=logits.permute(0,2,1), target=label.permute(0,2,1))
                 '''
-                y_true = label.detach().numpy().transpose(0,2,1).reshape(self.batch_size*self.sample_size, 2).astype('int64')
+                # version laptop
+                #y_true = label.detach().numpy().transpose(0,2,1).reshape(self.batch_size*self.sample_size, 2).astype('int64')
+                
+                # version cluster
+                y_true = label.detach().clone().cpu().data.numpy().transpose(0,2,1).reshape(self.batch_size*self.sample_size, 2).astype('int64')
+
                 class_weights=class_weight.compute_class_weight(class_weight="balanced", classes=np.unique(np.argmax(y_true, axis=1)), y=np.argmax(y_true, axis=1))
                 class_weights=torch.tensor(class_weights,dtype=torch.float)
                 
@@ -156,7 +160,7 @@ class Trainer():
 
             if e % 1 == 0:
                 self.save_checkpoint(e)
-                val_loss, predict_correct, mcc, df_cm = self.compute_val_loss()
+                val_loss, predict_correct, mcc, df_cm, list_stat_res = self.compute_val_loss()
 
                 if self.val_min is None:
                     self.val_min = val_loss
@@ -172,7 +176,20 @@ class Trainer():
                 self.writer.add_scalar('validation loss - avg', val_loss, e)
                 self.writer.add_scalar('validation accuracy - avg', predict_correct/self.sample_size, e)
                 # add matthew correlation coefficient
-                self.writer.add_scalar('validation matthew correlation coefficient - avg', mcc, e)
+                #list_stat_res = [tn, fp, fn, tp, recall, specificity, precision, npv, fpr, fnr, fdr, acc, f1_score_val]
+                self.writer.add_scalar('tn - avg', list_stat_res[0], e)
+                self.writer.add_scalar('fp - avg', list_stat_res[1], e)
+                self.writer.add_scalar('fn - avg', list_stat_res[2], e)
+                self.writer.add_scalar('tp - avg', list_stat_res[3], e)
+                self.writer.add_scalar('recall - avg', list_stat_res[4], e)
+                self.writer.add_scalar('specificity - avg', list_stat_res[5], e)
+                self.writer.add_scalar('precision - avg', list_stat_res[6], e)
+                self.writer.add_scalar('npv - avg', list_stat_res[7], e)
+                self.writer.add_scalar('fpr - avg', list_stat_res[8], e)
+                self.writer.add_scalar('fnr - avg', list_stat_res[9], e)
+                self.writer.add_scalar('fdr - avg', list_stat_res[10], e)
+                self.writer.add_scalar('f1_score - avg', list_stat_res[12], e)
+                
                 #fig = sns.heatmap(df_cm, annot=True, cmap='Spectral').get_figure()
                 #plt.close(fig_)
                 #self.writer.add_figure("Confusion matrix", fig, e)
@@ -237,8 +254,15 @@ class Trainer():
             logits = self.model(points, pointwise_features, self.train_voxel_nets[voxel_net])
             #logits = output.argmax(dim=1).float()
             #preds, answer_id = nn.functional.softmax(logits, dim=1).data.cpu().max(dim=1)
-            y_true = label.detach().numpy().transpose(0,2,1).reshape(self.batch_size*self.sample_size, 2).astype('int64')
-            y_predict = logits.detach().numpy().transpose(0,2,1).reshape(self.batch_size*self.sample_size, 2).astype('int64')
+            
+            # version laptop
+            #y_true = label.detach().numpy().transpose(0,2,1).reshape(self.batch_size*self.sample_size, 2).astype('int64')
+            #y_predict = logits.detach().numpy().transpose(0,2,1).reshape(self.batch_size*self.sample_size, 2).astype('int64')
+            
+            # version cluster
+            y_true = label.detach().clone().cpu().data.numpy().transpose(0,2,1).reshape(self.batch_size*self.sample_size, 2).astype('int64')
+            y_predict = logits.detach().clone().cpu().data.numpy().transpose(0,2,1).reshape(self.batch_size*self.sample_size, 2).astype('int64')
+
             y_true_all[nb] = np.argmax(y_true, axis=1)
             y_predict_all[nb] = np.argmax(y_predict, axis=1)
             print("shape: y_true={}, y_predict={}".format(y_true.shape, y_predict.shape))
@@ -288,7 +312,6 @@ class Trainer():
             #tmp_loss = nn.functional.binary_cross_entropy_with_logits(weight=class_weights, reduction='mean', input=logits, target=label)
             
             tmp_loss = nn.functional.binary_cross_entropy_with_logits(reduction='mean', input=logits, target=label)
-            
             sum_val_loss = sum_val_loss + tmp_loss.item()
 
             # accuracy
@@ -309,7 +332,9 @@ class Trainer():
         print("tn-{} fp-{} fn-{} tp-{} recall-{} specificity-{} precision-{} npv-{} fpr-{} fnr-{} fdr-{} acc-{} f1_score-{}".format(tn, fp, fn, tp, recall, specificity, precision, npv, fpr, fnr, fdr, acc, f1_score_val))
         df_cm = pd.DataFrame(cf_matrix/np.sum(cf_matrix), index = [i for i in classes], columns = [i for i in classes])
 
-        return sum_val_loss/num_batches, predict_correct/num_batches, mcc, df_cm
+        list_stat_res = [tn, fp, fn, tp, recall, specificity, precision, npv, fpr, fnr, fdr, acc, f1_score_val]
+
+        return sum_val_loss/num_batches, predict_correct/num_batches, mcc, df_cm, list_stat_res
 
 '''
 single dim output train function

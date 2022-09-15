@@ -219,4 +219,10 @@ def old_prepare_dataset_copy(data, coords_sw, grid_size, voxel_size, global_heig
 
             w_nb = w_nb + 1
             
-    return np.array(samples), sample_cuboid_index, voxel_skeleton_cuboid
+    return np.array(samples), sample_cuboid_index, 
+    
+# stat numpy
+def show_numpy_stat(data):
+    print(pd.DataFrame(data).describe())
+    print("\n")
+    return None
