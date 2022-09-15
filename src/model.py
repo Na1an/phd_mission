@@ -102,7 +102,8 @@ class PointWiseModel(nn.Module):
         '''
         super().__init__()
         # define architecture here
-        self.actvn = nn.ReLU()
+        #self.actvn = nn.ReLU()
+        self.actvn = nn.ELU()
         self.maxpool = nn.MaxPool3d(2)
         self.num_classes = num_classes
         self.show_net_shape = False
