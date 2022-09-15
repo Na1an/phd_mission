@@ -137,7 +137,7 @@ class Trainer():
                 # worked_function
                 logits = torch.reshape(logits, (self.batch_size*self.sample_size, 2))
                 label = torch.reshape(label, (self.batch_size*self.sample_size, 2))
-                tmp_loss = nn.functional.binary_cross_entropy_with_logits(weight=class_weights, reduction='mean', input=logits, target=label)
+                tmp_loss = nn.functional.binary_cross_entropy_with_logits(reduction='mean', input=logits, target=label)
                 #cf_matrix = confusion_matrix(label, logits)
                 #tn, fp, fn, tp = cf_matrix.ravel()
                 #recall, specificity, precision, npv, fpr, fnr, fdr, acc = calculate_recall_precision(tn, fp, fn, tp)
