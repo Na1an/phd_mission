@@ -24,14 +24,14 @@ class Trainer():
         # put our data to device & DataLoader
         self.device = device
         self.model = model.to(device)
-        self.train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers)
+        self.train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers, drop_last=True)
         self.train_voxel_nets = torch.from_numpy(train_voxel_nets.copy()).type(torch.float).to(self.device)
 
         self.val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers)
         self.val_voxel_nets = torch.from_numpy(val_voxel_nets.copy()).type(torch.float).to(self.device)
         
         # optimizer
-        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=1e-3)
+        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=1e-4)
         #self.optimizer = torch.optim.SGD(self.model.parameters(), lr=1e-2, momentum=0.9, nesterov=True)
 
         # check_point path
@@ -91,12 +91,6 @@ class Trainer():
                 self.model.train() # tell torch we are traning
                 self.optimizer.zero_grad()
 
-                #print("pointwise_features[0] nan size={}, [1:10]={}".format(pointwise_features[0][np.isnan(pointwise_features[0])].shape, pointwise_features[0][1:10]))
-                #print("pointwise_features[1] nan size={}, [1:10]={}".format(pointwise_features[1][np.isnan(pointwise_features[1])].shape, pointwise_features[1][1:10]))
-                intensity = pointwise_features[0]
-                roughness = pointwise_features[1]
-                
-                #print("roughness = {}, nan size={}".format(roughness[0:10], roughness[np.isnan(roughness)].shape))
                 logits = self.model(points, pointwise_features, self.train_voxel_nets[voxel_net])
                 #print("logits = ", logits[0:10])
 
@@ -128,6 +122,7 @@ class Trainer():
                 #y_true = label.detach().numpy().transpose(0,2,1).reshape(self.batch_size*self.sample_size, 2).astype('int64')
                 
                 # version cluster
+                print("label.shape={}".format(label.shape))
                 y_true = label.detach().clone().cpu().data.numpy().transpose(0,2,1).reshape(self.batch_size*self.sample_size, 2).astype('int64')
 
                 #class_weights=class_weight.compute_class_weight(class_weight="balanced", classes=np.unique(np.argmax(y_true, axis=1)), y=np.argmax(y_true, axis=1))

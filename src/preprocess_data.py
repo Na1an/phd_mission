@@ -226,7 +226,7 @@ def analyse_voxel_in_cuboid(voxel_skeleton_cuboid, h, side):
     return res
 
 # for prepare dataset
-def prepare_dataset(data, coords_sw, grid_size, voxel_size, global_height, voxel_sample_mode, sample_size, detail=False, data_augmentation=True):
+def prepare_dataset(data, coords_sw, grid_size, voxel_size, global_height, voxel_sample_mode, sample_size, detail=False, data_augmentation=False):
     '''
     Args:
         data: a numpy.ndarray (x,y,z,label). 

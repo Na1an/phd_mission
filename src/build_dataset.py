@@ -19,7 +19,7 @@ class TrainDataSet(Dataset):
         self.sample_cuboid_index = sample_cuboid_index
         #self.voxelized_cuboids = voxelized_cuboids
         self.device = device
-        self.adjust_label = 2
+        self.adjust_label = 1
         self.num_classes = num_classes
 
     def __len__(self):
@@ -51,7 +51,7 @@ class TrainDataSet(Dataset):
 
         #v_cuboid = torch.from_numpy(self.voxelized_cuboids[self.sample_cuboid_index[index]]).type(torch.int).to(self.device)
         index_of_voxel_net = self.sample_cuboid_index[index]
-
+        print("points={}, pointwise_features, labels={}".format(points.shape, labels.shape))
         #return points, pointwise_features, labels, v_cuboid
         return points, pointwise_features, labels, index_of_voxel_net
 
