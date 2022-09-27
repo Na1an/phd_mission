@@ -142,12 +142,13 @@ class Trainer():
 
                 #preds = logits.argmax(dim=1).float()
                 #label_one_dim = label.argmax(dim=1).float()
-                num_correct = torch.eq(logits.argmax(dim=1).float(), label.argmax(dim=1).float()).sum().item()/self.batch_size
-                #print("num_correct = ", num_correct)
+                num_correct = torch.eq(logits.argmax(dim=1).float(), label.argmax(dim=1).float()).sum().item()
+                #print("logits.argmax(dim=1).float() [0:10]", logits.argmax(dim=1).float()[0:10])
+                #print(" logits.argmax(dim=1).float() shape = {} label.argmax(dim=1).float() shape = {} num_correct = {}".format( logits.argmax(dim=1).float().shape, label.argmax(dim=1).float().shape,num_correct))
                 epoch_loss = epoch_loss + tmp_loss.item()
                 epoch_acc = epoch_acc + num_correct/self.sample_size
                 loader_len = loader_len + 1
-                print("[e={}]>>> [Training] - Current test loss: {} - test accuracy: {}".format(e, tmp_loss.item(), num_correct/self.sample_size))
+                print("[e={}]>>> [Training] - Current test loss: {} - test accuracy: {}".format(e, tmp_loss.item(), num_correct/(self.sample_size*self.batch_size)))
                 #print("tn-{} fp-{} fn-{} tp-{} recall-{} specificity-{} precision-{} npv-{} fpr-{} fnr-{} fdr-{} acc-{}".format(tn, fp, fn, tp, recall, specificity, precision, npv, fpr, fnr, fdr, acc))
             print("============ Epoch {}/{} is trained - epoch_loss - {} - epoch_acc - {}===========".format(e, nb_epoch, epoch_loss/loader_len, epoch_acc/loader_len))
             self.writer.add_scalar('training loss - epoch avg', epoch_loss/loader_len, e)
