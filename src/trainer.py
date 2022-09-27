@@ -150,7 +150,7 @@ class Trainer():
                 loader_len = loader_len + 1
                 print("[e={}]>>> [Training] - Current test loss: {} - test accuracy: {}".format(e, tmp_loss.item(), num_correct/(self.sample_size*self.batch_size)))
                 #print("tn-{} fp-{} fn-{} tp-{} recall-{} specificity-{} precision-{} npv-{} fpr-{} fnr-{} fdr-{} acc-{}".format(tn, fp, fn, tp, recall, specificity, precision, npv, fpr, fnr, fdr, acc))
-            print("============ Epoch {}/{} is trained - epoch_loss - {} - epoch_acc - {}===========".format(e, nb_epoch, epoch_loss/loader_len, epoch_acc/loader_len))
+            print("============ Epoch {}/{} is trained - epoch_loss - {} - epoch_acc - {}===========".format(e, nb_epoch, epoch_loss/loader_len, epoch_acc/(loader_len*self.batch_size)))
             self.writer.add_scalar('training loss - epoch avg', epoch_loss/loader_len, e)
             self.writer.add_scalar('training accuracy - epoch avg', epoch_acc/loader_len, e)
 
