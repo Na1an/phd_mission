@@ -60,16 +60,43 @@ def read_data_with_intensity(path, feature, feature2='intensity', detail=False):
     f_ncr[np.isnan(f_ncr)] = -0.1
     f_ncr = f_ncr + 0.1
 
+    max_nb_of_returns = 5
+    # order
+    f_return_nb = data_las["return_number"]
+    f_return_nb[np.isnan(f_return_nb)] = 1
+    f_return_nb = f_return_nb/max_nb_of_returns
+    
+    # total number
+    f_nb_of_returns = data_las["number_of_returns"]
+    f_nb_of_returns[np.isnan(f_nb_of_returns)] = 1
+    f_nb_of_returns = f_nb_of_returns/max_nb_of_returns
+    
+    f_rest_return = (f_nb_of_returns - f_return_nb)/max_nb_of_returns
+    f_ratio_return = f_return_nb/(f_nb_of_returns*max_nb_of_returns)
+    f_ratio_return[np.isnan(f_ratio_return)] = 0
     '''
-    show_numpy_stat(f_intensity)
-    show_numpy_stat(f_roughness)
-    show_numpy_stat(f_ncr)
-    show_numpy_stat(normalize_feature(f_intensity))
-    show_numpy_stat(normalize_feature(f_roughness))
-    show_numpy_stat(normalize_feature(f_ncr))
+    print("nan shape = {} {} {} {}".format(
+        f_return_nb[np.isnan(f_return_nb)].shape, 
+        f_nb_of_returns[np.isnan(f_nb_of_returns)].shape,
+        f_rest_return[np.isnan(f_rest_return)].shape,
+        f_ratio_return[np.isnan(f_ratio_return)].shape
+        ))
+    exit()
     '''
+    data = np.vstack((
+        data_las.x - x_min, 
+        data_las.y - y_min, 
+        data_las.z - z_min, 
+        data_las[feature],
+        normalize_feature(f_intensity),
+        normalize_feature(f_roughness), 
+        normalize_feature(f_ncr),
+        f_return_nb,
+        f_nb_of_returns,
+        f_rest_return,
+        f_ratio_return
+        ))
 
-    data = np.vstack((data_las.x - x_min, data_las.y - y_min, data_las.z - z_min, normalize_feature(f_intensity), data_las[feature], normalize_feature(f_roughness), normalize_feature(f_ncr)))
     print(">>>[!data with intensity] data shape =", data.shape, " type =", type(data))
 
     return data.transpose(), x_min, x_max, y_min, y_max, z_min, z_max

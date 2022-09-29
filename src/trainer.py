@@ -122,7 +122,7 @@ class Trainer():
                 #y_true = label.detach().numpy().transpose(0,2,1).reshape(self.batch_size*self.sample_size, 2).astype('int64')
                 
                 # version cluster
-                print("label.shape={}".format(label.shape))
+                #print("label.shape={}".format(label.shape))
                 y_true = label.detach().clone().cpu().data.numpy().transpose(0,2,1).reshape(self.batch_size*self.sample_size, 2).astype('int64')
 
                 #class_weights=class_weight.compute_class_weight(class_weight="balanced", classes=np.unique(np.argmax(y_true, axis=1)), y=np.argmax(y_true, axis=1))
