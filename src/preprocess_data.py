@@ -293,13 +293,14 @@ def prepare_dataset(data, coords_sw, grid_size, voxel_size, global_height, voxel
 
             # (2) find index of the data_preprocessed in this sliding window
             local_index = get_region_index(data, local_x, local_x+grid_size, local_y, local_y+grid_size)
-            print(">> there are {} points in this cuboid".format(len(local_index[0])))
-            if len(local_index[0]) < sample_size:
+            #print(">> there are {} points in this cuboid".format(len(local_index[0])))
+            
+            if len(local_index[0]) < 100:
                 print(">> point number not enough, cuboid-{} skiped".format(w_nb))
                 #voxel_skeleton_cuboid[w_nb] = []
                 w_nb = w_nb + 1
                 continue
-            
+
             # (3) shift points to local origin (0, 0, 0) and zero-centered
             local_points = data[local_index]
             local_points[:,0] = local_points[:,0] - local_x
@@ -308,6 +309,12 @@ def prepare_dataset(data, coords_sw, grid_size, voxel_size, global_height, voxel
             local_abs_height = np.max(local_points[:,2]) - local_z_min
             # local_abs_height
             local_points[:,2] = local_points[:,2] - local_z_min
+            print("local points size={} shape={} type={}".format(local_points.size, local_points.shape, type(local_points)))
+            
+            if len(local_index[0]) < sample_size:
+                print(">> local points shape={}".format(local_points.shape))
+                local_points = np.repeat(local_points, (sample_size//len(local_index[0]))+1, axis=0)
+                print(">> [duplicate] local points shape={}".format(local_points.shape))
 
             if detail:
                 print(">>> local abs height :", local_abs_height)
@@ -357,7 +364,7 @@ def prepare_dataset(data, coords_sw, grid_size, voxel_size, global_height, voxel
                     local_points_tmp[:,:2] = local_points_tmp[:,:2] + np.array([grid_size/2, grid_size/2])
 
                     '''
-                    # $$$$$$$$$$$$$$$$$$$$$$$$$$$$$
+                    # $$$$$$$$$$$$$$see what we used for training$$$$$$$$$$$$$$$
                     new_file = laspy.create(point_format=3)
                     new_file.x = local_points_tmp[:,0]
                     new_file.y = local_points_tmp[:,1]

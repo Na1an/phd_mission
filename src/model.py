@@ -206,10 +206,6 @@ class PointWiseModel(nn.Module):
         '''
         p_pn = points.transpose(1,2)
         
-        ##########################
-        # point_features removed #
-        ##########################
-        
         point_features,_,_ = self.point_base_model(p_pn)
         #print(">> point_features.shape={}".format(point_features.shape))
         point_features = point_features.unsqueeze(2).unsqueeze(2)
