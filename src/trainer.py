@@ -128,12 +128,16 @@ class Trainer():
                 class_weights=class_weight.compute_class_weight(class_weight="balanced", classes=np.unique(np.argmax(y_true, axis=1)), y=np.argmax(y_true, axis=1))
                 class_weights=torch.tensor(class_weights,dtype=torch.float)
                 
-                tmp_loss = nn.functional.binary_cross_entropy_with_logits(weight=class_weights, input=logits.permute(0,2,1), target=label.permute(0,2,1))
+                tmp_loss = nn.functional.binary_cross_entropy_with_logits(weight=class_weights.to(self.device), input=logits.permute(0,2,1).to(self.device), target=label.permute(0,2,1).to(self.device))
                
                 '''
                 print(">>>> [new] logits.shape = {}, label.shape = {}".format(logits.shape, label.shape))
                 print(">>>> [new] logits = {}, label = {}".format(logits[0:5], label[0:5]))
                 '''
+                #tmp_loss = nn.functional.binary_cross_entropy_with_logits(reduction='mean', input=logits, target=label)
+                # worked_function
+                #logits = torch.reshape(logits, (self.batch_size*self.sample_size, 2)).to(self.device)
+                #label = torch.reshape(label, (self.batch_size*self.sample_size, 2)).to(self.device)
                 #tmp_loss = nn.functional.binary_cross_entropy_with_logits(reduction='mean', input=logits, target=label)
                 #cf_matrix = confusion_matrix(label, logits)
                 #tn, fp, fn, tp = cf_matrix.ravel()
@@ -146,7 +150,7 @@ class Trainer():
                 #label_one_dim = label.argmax(dim=1).float()
                 _, logits = logits.max(1)
                 _, label = label.max(1)
-                num_correct = torch.eq(logits, label).sum().item()
+                num_correct = torch.eq(logits.to(self.device), label.to(self.device)).sum().item()
                 #print(" logits.argmax(dim=1).float() shape = {} label.argmax(dim=1).float() shape = {} num_correct = {}".format( logits.argmax(dim=1).float().shape, label.argmax(dim=1).float().shape,num_correct))
                 
                 epoch_loss = epoch_loss + tmp_loss.item()
@@ -309,14 +313,14 @@ class Trainer():
             class_weights=torch.tensor(class_weights, dtype=torch.float)
             print("[val]>>> class_weights = {}".format(class_weights))
             # with weights
-            tmp_loss = nn.functional.binary_cross_entropy_with_logits(weight=class_weights, reduction='mean', input=logits, target=label)
+            tmp_loss = nn.functional.binary_cross_entropy_with_logits(weight=class_weights.to(self.device), reduction='mean', input=logits.permute(0,2,1).to(self.device), target=label.permute(0,2,1).to(self.device))
             
-            #tmp_loss = nn.functional.binary_cross_entropy_with_logits(reduction='mean', input=logits, target=label)
+            #tmp_loss = nn.functional.binary_cross_entropy_with_logits(reduction='mean', input=logits.to(self.device), target=label.to(self.device))
             sum_val_loss = sum_val_loss + tmp_loss.item()
 
             # accuracy
             #preds = logits.argmax(dim=1).float()
-            num_correct = torch.eq(logits.argmax(dim=1).float(), label.argmax(dim=1).float()).sum().item()/self.batch_size
+            num_correct = torch.eq(logits.to(self.device).argmax(dim=1).float(), label.to(self.device).argmax(dim=1).float()).sum().item()/self.batch_size
             predict_correct = predict_correct + num_correct
 
         y_true_all = y_true_all.reshape(num_batches*self.sample_size*self.batch_size)

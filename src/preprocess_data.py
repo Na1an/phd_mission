@@ -512,14 +512,16 @@ def prepare_dataset_predict(data, coords_sw, grid_size, voxel_size, global_heigh
             print(">> reigon ({},{}) - ({},{})".format(local_x,local_y, local_x+grid_size, local_y+grid_size))
             print(">> there are {} points in this cuboid".format(len(local_index[0])))
             
-
+            
+            
+            '''
             if len(local_index[0]) < 2:
                 print(">> point number not enough, cuboid-{} skiped".format(w_nb))
                 voxel_skeleton_cuboid[w_nb] = []
                 #index_sw = index_sw + 1
                 w_nb = w_nb + 1
                 continue
-            
+            '''
             # shift points to local origin (0, 0, 0)
             # zero-centered
             '''
@@ -544,6 +546,11 @@ def prepare_dataset_predict(data, coords_sw, grid_size, voxel_size, global_heigh
             local_abs_height = np.max(local_points[:,2]) - local_z
             # local_abs_height
             local_points[:,2] = local_points[:,2] - local_z
+
+            if len(local_index[0]) < sample_size:
+                print(">> local points shape={}".format(local_points.shape))
+                local_points = np.repeat(local_points, (sample_size//len(local_index[0]))+1, axis=0)
+                print(">> [duplicate] local points shape={}".format(local_points.shape))
 
             # voxelization
             key_points_in_voxel, nb_points_per_voxel, voxel = voxel_grid_sample(local_points, voxel_size, voxel_sample_mode)
