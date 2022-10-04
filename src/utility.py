@@ -4,7 +4,7 @@ import laspy
 import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits import mplot3d
-from sklearn.metrics import confusion_matrix, matthews_corrcoef
+from sklearn.metrics import confusion_matrix, matthews_corrcoef, f1_score
 import seaborn as sns
 import pandas as pd
 
@@ -96,6 +96,32 @@ def createConfusionMatrix(loader):
 # to do
 # setting device
 def setting_device():
+    return None
+
+# once we have tn, fp, fn, tp = cf_matrix.ravel()
+# we then calculate recall, precision
+def calculate_recall_precision(tn, fp, fn, tp):
+    # Sensitivity, hit rate, recall, or true positive rate
+    recall = tp/(tp+fn)
+    # Specificity or true negative rate
+    specificity = tn/(tn+fp)
+    # Precision or positive predictive value
+    precision = tp/(tp+fp)
+    # Negative predictive value
+    npv = tn/(tn+fn)
+    # Fall out or false positive rate
+    fpr = fp/(fp+tn)
+    # False negative rate
+    fnr = fn/(tp+fn)
+    # False discovery rate
+    fdr = fp/(tp+fp)
+
+    # Overall accuracy
+    acc = (tp+tn)/(tp+fp+fn+tn)
+    return recall, specificity, precision, npv, fpr, fnr, fdr, acc
+
+def check_nan_in_array(feature_name,a):
+    print(feature_name + "shape={} nan size={}".format(a.shape, a[np.isnan(a)].shape))
     return None
 
 # for prepare dataset
@@ -193,4 +219,10 @@ def old_prepare_dataset_copy(data, coords_sw, grid_size, voxel_size, global_heig
 
             w_nb = w_nb + 1
             
-    return np.array(samples), sample_cuboid_index, voxel_skeleton_cuboid
+    return np.array(samples), sample_cuboid_index, 
+    
+# stat numpy
+def show_numpy_stat(data):
+    print(pd.DataFrame(data).describe())
+    print("\n")
+    return None

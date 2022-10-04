@@ -20,6 +20,13 @@ def read_data(path, feature, detail=False):
 
     return data, x_min, x_max, y_min, y_max, z_min, z_max
 
+# normalize feature
+def normalize_feature(f):
+    f_min = np.min(f)
+    f_max = np.max(f)
+    print("f_min={}, f_max={}".format(f_min, f_max))
+    return (f-f_min)/(f_max-f_min)
+
 # This function works for the preprocessing the data with intensity
 def read_data_with_intensity(path, feature, feature2='intensity', detail=False):
     '''
@@ -35,23 +42,64 @@ def read_data_with_intensity(path, feature, feature2='intensity', detail=False):
     
     print(">> data_las.z min={} max={} diff={}".format(z_min, z_max, z_max - z_min))
 
-    '''
-    # intensity put it here
-    intensity_max = np.log(np.max(data_las['intensity']))
-    intensity_min = np.log(np.min(data_las['intensity']))
-    data = np.vstack((data_las.x - x_min, data_las.y - y_min, data_las.z, ((np.log(data_las['intensity'])-intensity_min)/(intensity_max-intensity_min)), data_las[feature])).transpose()
+    # intensity
+    #f2_max = np.log(np.max(data_las[feature2]))
+    #f2_min = np.log(np.min(data_las[feature2]))
+    #f_intensity = ((np.log(data_las[feature2])-f2_min)/(f2_max-f2_min))
     
-    mean_z = np.mean(data_las.z)
-    std_z = np.std(data_las.z)
-    data = np.vstack((data_las.x - x_min, data_las.y - y_min, data_las.z, ((data_las.z - mean_z)/std_z), data_las[feature])).transpose()
-    '''
-    f2_max = np.log(np.max(data_las[feature2]))
-    f2_min = np.log(np.min(data_las[feature2]))
-    data = np.vstack((data_las.x - x_min, data_las.y - y_min, data_las.z - z_min, ((np.log(data_las[feature2])-f2_min)/(f2_max-f2_min)), data_las[feature])).transpose()
+    #(data_target['intensity']/65535)*35 - 30 for TLS
+    f_intensity = (data_las[feature2]/65535)*40 - 40
     
+    #print(">> f_intensity.shape={}, nan size={}, non nan={}".format(f_intensity.shape, f_intensity[np.isnan(f_intensity)].shape, f_intensity[~np.isnan(f_intensity)].shape))
+
+    f_roughness = data_las["Roughness (0.7)"]
+    f_roughness[np.isnan(f_roughness)] = -0.1
+    f_roughness = f_roughness + 0.1
+    
+    f_ncr = data_las["Normal change rate (0.7)"]
+    f_ncr[np.isnan(f_ncr)] = -0.1
+    f_ncr = f_ncr + 0.1
+
+    max_nb_of_returns = 5
+    # order
+    f_return_nb = data_las["return_number"]
+    f_return_nb[np.isnan(f_return_nb)] = 1
+    f_return_nb = f_return_nb/max_nb_of_returns
+    
+    # total number
+    f_nb_of_returns = data_las["number_of_returns"]
+    f_nb_of_returns[np.isnan(f_nb_of_returns)] = 1
+    f_nb_of_returns = f_nb_of_returns/max_nb_of_returns
+    
+    f_rest_return = (f_nb_of_returns - f_return_nb)/max_nb_of_returns
+    f_ratio_return = f_return_nb/(f_nb_of_returns*max_nb_of_returns)
+    f_ratio_return[np.isnan(f_ratio_return)] = 0
+    '''
+    print("nan shape = {} {} {} {}".format(
+        f_return_nb[np.isnan(f_return_nb)].shape, 
+        f_nb_of_returns[np.isnan(f_nb_of_returns)].shape,
+        f_rest_return[np.isnan(f_rest_return)].shape,
+        f_ratio_return[np.isnan(f_ratio_return)].shape
+        ))
+    exit()
+    '''
+    data = np.vstack((
+        data_las.x - x_min, 
+        data_las.y - y_min, 
+        data_las.z - z_min, 
+        data_las[feature],
+        normalize_feature(f_intensity),
+        normalize_feature(f_roughness), 
+        normalize_feature(f_ncr),
+        f_return_nb,
+        f_nb_of_returns,
+        f_rest_return,
+        f_ratio_return
+        ))
+
     print(">>>[!data with intensity] data shape =", data.shape, " type =", type(data))
 
-    return data, x_min, x_max, y_min, y_max, z_min, z_max
+    return data.transpose(), x_min, x_max, y_min, y_max, z_min, z_max
 
 # read header
 def read_header(path, detail=True):
@@ -205,7 +253,7 @@ def analyse_voxel_in_cuboid(voxel_skeleton_cuboid, h, side):
     return res
 
 # for prepare dataset
-def prepare_dataset(data, coords_sw, grid_size, voxel_size, global_height, voxel_sample_mode, sample_size, detail=False, data_augmentation=True):
+def prepare_dataset(data, coords_sw, grid_size, voxel_size, global_height, voxel_sample_mode, sample_size, detail=False, data_augmentation=False):
     '''
     Args:
         data: a numpy.ndarray (x,y,z,label). 
@@ -245,13 +293,14 @@ def prepare_dataset(data, coords_sw, grid_size, voxel_size, global_height, voxel
 
             # (2) find index of the data_preprocessed in this sliding window
             local_index = get_region_index(data, local_x, local_x+grid_size, local_y, local_y+grid_size)
-            print(">> there are {} points in this cuboid".format(len(local_index[0])))
-            if len(local_index[0]) < sample_size:
+            #print(">> there are {} points in this cuboid".format(len(local_index[0])))
+            
+            if len(local_index[0]) < 100:
                 print(">> point number not enough, cuboid-{} skiped".format(w_nb))
                 #voxel_skeleton_cuboid[w_nb] = []
                 w_nb = w_nb + 1
                 continue
-            
+
             # (3) shift points to local origin (0, 0, 0) and zero-centered
             local_points = data[local_index]
             local_points[:,0] = local_points[:,0] - local_x
@@ -260,15 +309,12 @@ def prepare_dataset(data, coords_sw, grid_size, voxel_size, global_height, voxel
             local_abs_height = np.max(local_points[:,2]) - local_z_min
             # local_abs_height
             local_points[:,2] = local_points[:,2] - local_z_min
+            print("local points size={} shape={} type={}".format(local_points.size, local_points.shape, type(local_points)))
             
-            '''
-            # $$$$$$$$$$$$$$$$$$$$$$$$$$$$$
-            new_file = laspy.create(point_format=3)
-            new_file.x = local_points[:,0]
-            new_file.y = local_points[:,1]
-            new_file.z = local_points[:,2]
-            new_file.write(os.getcwd()+"/test_{:04}.las".format(101))
-            '''
+            if len(local_index[0]) < sample_size:
+                print(">> local points shape={}".format(local_points.shape))
+                local_points = np.repeat(local_points, (sample_size//len(local_index[0]))+1, axis=0)
+                print(">> [duplicate] local points shape={}".format(local_points.shape))
 
             if detail:
                 print(">>> local abs height :", local_abs_height)
@@ -318,7 +364,7 @@ def prepare_dataset(data, coords_sw, grid_size, voxel_size, global_height, voxel
                     local_points_tmp[:,:2] = local_points_tmp[:,:2] + np.array([grid_size/2, grid_size/2])
 
                     '''
-                    # $$$$$$$$$$$$$$$$$$$$$$$$$$$$$
+                    # $$$$$$$$$$$$$$see what we used for training$$$$$$$$$$$$$$$
                     new_file = laspy.create(point_format=3)
                     new_file.x = local_points_tmp[:,0]
                     new_file.y = local_points_tmp[:,1]
@@ -366,7 +412,10 @@ def prepare_procedure(path, grid_size, voxel_size, voxel_sample_mode, sample_siz
     print("> input data:", path)
     data_preprocessed, x_min, x_max, y_min, y_max, z_min, z_max = read_data_with_intensity(path, label_name, detail=True)
     print("\n> data_preprocess.shape =", data_preprocessed.shape)
-    
+    check_nan_in_array("data_preprocess intensity", data_preprocessed.transpose()[3])
+    check_nan_in_array("data_preprocess roughness", data_preprocessed.transpose()[5])
+    check_nan_in_array("data_preprocess ncr", data_preprocessed.transpose()[6])
+
     # sliding window
     if naif_sliding:
         print(">> ok, we do naif sliding")
@@ -463,14 +512,16 @@ def prepare_dataset_predict(data, coords_sw, grid_size, voxel_size, global_heigh
             print(">> reigon ({},{}) - ({},{})".format(local_x,local_y, local_x+grid_size, local_y+grid_size))
             print(">> there are {} points in this cuboid".format(len(local_index[0])))
             
-
+            
+            
+            '''
             if len(local_index[0]) < 2:
                 print(">> point number not enough, cuboid-{} skiped".format(w_nb))
                 voxel_skeleton_cuboid[w_nb] = []
                 #index_sw = index_sw + 1
                 w_nb = w_nb + 1
                 continue
-            
+            '''
             # shift points to local origin (0, 0, 0)
             # zero-centered
             '''
@@ -495,6 +546,11 @@ def prepare_dataset_predict(data, coords_sw, grid_size, voxel_size, global_heigh
             local_abs_height = np.max(local_points[:,2]) - local_z
             # local_abs_height
             local_points[:,2] = local_points[:,2] - local_z
+
+            if len(local_index[0]) < sample_size:
+                print(">> local points shape={}".format(local_points.shape))
+                local_points = np.repeat(local_points, (sample_size//len(local_index[0]))+1, axis=0)
+                print(">> [duplicate] local points shape={}".format(local_points.shape))
 
             # voxelization
             key_points_in_voxel, nb_points_per_voxel, voxel = voxel_grid_sample(local_points, voxel_size, voxel_sample_mode)

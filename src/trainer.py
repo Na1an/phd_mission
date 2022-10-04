@@ -24,15 +24,15 @@ class Trainer():
         # put our data to device & DataLoader
         self.device = device
         self.model = model.to(device)
-        self.train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers)
+        self.train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers, drop_last=True)
         self.train_voxel_nets = torch.from_numpy(train_voxel_nets.copy()).type(torch.float).to(self.device)
 
         self.val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers)
         self.val_voxel_nets = torch.from_numpy(val_voxel_nets.copy()).type(torch.float).to(self.device)
         
         # optimizer
-        #self.optimizer = torch.optim.Adam(self.model.parameters(), lr=1e-4)
-        self.optimizer = torch.optim.SGD(self.model.parameters(), lr=1e-2, momentum=0.9, nesterov=True)
+        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=1e-4)
+        #self.optimizer = torch.optim.SGD(self.model.parameters(), lr=1e-2, momentum=0.9, nesterov=True)
 
         # check_point path
         self.checkpoint_path = get_current_direct_path() + "/checkpoints"
@@ -78,7 +78,7 @@ class Trainer():
             None.
         '''
         
-        print("len(self.train_loader.dataset=", len(self.train_loader.dataset))
+        print("len(self.train_loader.dataset) =", len(self.train_loader.dataset))
         start = self.load_checkpoint()
         for e in range(start, nb_epoch):         
             print('======= Start epoch {} ============='.format(e))
@@ -86,12 +86,13 @@ class Trainer():
             epoch_acc = 0.0
             loader_len = 0
             # points, labels, v_cuboid
-            for points, intensity, label, voxel_net in self.train_loader:
+            for points, pointwise_features, label, voxel_net in self.train_loader:
                 
                 self.model.train() # tell torch we are traning
                 self.optimizer.zero_grad()
 
-                logits = self.model(points, intensity, self.train_voxel_nets[voxel_net])
+                logits = self.model(points, pointwise_features, self.train_voxel_nets[voxel_net])
+                #print("logits = ", logits[0:10])
 
                 '''
                 Visualization model
@@ -117,35 +118,53 @@ class Trainer():
                 # put here a set of weights
                 tmp_loss = nn.functional.binary_cross_entropy_with_logits(weight=class_weights, reduction='mean', input=logits.permute(0,2,1), target=label.permute(0,2,1))
                 '''
-                y_true = label.detach().numpy().transpose(0,2,1).reshape(self.batch_size*self.sample_size, 2).astype('int64')
+                # version laptop
+                #y_true = label.detach().numpy().transpose(0,2,1).reshape(self.batch_size*self.sample_size, 2).astype('int64')
+                
+                # version cluster
+                #print("label.shape={}".format(label.shape))
+                y_true = label.detach().clone().cpu().data.numpy().transpose(0,2,1).reshape(self.batch_size*self.sample_size, 2).astype('int64')
+
                 class_weights=class_weight.compute_class_weight(class_weight="balanced", classes=np.unique(np.argmax(y_true, axis=1)), y=np.argmax(y_true, axis=1))
                 class_weights=torch.tensor(class_weights,dtype=torch.float)
                 
-                #tmp_loss = nn.functional.binary_cross_entropy_with_logits(input=logits, target=label)
+                tmp_loss = nn.functional.binary_cross_entropy_with_logits(weight=class_weights.to(self.device), input=logits.permute(0,2,1).to(self.device), target=label.permute(0,2,1).to(self.device))
+               
+                '''
+                print(">>>> [new] logits.shape = {}, label.shape = {}".format(logits.shape, label.shape))
+                print(">>>> [new] logits = {}, label = {}".format(logits[0:5], label[0:5]))
+                '''
+                #tmp_loss = nn.functional.binary_cross_entropy_with_logits(reduction='mean', input=logits, target=label)
                 # worked_function
-                logits = torch.reshape(logits, (self.batch_size*self.sample_size, 2))
-                label = torch.reshape(label, (self.batch_size*self.sample_size, 2))
-                tmp_loss = nn.functional.binary_cross_entropy_with_logits(weight=class_weights, reduction='mean', input=logits, target=label)
+                #logits = torch.reshape(logits, (self.batch_size*self.sample_size, 2)).to(self.device)
+                #label = torch.reshape(label, (self.batch_size*self.sample_size, 2)).to(self.device)
+                #tmp_loss = nn.functional.binary_cross_entropy_with_logits(reduction='mean', input=logits, target=label)
+                #cf_matrix = confusion_matrix(label, logits)
+                #tn, fp, fn, tp = cf_matrix.ravel()
+                #recall, specificity, precision, npv, fpr, fnr, fdr, acc = calculate_recall_precision(tn, fp, fn, tp)
                 #print("epoch : loss = {}, weighted_loss = {}".format(tmp_loss, tmp_loss_3))
                 tmp_loss.backward()
                 self.optimizer.step()
 
                 #preds = logits.argmax(dim=1).float()
                 #label_one_dim = label.argmax(dim=1).float()
-                num_correct = torch.eq(logits.argmax(dim=1).float(), label.argmax(dim=1).float()).sum().item()/self.batch_size
-                #print("num_correct = ", num_correct)
+                _, logits = logits.max(1)
+                _, label = label.max(1)
+                num_correct = torch.eq(logits.to(self.device), label.to(self.device)).sum().item()
+                #print(" logits.argmax(dim=1).float() shape = {} label.argmax(dim=1).float() shape = {} num_correct = {}".format( logits.argmax(dim=1).float().shape, label.argmax(dim=1).float().shape,num_correct))
+                
                 epoch_loss = epoch_loss + tmp_loss.item()
                 epoch_acc = epoch_acc + num_correct/self.sample_size
                 loader_len = loader_len + 1
-                print("[e={}]>>> [Training] - Current test loss: {} - test accuracy: {}".format(e, tmp_loss.item(), num_correct/self.sample_size))
-
-            print("============ Epoch {}/{} is trained - epoch_loss - {} - epoch_acc - {}===========".format(e, nb_epoch, epoch_loss/loader_len, epoch_acc/loader_len))
+                print("[e={}]>>> [Training] - Current test loss: {} - test accuracy: {}".format(e, tmp_loss.item(), num_correct/(self.sample_size*self.batch_size)))
+                #print("tn-{} fp-{} fn-{} tp-{} recall-{} specificity-{} precision-{} npv-{} fpr-{} fnr-{} fdr-{} acc-{}".format(tn, fp, fn, tp, recall, specificity, precision, npv, fpr, fnr, fdr, acc))
+            print("============ Epoch {}/{} is trained - epoch_loss - {} - epoch_acc - {}===========".format(e, nb_epoch, epoch_loss/loader_len, epoch_acc/(loader_len*self.batch_size)))
             self.writer.add_scalar('training loss - epoch avg', epoch_loss/loader_len, e)
             self.writer.add_scalar('training accuracy - epoch avg', epoch_acc/loader_len, e)
 
             if e % 1 == 0:
                 self.save_checkpoint(e)
-                val_loss, predict_correct, mcc, df_cm = self.compute_val_loss()
+                val_loss, predict_correct, mcc, df_cm, list_stat_res = self.compute_val_loss()
 
                 if self.val_min is None:
                     self.val_min = val_loss
@@ -161,24 +180,35 @@ class Trainer():
                 self.writer.add_scalar('validation loss - avg', val_loss, e)
                 self.writer.add_scalar('validation accuracy - avg', predict_correct/self.sample_size, e)
                 # add matthew correlation coefficient
-                self.writer.add_scalar('validation matthew correlation coefficient - avg', mcc, e)
-                fig = sns.heatmap(df_cm, annot=True, cmap='Spectral').get_figure()
-                plt.close(fig_)
-                self.writer.add_figure("Confusion matrix", fig, e)
+                #list_stat_res = [tn, fp, fn, tp, recall, specificity, precision, npv, fpr, fnr, fdr, acc, f1_score_val]
+                self.writer.add_scalar('tn - avg', list_stat_res[0], e)
+                self.writer.add_scalar('fp - avg', list_stat_res[1], e)
+                self.writer.add_scalar('fn - avg', list_stat_res[2], e)
+                self.writer.add_scalar('tp - avg', list_stat_res[3], e)
+                self.writer.add_scalar('recall - avg', list_stat_res[4], e)
+                self.writer.add_scalar('specificity - avg', list_stat_res[5], e)
+                self.writer.add_scalar('precision - avg', list_stat_res[6], e)
+                self.writer.add_scalar('npv - avg', list_stat_res[7], e)
+                self.writer.add_scalar('fpr - avg', list_stat_res[8], e)
+                self.writer.add_scalar('fnr - avg', list_stat_res[9], e)
+                self.writer.add_scalar('fdr - avg', list_stat_res[10], e)
+                self.writer.add_scalar('f1_score - avg', list_stat_res[12], e)
+                
+                #fig = sns.heatmap(df_cm, annot=True, cmap='Spectral').get_figure()
+                #plt.close(fig_)
+                #self.writer.add_figure("Confusion matrix", fig, e)
 
-            self.writer.add_scalars('loss train (epoch avg) vs val', 
+            self.writer.add_scalars('Loss', 
                 {
-                    'train_loss': epoch_loss/loader_len,
+                    'train_loss (epoch average)': epoch_loss/loader_len,
                     'val_loss': val_loss
                 }, e)
-            self.writer.add_scalars('acc train (epoche avg) vs val', 
+            self.writer.add_scalars('Accuracy', 
                 {
-                    'train_acc': epoch_acc/loader_len,
+                    'train_acc (epoch average)': epoch_acc/loader_len,
                     'val_acc': predict_correct/self.sample_size
                 }, e)
-        
         self.writer.close()
-
         return None
     
     def save_checkpoint(self, epoch):
@@ -223,13 +253,20 @@ class Trainer():
                 points, label, voxel_net = self.val_data_iterator.next()
             except:
                 self.val_data_iterator = self.val_loader.__iter__()
-                points, intensity, label, voxel_net = self.val_data_iterator.next()
+                points, pointwise_features, label, voxel_net = self.val_data_iterator.next()
 
-            logits = self.model(points, intensity, self.train_voxel_nets[voxel_net])
+            logits = self.model(points, pointwise_features, self.train_voxel_nets[voxel_net])
             #logits = output.argmax(dim=1).float()
             #preds, answer_id = nn.functional.softmax(logits, dim=1).data.cpu().max(dim=1)
-            y_true = label.detach().numpy().transpose(0,2,1).reshape(self.batch_size*self.sample_size, 2).astype('int64')
-            y_predict = logits.detach().numpy().transpose(0,2,1).reshape(self.batch_size*self.sample_size, 2).astype('int64')
+            
+            # version laptop
+            #y_true = label.detach().numpy().transpose(0,2,1).reshape(self.batch_size*self.sample_size, 2).astype('int64')
+            #y_predict = logits.detach().numpy().transpose(0,2,1).reshape(self.batch_size*self.sample_size, 2).astype('int64')
+            
+            # version cluster
+            y_true = label.detach().clone().cpu().data.numpy().transpose(0,2,1).reshape(self.batch_size*self.sample_size, 2).astype('int64')
+            y_predict = logits.detach().clone().cpu().data.numpy().transpose(0,2,1).reshape(self.batch_size*self.sample_size, 2).astype('int64')
+
             y_true_all[nb] = np.argmax(y_true, axis=1)
             y_predict_all[nb] = np.argmax(y_predict, axis=1)
             print("shape: y_true={}, y_predict={}".format(y_true.shape, y_predict.shape))
@@ -275,12 +312,15 @@ class Trainer():
             class_weights=class_weight.compute_class_weight(class_weight="balanced", classes=np.unique(np.argmax(y_true, axis=1)), y=np.argmax(y_true, axis=1))
             class_weights=torch.tensor(class_weights, dtype=torch.float)
             print("[val]>>> class_weights = {}".format(class_weights))
-            tmp_loss = nn.functional.binary_cross_entropy_with_logits(weight=class_weights, reduction='mean', input=logits, target=label)
+            # with weights
+            tmp_loss = nn.functional.binary_cross_entropy_with_logits(weight=class_weights.to(self.device), reduction='mean', input=logits.permute(0,2,1).to(self.device), target=label.permute(0,2,1).to(self.device))
+            
+            #tmp_loss = nn.functional.binary_cross_entropy_with_logits(reduction='mean', input=logits.to(self.device), target=label.to(self.device))
             sum_val_loss = sum_val_loss + tmp_loss.item()
 
             # accuracy
             #preds = logits.argmax(dim=1).float()
-            num_correct = torch.eq(logits.argmax(dim=1).float(), label.argmax(dim=1).float()).sum().item()/self.batch_size
+            num_correct = torch.eq(logits.to(self.device).argmax(dim=1).float(), label.to(self.device).argmax(dim=1).float()).sum().item()/self.batch_size
             predict_correct = predict_correct + num_correct
 
         y_true_all = y_true_all.reshape(num_batches*self.sample_size*self.batch_size)
@@ -288,10 +328,17 @@ class Trainer():
         print("shape: y_true={}, y_predict={}".format(y_true_all.shape, y_predict_all.shape))
         mcc = matthews_corrcoef(y_true_all, y_predict_all)
         classes = ('leaf', 'wood')
-        cf_matrix = confusion_matrix(y_true_all, y_predict)
+        cf_matrix = confusion_matrix(y_true_all, y_predict_all)
+        tn, fp, fn, tp = cf_matrix.ravel()
+        # precision, recall, f1-score
+        recall, specificity, precision, npv, fpr, fnr, fdr, acc = calculate_recall_precision(tn, fp, fn, tp)
+        f1_score_val = f1_score(y_true_all, y_predict_all)
+        print("tn-{} fp-{} fn-{} tp-{} recall-{} specificity-{} precision-{} npv-{} fpr-{} fnr-{} fdr-{} acc-{} f1_score-{}".format(tn, fp, fn, tp, recall, specificity, precision, npv, fpr, fnr, fdr, acc, f1_score_val))
         df_cm = pd.DataFrame(cf_matrix/np.sum(cf_matrix), index = [i for i in classes], columns = [i for i in classes])
 
-        return sum_val_loss/num_batches, predict_correct/num_batches, mcc, df_cm
+        list_stat_res = [tn, fp, fn, tp, recall, specificity, precision, npv, fpr, fnr, fdr, acc, f1_score_val]
+
+        return sum_val_loss/num_batches, predict_correct/num_batches, mcc, df_cm, list_stat_res
 
 '''
 single dim output train function
