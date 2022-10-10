@@ -57,13 +57,14 @@ if __name__ == "__main__":
     i = 0
     #predict label possibilty
     for points, intensity, v, index_sw in test_loader:
-        logits = my_model(points, intensity, train_voxel_nets[v])
+        logits = my_model(points.float(), intensity.float(), train_voxel_nets[v])
         logits = F.softmax(logits, dim=1)
         predict = logits.squeeze(0).float()
         predict_label = logits.argmax(dim=1).float()
         #print("predict.shape", predict.shape)
         #print("predict_label.shape", predict_label.shape)
         local_x, local_y, local_z, adjust_x, adjust_y, adjust_z = sw[int(index_sw[0])]
+        print("local_x={}, local_y={}, local_z={}, adjust_x={}, adjust_y={}, adjust_z={}".format(local_x, local_y, local_z, adjust_x, adjust_y, adjust_z))
         new_file = laspy.create(point_format=3)
         new_file.add_extra_dim(laspy.ExtraBytesParams(name="wood_proba", type=np.float64))
         new_file.add_extra_dim(laspy.ExtraBytesParams(name="leave_proba", type=np.float64))
@@ -72,7 +73,7 @@ if __name__ == "__main__":
         
         new_file.x = points[:,0]*grid_size + adjust_x + local_x
         new_file.y = points[:,1]*grid_size + adjust_y + local_y
-        new_file.z = points[:,2]*global_height + adjust_z
+        new_file.z = points[:,2]*global_height + adjust_z + local_z
         
         new_file.wood_proba = predict[0,:].cpu().detach().numpy()
         new_file.leave_proba = predict[1,:].cpu().detach().numpy()

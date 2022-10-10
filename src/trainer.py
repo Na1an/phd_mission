@@ -31,8 +31,8 @@ class Trainer():
         self.val_voxel_nets = torch.from_numpy(val_voxel_nets.copy()).type(torch.float).to(self.device)
         
         # optimizer
-        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=1e-4)
-        #self.optimizer = torch.optim.SGD(self.model.parameters(), lr=1e-2, momentum=0.9, nesterov=True)
+        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=1e-5, weight_decay=0.0001)
+        #self.optimizer = torch.optim.SGD(self.model.parameters(), lr=1e-5, momentum=0.9, nesterov=True)
 
         # check_point path
         self.checkpoint_path = get_current_direct_path() + "/checkpoints"
@@ -160,7 +160,7 @@ class Trainer():
                 #print("tn-{} fp-{} fn-{} tp-{} recall-{} specificity-{} precision-{} npv-{} fpr-{} fnr-{} fdr-{} acc-{}".format(tn, fp, fn, tp, recall, specificity, precision, npv, fpr, fnr, fdr, acc))
             print("============ Epoch {}/{} is trained - epoch_loss - {} - epoch_acc - {}===========".format(e, nb_epoch, epoch_loss/loader_len, epoch_acc/(loader_len*self.batch_size)))
             self.writer.add_scalar('training loss - epoch avg', epoch_loss/loader_len, e)
-            self.writer.add_scalar('training accuracy - epoch avg', epoch_acc/loader_len, e)
+            self.writer.add_scalar('training accuracy - epoch avg', epoch_acc/(loader_len*self.batch_size), e)
 
             if e % 1 == 0:
                 self.save_checkpoint(e)
@@ -205,7 +205,7 @@ class Trainer():
                 }, e)
             self.writer.add_scalars('Accuracy', 
                 {
-                    'train_acc (epoch average)': epoch_acc/loader_len,
+                    'train_acc (epoch average)': epoch_acc/(loader_len*self.batch_size),
                     'val_acc': predict_correct/self.sample_size
                 }, e)
         self.writer.close()

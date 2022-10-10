@@ -74,6 +74,7 @@ def read_data_with_intensity(path, feature, feature2='intensity', detail=False):
     f_rest_return = (f_nb_of_returns - f_return_nb)/max_nb_of_returns
     f_ratio_return = f_return_nb/(f_nb_of_returns*max_nb_of_returns)
     f_ratio_return[np.isnan(f_ratio_return)] = 0
+    
     '''
     print("nan shape = {} {} {} {}".format(
         f_return_nb[np.isnan(f_return_nb)].shape, 
@@ -90,11 +91,11 @@ def read_data_with_intensity(path, feature, feature2='intensity', detail=False):
         data_las[feature],
         normalize_feature(f_intensity),
         normalize_feature(f_roughness), 
-        normalize_feature(f_ncr),
-        f_return_nb,
-        f_nb_of_returns,
-        f_rest_return,
-        f_ratio_return
+        normalize_feature(f_ncr)
+        #f_return_nb,
+        #f_nb_of_returns,
+        #f_rest_return,
+        #f_ratio_return
         ))
 
     print(">>>[!data with intensity] data shape =", data.shape, " type =", type(data))
@@ -512,19 +513,17 @@ def prepare_dataset_predict(data, coords_sw, grid_size, voxel_size, global_heigh
             print(">> reigon ({},{}) - ({},{})".format(local_x,local_y, local_x+grid_size, local_y+grid_size))
             print(">> there are {} points in this cuboid".format(len(local_index[0])))
             
-            
-            
-            '''
             if len(local_index[0]) < 2:
                 print(">> point number not enough, cuboid-{} skiped".format(w_nb))
                 voxel_skeleton_cuboid[w_nb] = []
                 #index_sw = index_sw + 1
                 w_nb = w_nb + 1
                 continue
+            
             '''
             # shift points to local origin (0, 0, 0)
             # zero-centered
-            '''
+            
             #local_points = copy.deepcopy(data[local_index])
             local_points = data[local_index]
             local_z = np.min(local_points[:,2])
@@ -566,7 +565,7 @@ def prepare_dataset_predict(data, coords_sw, grid_size, voxel_size, global_heigh
             
             #sw.append((local_x, local_y, local_z, adjust[0], adjust[1], adjust[2]))
             sw.append((local_x, local_y, local_z, grid_size/2, grid_size/2, global_height/2))
-            local_points[:,4] = index_sw
+            local_points[:,3] = index_sw
             index_sw = index_sw + 1
 
             if detail:
@@ -574,7 +573,6 @@ def prepare_dataset_predict(data, coords_sw, grid_size, voxel_size, global_heigh
                 print(">>> local data.shape :", local_points.shape)
                 print(">>> local_data (points in cuboid) zero-centered but no standardization/normalization")
             
-
             # the number of local_points
             tmp_nb_sample = int(len(local_points)/sample_size)
             
