@@ -91,11 +91,11 @@ def read_data_with_intensity(path, feature, feature2='intensity', detail=False):
         data_las[feature],
         normalize_feature(f_intensity),
         normalize_feature(f_roughness), 
-        normalize_feature(f_ncr),
-        f_return_nb,
-        f_nb_of_returns,
-        f_rest_return,
-        f_ratio_return
+        normalize_feature(f_ncr)
+        #f_return_nb,
+        #f_nb_of_returns,
+        #f_rest_return,
+        #f_ratio_return
         ))
 
     print(">>>[!data with intensity] data shape =", data.shape, " type =", type(data))
@@ -519,6 +519,7 @@ def prepare_dataset_predict(data, coords_sw, grid_size, voxel_size, global_heigh
                 #index_sw = index_sw + 1
                 w_nb = w_nb + 1
                 continue
+            
             '''
             # shift points to local origin (0, 0, 0)
             # zero-centered

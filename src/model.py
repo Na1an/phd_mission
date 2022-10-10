@@ -153,7 +153,7 @@ class PointWiseModel(nn.Module):
         # +7 : intensity added + roughness added + ncr added ... 
         # + 256 : output of fc of the pointwise_features
         # + (256 + 64) : pointnet segmentation output
-        feature_size = 1 + (64 + 128 + 128) + 7 + 256 + (256 + 64)
+        feature_size = 1 + (64 + 128 + 128) + 3 + 256 + (256 + 64)
 
         # conditionnal VAE, co-variabale, regression
         self.fc_0 = nn.Conv1d(feature_size, hidden_dim*4, 1)
@@ -167,7 +167,8 @@ class PointWiseModel(nn.Module):
         self.conv3_1_bn = nn.BatchNorm3d(128)
 
         # point_feature_size = 7
-        self.mlp_0 = nn.Conv1d(7, hidden_dim*2, 1)
+        #self.mlp_0 = nn.Conv1d(7, hidden_dim*2, 1)
+        self.mlp_0 = nn.Conv1d(3, hidden_dim*2, 1)
         self.mlp_1 = nn.Conv1d(hidden_dim*2, hidden_dim, 1)
         self.mlp_2 = nn.Conv1d(hidden_dim, 256, 1)
         

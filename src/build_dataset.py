@@ -33,10 +33,12 @@ class TrainDataSet(Dataset):
         intensity = self.samples[index][:,4]
         roughness = self.samples[index][:,5]
         ncr = self.samples[index][:,6]
+        '''
         return_number = self.samples[index][:,7]
         number_of_returns = self.samples[index][:,8]
         rest_return = self.samples[index][:,9]
         ratio_return = self.samples[index][:,10]
+        '''
 
         # minus self.adjust_label because the original data, label=3 -> leaf, label=2 -> wood  
         # now, leaf label=2 -> leaf label=1, wood label=1 -> wood label=0
@@ -103,10 +105,12 @@ class TestDataSet(Dataset):
         intensity = self.samples[index][:,4]
         roughness = self.samples[index][:,5]
         ncr = self.samples[index][:,6]
+        '''
         return_number = self.samples[index][:,7]
         number_of_returns = self.samples[index][:,8]
         rest_return = self.samples[index][:,9]
         ratio_return = self.samples[index][:,10]
+        '''
 
         index_sw = self.samples[index][:,3][0]
 
