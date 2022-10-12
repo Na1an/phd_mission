@@ -52,10 +52,10 @@ class PointNetfeat(nn.Module):
         self.stn = STNkd(k=3)
         self.conv1 = torch.nn.Conv1d(3, 64, 1)
         self.conv2 = torch.nn.Conv1d(64, 128, 1)
-        self.conv3 = torch.nn.Conv1d(128, 256, 1)
+        self.conv3 = torch.nn.Conv1d(128, 128, 1)
         self.bn1 = nn.BatchNorm1d(64)
         self.bn2 = nn.BatchNorm1d(128)
-        self.bn3 = nn.BatchNorm1d(256)
+        self.bn3 = nn.BatchNorm1d(128)
         self.global_feat = global_feat
         self.feature_transform = feature_transform
         if self.feature_transform:
@@ -81,9 +81,9 @@ class PointNetfeat(nn.Module):
         x = F.relu(self.bn2(self.conv2(x)))
         x = self.bn3(self.conv3(x))
         x = torch.max(x, 2, keepdim=True)[0]
-        x = x.view(-1, 256)
+        x = x.view(-1, 128)
         if self.global_feat:
-            x = x.view(-1, 256, 1).repeat(1, 1, n_pts)
+            x = x.view(-1, 128, 1).repeat(1, 1, n_pts)
             return torch.cat([x, pointfeat], 1), trans, trans_feat
         else:
             return x, trans, trans_feat
@@ -91,7 +91,7 @@ class PointNetfeat(nn.Module):
 # MPVCNN: multi-scale Point Voxel CNN
 class PointWiseModel(nn.Module):
     # initialization
-    def __init__(self, device, num_classes=2, hidden_dim=256):
+    def __init__(self, device, num_classes=2, hidden_dim=128):
         '''
         Args:
             device : 'cuda' GPU or 'cpu' CPU.
@@ -124,12 +124,12 @@ class PointWiseModel(nn.Module):
 
         # voxel-based branch: if-net
         # kernel_size = 3
-        self.conv_1 = nn.Conv3d(1, 32, 3, padding=1)  # out: 32
-        self.conv_1_1 = nn.Conv3d(32, 64, 3, padding=1)  # out: 64
-        self.conv_2 = nn.Conv3d(64, 128, 3, padding=1)  # out: 128
-        self.conv_2_1 = nn.Conv3d(128, 128, 3, padding=1)  # out: 128
-        self.conv_3 = nn.Conv3d(128, 128, 3, padding=1)  # out: 128
-        self.conv_3_1 = nn.Conv3d(128, 128, 3, padding=1)  # out: 128
+        self.conv_1 = nn.Conv3d(1, 16, 3, padding=1)  # out: 32
+        self.conv_1_1 = nn.Conv3d(16, 32, 3, padding=1)  # out: [32]
+        self.conv_2 = nn.Conv3d(32, 64, 3, padding=1)  # out: 64
+        self.conv_2_1 = nn.Conv3d(64, 64, 3, padding=1)  # out: [64]
+        self.conv_3 = nn.Conv3d(64, 64, 3, padding=1)  # out: 32
+        self.conv_3_1 = nn.Conv3d(64, 64, 3, padding=1)  # out: [64]
 
         '''
         # kernel_size = 5
@@ -153,24 +153,24 @@ class PointWiseModel(nn.Module):
         # +7 : intensity added + roughness added + ncr added ... 
         # + 256 : output of fc of the pointwise_features
         # + (256 + 64) : pointnet segmentation output
-        feature_size = 1 + (64 + 128 + 128) + 3 + 256 + (256 + 64)
+        feature_size = 1 + (32 + 64 + 64) + 3 + 128 + (128 + 64)
 
         # conditionnal VAE, co-variabale, regression
-        self.fc_0 = nn.Conv1d(feature_size, hidden_dim*4, 1)
-        self.fc_1 = nn.Conv1d(hidden_dim*4, hidden_dim*2, 1)
-        self.fc_2 = nn.Conv1d(hidden_dim*2, hidden_dim, 1)
+        self.fc_0 = nn.Conv1d(feature_size, hidden_dim*2, 1)
+        self.fc_1 = nn.Conv1d(hidden_dim*2, hidden_dim, 1)
+        #self.fc_2 = nn.Conv1d(hidden_dim*2, hidden_dim, 1)
         #self.fc_out = nn.Conv1d(hidden_dim, 1, 1) chang  1 to self.num_classes
         self.fc_out = nn.Conv1d(hidden_dim, self.num_classes, 1)
 
-        self.conv1_1_bn = nn.BatchNorm3d(64)
-        self.conv2_1_bn = nn.BatchNorm3d(128)
-        self.conv3_1_bn = nn.BatchNorm3d(128)
+        self.conv1_1_bn = nn.BatchNorm3d(32)
+        self.conv2_1_bn = nn.BatchNorm3d(64)
+        self.conv3_1_bn = nn.BatchNorm3d(64)
 
         # point_feature_size = 7
         #self.mlp_0 = nn.Conv1d(7, hidden_dim*2, 1)
         self.mlp_0 = nn.Conv1d(3, hidden_dim*2, 1)
         self.mlp_1 = nn.Conv1d(hidden_dim*2, hidden_dim, 1)
-        self.mlp_2 = nn.Conv1d(hidden_dim, 256, 1)
+        self.mlp_2 = nn.Conv1d(hidden_dim, 128, 1)
         
         '''
         self.conv1_1_bn_ks5 = nn.BatchNorm3d(64)
@@ -349,7 +349,7 @@ class PointWiseModel(nn.Module):
         features = torch.cat((features, feature_mlp, pointwise_features), dim=1)
         net_out = self.actvn(self.fc_0(features))
         net_out = self.actvn(self.fc_1(net_out))
-        net_out = self.actvn(self.fc_2(net_out))
+        #net_out = self.actvn(self.fc_2(net_out))
         net_out = self.fc_out(net_out)
         out = net_out.squeeze(1)
 

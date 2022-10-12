@@ -84,6 +84,7 @@ class Trainer():
             print('======= Start epoch {} ============='.format(e))
             epoch_loss = 0.0
             epoch_acc = 0.0
+            epoch_specificity = 0.0
             loader_len = 0
             # points, labels, v_cuboid
             for points, pointwise_features, label, voxel_net in self.train_loader:
@@ -156,9 +157,8 @@ class Trainer():
                 logits = logits.reshape(self.batch_size*self.sample_size)
                 label = label.reshape(self.batch_size*self.sample_size)
                 #print("logits shape = {} logits = {}\n, label shape = {} label = {}\n".format(logits.shape, logits, label.shape, label))
-                print("[e={}]>>> bincount logits.shape={}".format(e, torch.bincount(logits)))
-                print("[e={}]>>> bincount label.shape={}".format(e, torch.bincount(label)))
-                
+                print("bincount logits.shape={}".format(torch.bincount(logits)))
+                print("bincount label.shape={}".format(torch.bincount(label)))
                 
                 # [metric bloc] precision, recall, f1-score
                 label = label.detach().clone().cpu().data.numpy()
@@ -167,15 +167,17 @@ class Trainer():
                 tn, fp, fn, tp = cf_matrix.ravel()
                 recall, specificity, precision, npv, fpr, fnr, fdr, acc = calculate_recall_precision(tn, fp, fn, tp)
                 f1_score_val = f1_score(label, logits)
-                print("tn-{} fp-{} fn-{} tp-{} recall-{} specificity-{} precision-{} npv-{} fpr-{} fnr-{} fdr-{} acc-{} f1_score-{}".format(tn, fp, fn, tp, recall, specificity, precision, npv, fpr, fnr, fdr, acc, f1_score_val))
+                #print("tn-{} fp-{} fn-{} tp-{} recall-{} specificity-{} precision-{} npv-{} fpr-{} fnr-{} fdr-{} acc-{} f1_score-{}".format(tn, fp, fn, tp, recall, specificity, precision, npv, fpr, fnr, fdr, acc, f1_score_val))
 
                 epoch_loss = epoch_loss + tmp_loss.item()
                 epoch_acc = epoch_acc + num_correct/self.sample_size
+                epoch_specificity = epoch_specificity + specificity
                 loader_len = loader_len + 1
-                print("[e={}]>>> [Training] - Current test loss: {} - test accuracy: {}".format(e, tmp_loss.item(), num_correct/(self.sample_size*self.batch_size)))
+                print("[e={}]>>> [Training] - Current test loss: {} - accuracy - {} specificity - {}".format(e, tmp_loss.item(), num_correct/(self.sample_size*self.batch_size)))
             print("============ Epoch {}/{} is trained - epoch_loss - {} - epoch_acc - {}===========".format(e, nb_epoch, epoch_loss/loader_len, epoch_acc/(loader_len*self.batch_size)))
             self.writer.add_scalar('training loss - epoch avg', epoch_loss/loader_len, e)
             self.writer.add_scalar('training accuracy - epoch avg', epoch_acc/(loader_len*self.batch_size), e)
+            self.writer.add_scalar('training specificity - epoch avg', epoch_specificity/(loader_len), e)
 
             if e % 1 == 0:
                 self.save_checkpoint(e)
@@ -222,6 +224,11 @@ class Trainer():
                 {
                     'train_acc (epoch average)': epoch_acc/(loader_len*self.batch_size),
                     'val_acc': predict_correct/self.sample_size
+                }, e)
+            self.writer.add_scalars('Specificity', 
+                {
+                    'train_sp (epoch average)': epoch_specificity/loader_len,
+                    'val_sp': list_stat_res[5] # validation specificity
                 }, e)
         self.writer.close()
         return None
