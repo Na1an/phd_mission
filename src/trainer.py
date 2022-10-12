@@ -150,14 +150,29 @@ class Trainer():
                 #label_one_dim = label.argmax(dim=1).float()
                 _, logits = logits.max(1)
                 _, label = label.max(1)
-                num_correct = torch.eq(logits.to(self.device), label.to(self.device)).sum().item()
-                #print(" logits.argmax(dim=1).float() shape = {} label.argmax(dim=1).float() shape = {} num_correct = {}".format( logits.argmax(dim=1).float().shape, label.argmax(dim=1).float().shape,num_correct))
                 
+                num_correct = torch.eq(logits.to(self.device), label.to(self.device)).sum().item() 
+                #print(" logits.argmax(dim=1).float() shape = {} label.argmax(dim=1).float() shape = {} num_correct = {}".format(logits.float().shape, label.float().shape,num_correct))
+                logits = logits.reshape(self.batch_size*self.sample_size)
+                label = label.reshape(self.batch_size*self.sample_size)
+                #print("logits shape = {} logits = {}\n, label shape = {} label = {}\n".format(logits.shape, logits, label.shape, label))
+                print("[e={}]>>> bincount logits.shape={}".format(e, torch.bincount(logits)))
+                print("[e={}]>>> bincount label.shape={}".format(e, torch.bincount(label)))
+                
+                
+                # [metric bloc] precision, recall, f1-score
+                label = label.detach().clone().cpu().data.numpy()
+                logits = logits.detach().clone().cpu().data.numpy()
+                cf_matrix = confusion_matrix(label, logits, labels=[0,1])
+                tn, fp, fn, tp = cf_matrix.ravel()
+                recall, specificity, precision, npv, fpr, fnr, fdr, acc = calculate_recall_precision(tn, fp, fn, tp)
+                f1_score_val = f1_score(label, logits)
+                print("tn-{} fp-{} fn-{} tp-{} recall-{} specificity-{} precision-{} npv-{} fpr-{} fnr-{} fdr-{} acc-{} f1_score-{}".format(tn, fp, fn, tp, recall, specificity, precision, npv, fpr, fnr, fdr, acc, f1_score_val))
+
                 epoch_loss = epoch_loss + tmp_loss.item()
                 epoch_acc = epoch_acc + num_correct/self.sample_size
                 loader_len = loader_len + 1
                 print("[e={}]>>> [Training] - Current test loss: {} - test accuracy: {}".format(e, tmp_loss.item(), num_correct/(self.sample_size*self.batch_size)))
-                #print("tn-{} fp-{} fn-{} tp-{} recall-{} specificity-{} precision-{} npv-{} fpr-{} fnr-{} fdr-{} acc-{}".format(tn, fp, fn, tp, recall, specificity, precision, npv, fpr, fnr, fdr, acc))
             print("============ Epoch {}/{} is trained - epoch_loss - {} - epoch_acc - {}===========".format(e, nb_epoch, epoch_loss/loader_len, epoch_acc/(loader_len*self.batch_size)))
             self.writer.add_scalar('training loss - epoch avg', epoch_loss/loader_len, e)
             self.writer.add_scalar('training accuracy - epoch avg', epoch_acc/(loader_len*self.batch_size), e)
@@ -322,14 +337,25 @@ class Trainer():
             #preds = logits.argmax(dim=1).float()
             num_correct = torch.eq(logits.to(self.device).argmax(dim=1).float(), label.to(self.device).argmax(dim=1).float()).sum().item()/self.batch_size
             predict_correct = predict_correct + num_correct
-
-        y_true_all = y_true_all.reshape(num_batches*self.sample_size*self.batch_size)
-        y_predict_all = y_predict_all.reshape(num_batches*self.sample_size*self.batch_size)
-        print("shape: y_true={}, y_predict={}".format(y_true_all.shape, y_predict_all.shape))
+        
+        print("y_true_all.shape={} y_true_all = {}".format(y_true_all.shape, y_true_all))
+        print("y_predict_all.shape={} y_predict_all = {}".format(y_predict_all.shape, y_predict_all))
+        #print("bincount y_true_all.shape={}".format(np.bincount(y_true_all)))
+        #print("bincount y_predict_all.shape={}".format(np.bincount(y_predict_all)))
+        
+        y_true_all = y_true_all.reshape(num_batches*self.sample_size*self.batch_size).astype(int)
+        y_predict_all = y_predict_all.reshape(num_batches*self.sample_size*self.batch_size).astype(int)
+        #print("shape: y_true={}, y_predict={}".format(y_true_all.shape, y_predict_all.shape))
+        print("bincount y_true_all.shape={}".format(np.bincount(y_true_all)))
+        print("bincount y_predict_all.shape={}".format(np.bincount(y_predict_all)))
+        #cf_matrix = confusion_matrix(y_true_all, y_predict_all, labels=[0,1])
+        
         mcc = matthews_corrcoef(y_true_all, y_predict_all)
         classes = ('leaf', 'wood')
-        cf_matrix = confusion_matrix(y_true_all, y_predict_all)
+        cf_matrix = confusion_matrix(y_true_all, y_predict_all, labels=[0,1])
+        
         tn, fp, fn, tp = cf_matrix.ravel()
+        print("tn-{} fp-{} fn-{} tp-{}".format(tn, fp, fn, tp))
         # precision, recall, f1-score
         recall, specificity, precision, npv, fpr, fnr, fdr, acc = calculate_recall_precision(tn, fp, fn, tp)
         f1_score_val = f1_score(y_true_all, y_predict_all)
