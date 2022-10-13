@@ -4,7 +4,7 @@ import laspy
 import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits import mplot3d
-from sklearn.metrics import confusion_matrix, matthews_corrcoef, f1_score
+from sklearn.metrics import confusion_matrix, matthews_corrcoef, f1_score, roc_auc_score
 import seaborn as sns
 import pandas as pd
 
@@ -226,3 +226,17 @@ def show_numpy_stat(data):
     print(pd.DataFrame(data).describe())
     print("\n")
     return None
+
+#!!!!!!!!!!!!!!!!!!!!!! à faire
+# calculate auroc score
+def calculate_auroc(y_score, y_true):
+    '''
+    Args:
+        y_score: a numpy.ndarray. (n, 2)
+        y_true: a numpy.ndarray. (n, 2)
+    Returns:
+        res: a float. The auroc score of logits and label. We should note here: leaf label=0, wood label=1
+    '''
+
+    roc_auc_score(y_score=logits[:,1], y_true=label[:,1])
+    return 0

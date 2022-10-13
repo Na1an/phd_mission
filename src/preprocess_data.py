@@ -128,7 +128,7 @@ def read_header(path, detail=True):
     return las
 
 # return the set of sliding window coordinates
-def sliding_window(x_min, x_max, y_min, y_max, grid_size):
+def sliding_window(x_min, x_max, y_min, y_max, grid_size, nb_window=5):
     '''
     Args:
         *_min/*_max : a interger. The data range.
@@ -136,21 +136,9 @@ def sliding_window(x_min, x_max, y_min, y_max, grid_size):
     Returns:
         res : a list of 2-d coordinates (x,y). The set of grid coordinates.
     '''
-
-    divide_x = int(np.ceil((x_max - x_min)/grid_size))
-    divide_y = int(np.ceil((y_max - y_min)/grid_size))
-    
-    coor_x = np.zeros(divide_x)
-    overlap_x = (divide_x * grid_size - (x_max - x_min))/(divide_x-1)
-    for i in range(divide_x):
-        coor_x[i] = i*grid_size - overlap_x*i
-    
-    coor_y = np.zeros(divide_y)
-    overlap_y = (divide_y * grid_size - (y_max - y_min))/(divide_y-1)
-    for j in range(divide_y):
-        coor_y[j] = j*grid_size - overlap_y*j
-
-    mesh_x, mesh_y = np.meshgrid(coor_x, coor_y)
+    coord_x = np.random.uniform(x_min, x_max-grid_size, nb_window)
+    coord_y = np.random.uniform(y_min, y_max-grid_size, nb_window)
+    mesh_x, mesh_y = np.meshgrid(coord_x, coord_y)
 
     return np.stack((mesh_x,mesh_y), 2)
 
@@ -402,7 +390,7 @@ def prepare_dataset(data, coords_sw, grid_size, voxel_size, global_height, voxel
             
     return np.array(samples), sample_cuboid_index, voxel_skeleton_cuboid
 
-def prepare_procedure(path, grid_size, voxel_size, voxel_sample_mode, sample_size, global_height=50, label_name="llabel", detail=False, naif_sliding=False):
+def prepare_procedure(path, grid_size, voxel_size, voxel_sample_mode, sample_size, global_height=50, label_name="llabel", detail=False, naif_sliding=False, nb_window=10):
     '''
     Args:
         path : raw_data_path. The path of training/validation/test file.
@@ -413,16 +401,13 @@ def prepare_procedure(path, grid_size, voxel_size, voxel_sample_mode, sample_siz
     print("> input data:", path)
     data_preprocessed, x_min, x_max, y_min, y_max, z_min, z_max = read_data_with_intensity(path, label_name, detail=True)
     print("\n> data_preprocess.shape =", data_preprocessed.shape)
-    check_nan_in_array("data_preprocess intensity", data_preprocessed.transpose()[3])
-    check_nan_in_array("data_preprocess roughness", data_preprocessed.transpose()[5])
-    check_nan_in_array("data_preprocess ncr", data_preprocessed.transpose()[6])
 
     # sliding window
     if naif_sliding:
         print(">> ok, we do naif sliding")
         coords_sw = sliding_window_naif(0, x_max - x_min, 0, y_max - y_min, grid_size)
     else:
-        coords_sw = sliding_window(0, x_max - x_min, 0, y_max - y_min, grid_size)
+        coords_sw = sliding_window(0, x_max - x_min, 0, y_max - y_min, grid_size, nb_window)
 
     (d1,d2,_) = coords_sw.shape
     nb_cuboid = d1 * d2
@@ -642,6 +627,33 @@ def prepare_procedure_predict(path, grid_size, voxel_size, voxel_sample_mode, sa
     return samples, sample_cuboid_index, voxel_nets, sw
     
 ############################## make a copy ###############################
+
+# return the set of sliding window coordinates
+def sliding_window_old(x_min, x_max, y_min, y_max, grid_size):
+    '''
+    Args:
+        *_min/*_max : a interger. The data range.
+        grid_size : a interger/float. The side length of the grid.
+    Returns:
+        res : a list of 2-d coordinates (x,y). The set of grid coordinates.
+    '''
+
+    divide_x = int(np.ceil((x_max - x_min)/grid_size))
+    divide_y = int(np.ceil((y_max - y_min)/grid_size))
+    
+    coor_x = np.zeros(divide_x)
+    overlap_x = (divide_x * grid_size - (x_max - x_min))/(divide_x-1)
+    for i in range(divide_x):
+        coor_x[i] = i*grid_size - overlap_x*i
+    
+    coor_y = np.zeros(divide_y)
+    overlap_y = (divide_y * grid_size - (y_max - y_min))/(divide_y-1)
+    for j in range(divide_y):
+        coor_y[j] = j*grid_size - overlap_y*j
+
+    mesh_x, mesh_y = np.meshgrid(coor_x, coor_y)
+
+    return np.stack((mesh_x,mesh_y), 2)
 
 # laspy read and write incorrectly
 # this explain why the scale is different
