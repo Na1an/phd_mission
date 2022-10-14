@@ -48,7 +48,7 @@ if __name__ == "__main__":
     train_dataset = TrainDataSet(samples_train, sample_cuboid_index_train, my_device)
     train_dataset.show_info()
     
-    samples_val, sample_cuboid_index_val, val_voxel_nets = prepare_procedure(val_data_path, grid_size, voxel_size, voxel_sample_mode, sample_size, global_height=global_height, label_name="WL", detail=True, , nb_window=12)
+    samples_val, sample_cuboid_index_val, val_voxel_nets = prepare_procedure(val_data_path, grid_size, voxel_size, voxel_sample_mode, sample_size, global_height=global_height, label_name="WL", detail=True, nb_window=4)
     val_dataset = TrainDataSet(samples_val, sample_cuboid_index_val, my_device)
     val_dataset.show_info()
 

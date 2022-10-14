@@ -1,6 +1,7 @@
 import torch
 import numpy as np
 import torch.nn as nn
+import torch.nn.functional as F
 from utility import *
 from glob import glob
 from torch.utils.data import DataLoader
@@ -25,10 +26,10 @@ class Trainer():
         self.device = device
         self.model = model.to(device)
         self.train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers, drop_last=True)
-        self.train_voxel_nets = torch.from_numpy(train_voxel_nets).type(torch.float).to(self.device)
+        self.train_voxel_nets = torch.from_numpy(train_voxel_nets.copy()).type(torch.float).to(self.device)
 
         self.val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers)
-        self.val_voxel_nets = torch.from_numpy(val_voxel_nets).type(torch.float).to(self.device)
+        self.val_voxel_nets = torch.from_numpy(val_voxel_nets.copy()).type(torch.float).to(self.device)
         
         # optimizer
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=1e-5, weight_decay=0.0001)
@@ -125,44 +126,45 @@ class Trainer():
                 # version cluster
                 #print("label.shape={}".format(label.shape))
                 y_true = label.detach().clone().cpu().data.numpy().transpose(0,2,1).reshape(self.batch_size*self.sample_size, 2).astype('int64')
-
-                class_weights=class_weight.compute_class_weight(class_weight="balanced", classes=np.unique(np.argmax(y_true, axis=1)), y=np.argmax(y_true, axis=1))
-                class_weights=torch.tensor(class_weights,dtype=torch.float)
+                logits = logits.permute(0,2,1).reshape(self.batch_size*self.sample_size, 2).to(self.device)
+                logits = F.softmax(logits, dim=1)
+                logits_wood = logits[:,1].detach().clone().cpu().data.numpy()
+                label = label.permute(0,2,1).reshape(self.batch_size*self.sample_size, 2).to(self.device)
                 
-                tmp_loss = nn.functional.binary_cross_entropy_with_logits(weight=class_weights.to(self.device), input=logits.permute(0,2,1).to(self.device), target=label.permute(0,2,1).to(self.device))
+                class_weights=class_weight.compute_class_weight(class_weight="balanced", classes=np.unique(np.argmax(y_true, axis=1)), y=np.argmax(y_true, axis=1))
+                class_weights=torch.tensor(class_weights, dtype=torch.float)
+                
+                tmp_loss = nn.functional.binary_cross_entropy_with_logits(weight=class_weights.to(self.device), input=logits, target=label)
                
                 '''
                 print(">>>> [new] logits.shape = {}, label.shape = {}".format(logits.shape, label.shape))
                 print(">>>> [new] logits = {}, label = {}".format(logits[0:5], label[0:5]))
                 '''
-                #tmp_loss = nn.functional.binary_cross_entropy_with_logits(reduction='mean', input=logits, target=label)
-                # worked_function
-                #logits = torch.reshape(logits, (self.batch_size*self.sample_size, 2)).to(self.device)
-                #label = torch.reshape(label, (self.batch_size*self.sample_size, 2)).to(self.device)
-                #tmp_loss = nn.functional.binary_cross_entropy_with_logits(reduction='mean', input=logits, target=label)
-                #cf_matrix = confusion_matrix(label, logits)
-                #tn, fp, fn, tp = cf_matrix.ravel()
-                #recall, specificity, precision, npv, fpr, fnr, fdr, acc = calculate_recall_precision(tn, fp, fn, tp)
-                #print("epoch : loss = {}, weighted_loss = {}".format(tmp_loss, tmp_loss_3))
+
                 tmp_loss.backward()
                 self.optimizer.step()
-
-                #preds = logits.argmax(dim=1).float()
-                #label_one_dim = label.argmax(dim=1).float()
-                _, logits = logits.max(1)
-                _, label = label.max(1)
                 
+                #res1, res2 = label.max(1), res = [0.77, 0.78, 0.22, ... proba] res2 = [1,1,0,0... label]
+                _, label = label.max(1)
+                _, logits = logits.max(1)
+
                 num_correct = torch.eq(logits.to(self.device), label.to(self.device)).sum().item() 
                 #print(" logits.argmax(dim=1).float() shape = {} label.argmax(dim=1).float() shape = {} num_correct = {}".format(logits.float().shape, label.float().shape,num_correct))
                 logits = logits.reshape(self.batch_size*self.sample_size)
                 label = label.reshape(self.batch_size*self.sample_size)
                 #print("logits shape = {} logits = {}\n, label shape = {} label = {}\n".format(logits.shape, logits, label.shape, label))
+                
                 print("bincount logits.shape={}".format(torch.bincount(logits)))
                 print("bincount label.shape={}".format(torch.bincount(label)))
                 
                 # [metric bloc] precision, recall, f1-score
+                #auroc = calculate_auroc(y_score=logits[:,1], y_true=label)
+                
                 label = label.detach().clone().cpu().data.numpy()
                 logits = logits.detach().clone().cpu().data.numpy()
+
+                auroc_score = roc_auc_score(y_score=logits_wood, y_true=label)
+                print("auroc_score = {}".format(auroc_score))
                 cf_matrix = confusion_matrix(label, logits, labels=[0,1])
                 tn, fp, fn, tp = cf_matrix.ravel()
                 recall, specificity, precision, npv, fpr, fnr, fdr, acc = calculate_recall_precision(tn, fp, fn, tp)
@@ -174,6 +176,7 @@ class Trainer():
                 epoch_specificity = epoch_specificity + specificity
                 loader_len = loader_len + 1
                 print("[e={}]>>> [Training] - Current test loss: {} - accuracy - {} specificity - {}".format(e, tmp_loss.item(), num_correct/(self.sample_size*self.batch_size), specificity))
+            
             print("============ Epoch {}/{} is trained - epoch_loss - {} - epoch_acc - {} epoch_specificity - {}===========".format(e, nb_epoch, epoch_loss/loader_len, epoch_acc/(loader_len*self.batch_size), epoch_specificity/loader_len))
             self.writer.add_scalar('training loss - epoch avg', epoch_loss/loader_len, e)
             self.writer.add_scalar('training accuracy - epoch avg', epoch_acc/(loader_len*self.batch_size), e)
