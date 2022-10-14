@@ -87,7 +87,7 @@ class Trainer():
             epoch_acc = 0.0
             epoch_specificity = 0.0
             epoch_auroc = 0.0
-            loader_len = 0
+            loader_len = 1
             # points, labels, v_cuboid
             for points, pointwise_features, label, voxel_net in self.train_loader:
                 
@@ -174,11 +174,11 @@ class Trainer():
                 epoch_loss = epoch_loss + tmp_loss.item()
                 epoch_acc = epoch_acc + num_correct/self.sample_size
                 epoch_specificity = epoch_specificity + specificity
-                epoch_auroc = epoch_auroc + auroc_score
+                #epoch_auroc = epoch_auroc + auroc_score
                 loader_len = loader_len + 1
                 print("[e={}]>>> [Training] - Current test loss: {} - accuracy - {} specificity - {}".format(e, tmp_loss.item(), num_correct/(self.sample_size*self.batch_size), specificity))
             
-            print("============ Epoch {}/{} is trained - epoch_loss - {} - epoch_acc - {} epoch_specificity - {} epoch_auroc - {}===========".format(e, nb_epoch, epoch_loss/loader_len, epoch_acc/(loader_len*self.batch_size), epoch_specificity/loader_len, epoch_auroc/loader_len))
+            print("============ Epoch {}/{} is trained - epoch_loss - {} - epoch_acc - {} epoch_specificity - {}===========".format(e, nb_epoch, epoch_loss/loader_len, epoch_acc/(loader_len*self.batch_size), epoch_specificity/loader_len))
             self.writer.add_scalar('training loss - epoch avg', epoch_loss/loader_len, e)
             self.writer.add_scalar('training accuracy - epoch avg', epoch_acc/(loader_len*self.batch_size), e)
             self.writer.add_scalar('training specificity - epoch avg', epoch_specificity/(loader_len), e)
