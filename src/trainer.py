@@ -149,11 +149,12 @@ class Trainer():
                 _, label = label.max(1)
                 _, logits = logits.max(1)
 
-                num_correct = torch.eq(logits.to(self.device), label.to(self.device)).sum().item() 
+                num_correct = torch.eq(logits.to(self.device), label.to(self.device)).sum().item()
+                
                 #print(" logits.argmax(dim=1).float() shape = {} label.argmax(dim=1).float() shape = {} num_correct = {}".format(logits.float().shape, label.float().shape,num_correct))
-                logits = logits.reshape(self.batch_size*self.sample_size)
-                label = label.reshape(self.batch_size*self.sample_size)
-                #print("logits shape = {} logits = {}\n, label shape = {} label = {}\n".format(logits.shape, logits, label.shape, label))
+                #logits = logits.reshape(self.batch_size*self.sample_size)
+                #label = label.reshape(self.batch_size*self.sample_size)
+                #print("logits.shape = {} logits = {}\n, label.shape = {} label = {}\n".format(logits.shape, logits, label.shape, label))
                 
                 print("bincount logits.shape={}".format(torch.bincount(logits)))
                 print("bincount label.shape={}".format(torch.bincount(label)))
