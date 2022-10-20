@@ -19,15 +19,21 @@ if __name__ == "__main__":
     #data_target.WL[np.where(data_target.WL==1)]+=3
 
     #
+    '''
     data_target.add_extra_dim(laspy.ExtraBytesParams(name="return_ratio", type=np.float64))
     data_target.add_extra_dim(laspy.ExtraBytesParams(name="intensity_transform", type=np.float64))
     data_target.add_extra_dim(laspy.ExtraBytesParams(name="intensity_transform_pct", type=np.float64))
     data_target.return_ratio = (data_target['return_number'])/(data_target['number_of_returns'])
-    # for dls/uls
+    # ULS
     data_target.intensity_transform = (data_target['intensity']/65535)*40 - 40
-    # for tls
+    
+    # TLS
     #data_target.intensity_transform = (data_target['intensity']/65535)*35 - 30
     data_target.intensity_transform_pct = 10**(data_target.intensity_transform/10)
+    '''
+    data_target.add_extra_dim(laspy.ExtraBytesParams(name="reflectance", type=np.float64))
+    #data_target.reflectance = 10**(((data_target['intensity']/65535)*40 - 40)/10)
+    data_target.reflectance = 10**(((data_target['intensity']/65535)*35 - 30)/10)
 
     # store the result
     path = os.getcwd()+"/new_label_" + datetime.now().strftime('%Y-%m-%d_%H-%M-%S') + ".las"
