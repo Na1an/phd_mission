@@ -83,9 +83,9 @@ class PointWiseModel(nn.Module):
         self.conv_3_1 = nn.Conv3d(64, 64, 3, padding=1)  # out: [64]
 
         # feature_size was setting 3 times for multi-scale learning/multi receptive field
-        # +7 : intensity added + roughness added + ncr added ... 
-        # + 256 : output of fc of the pointwise_features
-        # + (256 + 64) : pointnet segmentation output
+        # +3 : intensity added + roughness added + ncr added ... 
+        # + 128 : output of fc of the pointwise_features
+        # + (128 + 64) : pointnet segmentation output
         feature_size = 1 + (32 + 64 + 64) + 3 + 128 + (128)
 
         # conditionnal VAE, co-variabale, regression
@@ -128,7 +128,6 @@ class PointWiseModel(nn.Module):
         print("[*] intensity.shape", intensity.shape)
         print("[*] v_cuboid, v.shape={}".format(v.shape))
         '''
-        p_pn = points.transpose(1,2)
         
         pointnet_features = self.point_base_model(points_for_pointnet)
         #print("[*] point_features={}".format(point_features.shape))

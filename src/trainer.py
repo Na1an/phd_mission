@@ -293,8 +293,13 @@ class Trainer():
             except:
                 self.val_data_iterator = self.val_loader.__iter__()
                 points, pointwise_features, label, voxel_net = self.val_data_iterator.next()
-
-            logits = self.model(points, pointwise_features, self.val_voxel_nets[voxel_net])
+            
+            points_for_pointnet = torch.cat([points.transpose(2,1), pointwise_features.transpose(2,1), points.transpose(2,1)], dim=1)
+            points_for_pointnet[:,0:2,:] = points_for_pointnet[:,0:2,:] * self.grid_size
+            points_for_pointnet[:,2,:] = points_for_pointnet[:,2,:] * self.global_height + (self.global_height/2)
+            points_for_pointnet[:,6:,:] = points_for_pointnet[:,6:,:] + 0.5
+            print("pointsfor_pointnet.shape={}".format(points_for_pointnet.shape))
+            logits = self.model(points, pointwise_features, self.val_voxel_nets[voxel_net], points_for_pointnet)
             logits = logits.permute(0,2,1).reshape(self.batch_size*self.sample_size, 2)
             logits = F.softmax(logits, dim=1)
             label = label.permute(0,2,1).reshape(self.batch_size*self.sample_size, 2)
