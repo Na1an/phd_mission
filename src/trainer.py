@@ -11,7 +11,7 @@ from captum.attr import LayerGradCam, Saliency, LayerActivation
 from sklearn.utils import class_weight
 
 class Trainer():
-    def __init__(self, model, device, train_dataset, train_voxel_nets, val_dataset, val_voxel_nets, batch_size, sample_size, predict_threshold, num_workers, shuffle=True, opt="Adam"):
+    def __init__(self, model, device, train_dataset, train_voxel_nets, val_dataset, val_voxel_nets, batch_size, sample_size, predict_threshold, num_workers, grid_size, global_height, shuffle=True, opt="Adam"):
         '''
         Args:
             model: the Deep Learning model.
@@ -30,7 +30,9 @@ class Trainer():
 
         self.val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers)
         self.val_voxel_nets = torch.from_numpy(val_voxel_nets.copy()).type(torch.float).to(self.device)
-        
+        self.grid_size = grid_size
+        self.global_height = global_height
+
         # optimizer
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=1e-5, weight_decay=0.0001)
         #self.optimizer = torch.optim.SGD(self.model.parameters(), lr=1e-5, momentum=0.9, nesterov=True)
@@ -93,8 +95,13 @@ class Trainer():
                 
                 self.model.train() # tell torch we are traning
                 self.optimizer.zero_grad()
-
-                logits = self.model(points, pointwise_features, self.train_voxel_nets[voxel_net])
+                
+                points_for_pointnet = torch.cat([points.transpose(2,1), pointwise_features.transpose(2,1), points.transpose(2,1)], dim=1)
+                points_for_pointnet[:,0:2,:] = points_for_pointnet[:,0:2,:] * self.grid_size
+                points_for_pointnet[:,2,:] = points_for_pointnet[:,2,:] * self.global_height + (self.global_height/2)
+                points_for_pointnet[:,6:,:] = points_for_pointnet[:,6:,:] + 0.5
+                print("pointsfor_pointnet.shape={}".format(points_for_pointnet.shape))
+                logits = self.model(points, pointwise_features, self.train_voxel_nets[voxel_net], points_for_pointnet)
                 #print("logits = ", logits[0:10])
 
                 '''
