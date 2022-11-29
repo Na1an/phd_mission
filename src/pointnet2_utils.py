@@ -204,6 +204,19 @@ class PointNetSetAbstraction(nn.Module):
 
 class PointNetSetAbstractionMsg(nn.Module):
     def __init__(self, npoint, radius_list, nsample_list, in_channel, mlp_list):
+        ''' 
+        PointNet Set Abstraction (SA) module with Multi-Scale Grouping (MSG)
+        Input:
+            xyz: (batch_size, ndataset, 3) TF tensor
+            points: (batch_size, ndataset, channel) TF tensor
+            npoint: int32 -- #points sampled in farthest point sampling
+            radius_list: list of float32 -- search radius in local region
+            nsample_list: list of int32 -- how many points in each local region
+            mlp_list: list of list of int32 -- output size for MLP on each point
+        Return:
+            new_xyz: (batch_size, npoint, 3) TF tensor
+            new_points: (batch_size, npoint, sum_k{mlp[k][-1]}) TF tensor
+        '''
         super(PointNetSetAbstractionMsg, self).__init__()
         self.npoint = npoint
         self.radius_list = radius_list

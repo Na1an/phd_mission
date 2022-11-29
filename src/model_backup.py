@@ -337,15 +337,9 @@ class PointWiseModel(nn.Module):
         shape = features.shape
         features = torch.reshape(features, (shape[0], shape[1] * shape[3], shape[4]))  # (B, featues_per_sample, samples_num)
         
-        '''
-        #features = torch.cat((features, p_features), dim=1)  # (B, featue_size, samples_num)
-        print("feature_3.shape {}".format(feature_3.shape))
-        print("features.shape {}".format(features.shape))
-        print("features.shape {}".format(features.shape))
-        >> point_features.shape=torch.Size([4, 320, 5000])
-        features.shape=torch.Size([4, 641, 5000]) feature_mlp.shape=torch.Size([4, 256, 5000]) pointwise_features=torch.Size([4, 7, 5000])
-        features.shape torch.Size([4, 904, 5000])
-        '''
+        # features : pointnet and voxel based features
+        # feature_mlp : pointwise_features after mlp
+        # pointwise_features : features calculated by cloudcompare
         features = torch.cat((features, feature_mlp, pointwise_features), dim=1)
         net_out = self.actvn(self.fc_0(features))
         net_out = self.actvn(self.fc_1(net_out))

@@ -227,6 +227,13 @@ def show_numpy_stat(data):
     print("\n")
     return None
 
+# normalize feature
+def normalize_feature(f):
+    f_min = np.min(f)
+    f_max = np.max(f)
+    print("f_min={}, f_max={}".format(f_min, f_max))
+    return (f-f_min)/(f_max-f_min)
+
 #!!!!!!!!!!!!!!!!!!!!!! à faire
 # calculate auroc score
 def calculate_auroc(y_score, y_true):
