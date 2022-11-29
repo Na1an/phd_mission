@@ -3,24 +3,24 @@ import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
 from torch.autograd import Variable
-from pointnet2_utils import PointNetSetAbstractionMsg,PointNetFeaturePropagation
+from pointnet2_utils import PointNetSetAbstraction,PointNetFeaturePropagation
 
 # PointNet++
 class Pointnet_plus(nn.Module):
     def __init__(self, num_classes):
         super(Pointnet_plus, self).__init__()
 
-        self.sa1 = PointNetSetAbstractionMsg(1024, [0.05, 0.1], [16, 32], 9, [[16, 16, 32], [32, 32, 64]])
-        self.sa2 = PointNetSetAbstractionMsg(256, [0.1, 0.2], [16, 32], 32+64, [[64, 64, 128], [64, 96, 128]])
-        self.sa3 = PointNetSetAbstractionMsg(64, [0.2, 0.4], [16, 32], 128+128, [[128, 196, 256], [128, 196, 256]])
-        self.sa4 = PointNetSetAbstractionMsg(16, [0.4, 0.8], [16, 32], 256+256, [[256, 256, 512], [256, 384, 512]])
-        self.fp4 = PointNetFeaturePropagation(512+512+256+256, [256, 256])
-        self.fp3 = PointNetFeaturePropagation(128+128+256, [256, 256])
-        self.fp2 = PointNetFeaturePropagation(32+64+256, [256, 128])
+        self.sa1 = PointNetSetAbstraction(1024, 0.1, 32, 9 + 3, [32, 32, 64], False)
+        self.sa2 = PointNetSetAbstraction(256, 0.2, 32, 64 + 3, [64, 64, 128], False)
+        self.sa3 = PointNetSetAbstraction(64, 0.4, 32, 128 + 3, [128, 128, 256], False)
+        self.sa4 = PointNetSetAbstraction(16, 0.8, 32, 256 + 3, [256, 256, 512], False)
+        self.fp4 = PointNetFeaturePropagation(768, [256, 256])
+        self.fp3 = PointNetFeaturePropagation(384, [256, 256])
+        self.fp2 = PointNetFeaturePropagation(320, [256, 128])
         self.fp1 = PointNetFeaturePropagation(128, [128, 128, 128])
         self.conv1 = nn.Conv1d(128, 128, 1)
         self.bn1 = nn.BatchNorm1d(128)
-        self.drop1 = nn.Dropout(0.5)
+        self.drop1 = nn.Dropout(0.3)
         self.conv2 = nn.Conv1d(128, num_classes, 1)
 
     def forward(self, xyz):

@@ -49,31 +49,33 @@ def initialize_voxels(voxels):
         # initialize geodesic distance to -1
         voxels[k] = (v,-1)
 
-def cauculate_ier(voxels, voxel_low, voxels_in_comp, voxel_size):
+def cauculate_ier(voxels, voxel_low, voxels_in_comp, voxel_size, nb_component):
     # mean coordinate of lowest voxel
     points, gd = voxels[voxel_low]
     if gd != 0:
         print("problem here, def cauculate_ier")
     coord_low = np.mean(points[:,:3], axis=0)
     len_points = len(points)
-    feature_add = np.zeros((len_points, 2), dtype=points.dtype)
+    feature_add = np.zeros((len_points, 3), dtype=points.dtype)
     len_f = len(points[0])
     points = np.concatenate((points,feature_add), axis=1)
-    #points[:,len_points] = gd
-    #points[:,len_points+1] = 0 # IER
+    #points[:,len_f] = gd
+    #points[:,len_f+1] = 0 # IER
+    points[:,len_f+2] = nb_component
     voxels[voxel_low] = points, gd
     
     print("points[0]=",points[0])
     for k in voxels_in_comp:
         points, gd = voxels[k]
         len_points = len(points)
-        feature_add = np.zeros((len_points, 2), dtype=points.dtype)
+        feature_add = np.zeros((len_points, 3), dtype=points.dtype)
         points = np.concatenate((points,feature_add), axis=1)
         points[:,len_f] = gd
 
         for i in range(len(points)):
             ed = np.linalg.norm(points[i][:3] - coord_low)
-            points[i][len_f+1] = (gd * voxel_size)/ed # ier 
+            points[i][len_f+1] = (gd * voxel_size)/ed # ier
+            points[i][len_f+2] = nb_component
         voxels[k] = points, gd
 
 # calculate the geodesic diatance of a voxelized space (cuboid)
@@ -88,23 +90,26 @@ def geodesic_distance(voxels, voxel_size):
     nb_component = 0
     while(assignment_incomplete(voxels)):
         #print("voxel remaining={}".format(remaining_voxel))
-        #(x_low, y_low, z_low) = lowest_voxel(voxels)
-        voxel_low = lowest_voxel(voxels)
-        q_v = deque([voxel_low])
+        (x_low, y_low, z_low) = lowest_voxel(voxels)
+        #voxel_low = lowest_voxel(voxels)
+        q_v = deque([(x_low, y_low, z_low)])
         seen = set()
         while(len(q_v)>0):
             print("len(q_v)={}".format(len(q_v)))
             v_act = q_v.popleft() # coordooné d'un voxel
             #print("v_act={}".format(v_act))
             father, child, gd_fa_min = find_neighbours_and_assign_gd(v_act, voxels)
-            #print("v_act={}, fatther={} child={}, gd_fa_min={}".format(v_act,father, child, gd_fa_min ))
             
             points,_ = voxels[v_act]
             voxels[v_act] = points, gd_fa_min+1
+            x_a,y_a,z_a = v_act
             
             if len(father)==0:
                 points,_ = voxels[v_act]
                 voxels[v_act] = points, 0
+            else:
+                if (gd_fa_min+1) > 3*(z_a-z_low):
+                    continue
                 
             for c in child:
                 if c not in seen:
@@ -114,7 +119,7 @@ def geodesic_distance(voxels, voxel_size):
             #print("child={}, father={}".format(child,father))
         
         # when a set of component is processed
-        cauculate_ier(voxels, voxel_low, seen, voxel_size)
+        cauculate_ier(voxels, (x_low, y_low, z_low), seen, voxel_size, nb_component)
         print(">> component n°{} : ier calculated".format(nb_component))
         nb_component = nb_component + 1
         
@@ -138,12 +143,13 @@ def write_dict_data(voxels, path):
     new_file = laspy.create(point_format=3)
     new_file.add_extra_dim(laspy.ExtraBytesParams(name="ier", type=np.float64))
     new_file.add_extra_dim(laspy.ExtraBytesParams(name="gd", type=np.float64))
+    new_file.add_extra_dim(laspy.ExtraBytesParams(name="tree_id", type=np.float64))
     new_file.x = local_points[:,0]
     new_file.y = local_points[:,1]
     new_file.z = local_points[:,2]
-    new_file.ier = local_points[:,-1] #ier
-    new_file.gd = local_points[:,-2] #gd
-    
+    new_file.ier = local_points[:,-2] #ier
+    new_file.gd = local_points[:,-3] #gd
+    new_file.tree_id = local_points[:,-1] #tree_id/nb_component
     new_file.write(path)
 
 

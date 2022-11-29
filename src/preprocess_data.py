@@ -20,13 +20,6 @@ def read_data(path, feature, detail=False):
 
     return data, x_min, x_max, y_min, y_max, z_min, z_max
 
-# normalize feature
-def normalize_feature(f):
-    f_min = np.min(f)
-    f_max = np.max(f)
-    print("f_min={}, f_max={}".format(f_min, f_max))
-    return (f-f_min)/(f_max-f_min)
-
 # This function works for the preprocessing the data with intensity
 def read_data_with_intensity(path, feature, feature2='intensity', detail=False):
     '''
@@ -161,7 +154,7 @@ def get_region_indice(data, x_min, x_max, y_min, y_max, blank):
 def voxel_grid_sample(cuboid, voxel_size, mode):
     '''
     Args:
-        points : a (n,4) numpy.darray. The data to process.
+        cuboid : a (n,4) numpy.darray. The data to process.
         voxel_size : a float. The resolution of the voxel. 
         mode : a string. How to select points in voxel. ('mc': mean_center, 'cmc' : closest point to mean center)
         #grid_size : a interger/float. The side length of a grid.
@@ -205,6 +198,9 @@ def voxel_grid_sample(cuboid, voxel_size, mode):
         #res.append(key_point_in_voxel(v))
         loc_select = loc_select + nb_points
     
+    # 如果想计算IER，就是在这里了
+    
+
     nb_p_max = np.max(nb_points_per_voxel)
     nb_p_min = np.min(nb_points_per_voxel)
     voxel_and_points = np.concatenate((no_empty_voxel, np.array([(nb_points_per_voxel - nb_p_min)/(nb_p_max - nb_p_min)]).T), axis=1)
@@ -223,23 +219,22 @@ def analyse_voxel_in_cuboid(voxel_skeleton_cuboid, h, side):
     Returns:
         res: a voxelized space, indicate each voxel is occupied or not.
     '''
-    '''
-    print("len(voxel_skeleton_cuboid) =", len(voxel_skeleton_cuboid), " ", type(voxel_skeleton_cuboid))
-    print("v_k_c[0]=type",type(voxel_skeleton_cuboid[0]))
-    print("v_k_c[0]=",voxel_skeleton_cuboid[0])
-    '''
     print(">> voxel_net, h={} side={}".format(h,side))
     nb_cuboid = len(voxel_skeleton_cuboid)
     print(">> voxel_skeleton_cuboid[0].shape=", voxel_skeleton_cuboid[0].shape)
     res = np.zeros([nb_cuboid, side, side, h])
     for k,v in voxel_skeleton_cuboid.items():
         #print("k=",k, "v.shape=", v.shape)
-        # 加个numpy 搜索key什么的,然后赋值给点的数量
         for c in v:
             v_x,v_y,v_z, v_p = c
             res[k,int(v_x),int(v_y),int(v_z)] = v_p
 
     return res
+
+# calculate IER (intrinsic-extrinsic ratio) and its gradient
+def IER():
+    return None
+
 
 # for prepare dataset
 def prepare_dataset(data, coords_sw, grid_size, voxel_size, global_height, voxel_sample_mode, sample_size, detail=False, data_augmentation=False):
