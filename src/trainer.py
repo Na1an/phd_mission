@@ -97,7 +97,8 @@ class Trainer():
                 self.optimizer.zero_grad()
                 
                 points_for_pointnet = torch.cat([points.transpose(2,1), pointwise_features.transpose(2,1), points.transpose(2,1)], dim=1)
-                points_for_pointnet[:,0:2,:] = points_for_pointnet[:,0:2,:] * self.grid_size
+                points_for_pointnet[:,0:2,:] = (points_for_pointnet[:,0:2,:] + 0.5 )* self.grid_size
+                #print("!!!", points_for_pointnet[:,0:2,:3])
                 points_for_pointnet[:,2,:] = points_for_pointnet[:,2,:] * self.global_height + (self.global_height/2)
                 points_for_pointnet[:,6:,:] = points_for_pointnet[:,6:,:] + 0.5
                 print("pointsfor_pointnet.shape={}".format(points_for_pointnet.shape))

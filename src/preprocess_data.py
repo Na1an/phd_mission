@@ -199,7 +199,6 @@ def voxel_grid_sample(cuboid, voxel_size, mode):
         loc_select = loc_select + nb_points
     
     # 如果想计算IER，就是在这里了
-    
 
     nb_p_max = np.max(nb_points_per_voxel)
     nb_p_min = np.min(nb_points_per_voxel)
