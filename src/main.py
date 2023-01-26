@@ -5,7 +5,11 @@ from build_dataset import *
 from preprocess_data import *
 
 if __name__ == "__main__":
-    print("\n###### start the programme ######\n")
+
+    # start
+    time_start = datetime.now()
+    print("\n###### start the programme : {} ######\n".format(time_start.strftime("%Y-%m-%d %H:%M:%S")))
+    
     # build arguments
     parser = ap.ArgumentParser(description="-- Yuchen PhD mission, let's figure it out! --")
     parser.add_argument("train_data_path", help="The path of raw data (train data with labels).", type=str)
@@ -44,7 +48,7 @@ if __name__ == "__main__":
 
     
     # (2) prepare train dataset and validation dataset
-    samples_train, sample_cuboid_index_train, train_voxel_nets = prepare_procedure(
+    samples_train, sample_cuboid_index_train, train_voxel_nets = prepare_procedure_ier(
                                                                     train_data_path, 
                                                                     grid_size, 
                                                                     voxel_size,
@@ -58,7 +62,7 @@ if __name__ == "__main__":
     train_dataset = TrainDataSet(samples_train, sample_cuboid_index_train, my_device)
     train_dataset.show_info()
     
-    samples_val, sample_cuboid_index_val, val_voxel_nets = prepare_procedure(
+    samples_val, sample_cuboid_index_val, val_voxel_nets = prepare_procedure_ier(
                                                                     val_data_path, 
                                                                     grid_size, 
                                                                     voxel_size, 
@@ -93,6 +97,11 @@ if __name__ == "__main__":
 
     my_trainer.train_model(nb_epoch=nb_epoch)
     
-    print("\n###### End ######")
+    # end 
+    time_end = datetime.now()
+    time_diff = (time_end - time_start).total_seconds()
+    print(time_diff)
+    print("\n###### End {} ######".format(time_end.strftime("%Y-%m-%d %H:%M:%S")))
+    print("### Energy Consumption : {} J - {} kWh ###".format(round(260*time_diff,2), round((260*time_diff/3600000),2)))
 
         

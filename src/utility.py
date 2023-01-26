@@ -1,12 +1,14 @@
 import os
+import copy
 import torch
 import laspy
 import numpy as np
+import pandas as pd
+import seaborn as sns
 import matplotlib.pyplot as plt
+from collections import deque 
 from mpl_toolkits import mplot3d
 from sklearn.metrics import confusion_matrix, matthews_corrcoef, f1_score, roc_auc_score
-import seaborn as sns
-import pandas as pd
 
 # print info of the laspy data
 def get_info(las):
@@ -98,6 +100,78 @@ def createConfusionMatrix(loader):
 def setting_device():
     return None
 
+def dist(a,b):
+    x_a, y_a = a
+    x_b, y_b = b
+    return (((x_a-x_b)**2 + (y_a-y_b)**2)**0.5)
+
+# from pointnet++
+# centerization by long axe
+def normalize_long_axe(pc):
+    #print("pc.shape = {}".format(pc.shape))
+    max_x_axe = np.max(pc[:,0]) - np.min(pc[:,0])
+    max_y_axe = np.max(pc[:,1]) - np.min(pc[:,1])
+    max_z_axe = np.max(pc[:,2]) - np.min(pc[:,2])
+
+    max_axe = max(max(max_x_axe, max_y_axe), max_z_axe)
+    #print("max_x_axe={}, max_y_axe={}, max_z_axe={}, max_axe = {}".format(max_x_axe, max_y_axe, max_z_axe, max_axe))
+    pc[:,0] = pc[:,0] + (max_axe - max_x_axe)/2
+    pc[:,1] = pc[:,1] + (max_axe - max_y_axe)/2
+    pc[:,2] = pc[:,2] + (max_axe - max_z_axe)/2
+    pc[:,:3] = pc[:,:3]/max_axe
+    #print("after pc.shape = {}".format(pc.shape))
+    return pc, max_axe
+
+def normalize_point_cloud_remake(pc, mode="gm"):
+    if mode == "cm":
+        centroid = np.mean(pc, axis=0) # 求取点云的中心
+    elif mode == "gm":
+        centroid = np.mean(pc, axis=0) # geometric center
+    pc = pc - centroid # 将点云中心置于原点 (0, 0, 0)
+    m = np.max(np.sqrt(np.sum(pc ** 2, axis=1))) # 求取长轴的的长度
+    pc_normalized = pc / m # 依据长轴将点云归一化到 (-1, 1)
+    return pc_normalized, centroid, m  # centroid: 点云中心, m: 长轴长度, centroid和m可用于keypoints的计算
+
+# plot pc
+def plot_pc(data):
+    
+    x = data[:, 0]
+    y = data[:, 1]
+    z = data[:, 2]
+    fig = plt.figure(figsize=(8, 8))
+    ax = fig.add_subplot(111, projection='3d')
+    ax.scatter(x, y, z)
+    plt.show()
+
+def plot_voxels(voxels, grid_size=0, voxel_size=0.5):
+    '''
+    Args:
+        voxels: a nupmy.ndarray. shape (x,y,z), the value is the feature.
+    Return:
+        None
+    '''
+    mycolormap = plt.get_cmap('coolwarm')
+    maxvalue = voxels.max()
+    sizeall = voxels.size
+    relativevalue=np.round(voxels/maxvalue,1)
+    zt = np.reshape(relativevalue, (sizeall,))
+    colorsvalues = mycolormap(relativevalue)
+    alpha=0.5
+    d,w,h=voxels.shape
+    colorsvalue=np.array([(mycolormap(i)[0],mycolormap(i)[1],mycolormap(i)[2],alpha) for i in zt])
+    colorsvalues=np.reshape(colorsvalue,(d,w,h,4))
+    fig = plt.figure(figsize=(20,20))
+    ax = fig.add_subplot(projection='3d')
+    ax.set_xlim((((10+grid_size)//2)-25)/voxel_size, (((10+grid_size)//2)+25)/voxel_size)
+    ax.set_ylim((((10+grid_size)//2)-25)/voxel_size, (((10+grid_size)//2)+25)/voxel_size)
+    ax.set_zlim(0, 50/voxel_size)
+    p = ax.voxels(voxels, facecolors=colorsvalues, edgecolor=('k'), shade=False)
+    #plt.colorbar(p, ax=ax)
+    norm = matplotlib.colors.Normalize(vmin=np.min(voxels), vmax=np.max(voxels))
+    m = matplotlib.cm.ScalarMappable(cmap=plt.cm.plasma, norm=norm)
+    m.set_array([])
+    plt.colorbar(m, ax=ax, fraction=0.046, pad=0.04)
+    plt.show()
 # once we have tn, fp, fn, tp = cf_matrix.ravel()
 # we then calculate recall, precision
 def calculate_recall_precision(tn, fp, fn, tp):
@@ -247,3 +321,240 @@ def calculate_auroc(y_score, y_true):
 
     roc_auc_score(y_score=logits[:,1], y_true=label[:,1])
     return 0
+
+#######
+# ier #
+#######
+# find the lowest voxel
+def lowest_voxel(voxels):
+    (x_min, y_min, z_min) = (10000, 10000, 10000)
+    for k,v in voxels.items():
+        _, gd = v
+        if gd>=0:
+            continue
+        _,_,z = k
+        if z<z_min:
+            (x_min, y_min, z_min) = k
+    return (x_min, y_min, z_min)
+
+# find neighbour voxels
+def find_neighbours_and_assign_gd(v_act, voxels):
+    father = []
+    child = []
+    x,y,z = v_act
+    adjacent = [(x+1,y,z), (x-1,y,z), (x,y+1,z), (x,y-1,z), (x,y,z+1), (x,y,z-1)]
+    
+    gd_fa_min = 100000
+    for e in adjacent:
+        if e in voxels:
+            points,gd = voxels[e]
+            if gd<0:
+                child.append(e)
+            if gd>=0:
+                father.append(e)
+                gd_fa_min = gd if gd<gd_fa_min else gd_fa_min
+            
+    return father, child, gd_fa_min
+
+# check complete
+def assignment_incomplete(voxels):
+    for k,v in voxels.items():
+        points, gd = v
+        if gd<0:
+            return True
+    return False
+
+def initialize_voxels(voxels):
+    # key_points_in_voxel is a dict
+    # key: (x,y,z) coords of voxelized space
+    # values: (a list of points in the voxel, geodesic distance)
+    for k,v in voxels.items():
+        # initialize geodesic distance to -1
+        voxels[k] = (v,-1)
+
+def cauculate_ier(voxels, voxel_low, seen, voxel_size, nb_component, limit_comp=10):
+    # mean coordinate of lowest voxel
+    points, gd = voxels[voxel_low] 
+    '''
+    if gd != 0:
+        print("problem here, def cauculate_ier")
+    '''
+
+    coord_low = np.mean(points[:,:3], axis=0)
+    len_f = len(points[0])
+
+    for k in seen:
+        points, gd = voxels[k]
+        len_points = len(points)
+    
+        feature_add = np.zeros((len_points, 3), dtype=points.dtype)
+        points = np.concatenate((points,feature_add), axis=1)
+        points[:,len_f] = gd
+
+        for i in range(len(points)):
+            ed = np.linalg.norm(points[i][:3] - coord_low)
+            points[i][len_f+1] = (gd * voxel_size)/ed # ier
+            points[i][len_f+2] = nb_component
+        
+        voxels[k] = points, gd
+
+# calculate the geodesic diatance of a voxelized space (cuboid)
+def geodesic_distance(voxels, voxel_size, tree_radius=7.0, limit_comp=10, limit_p_in_comp=100):
+    '''
+    Args:
+        voxles: a dict. Key is the coordinates of the occupied voxel and value is the points inside the voxel and geodesic distance initialised to 0.
+    Return:
+        None.
+    '''
+    #remaining_voxel = len(voxels)
+    nb_component = 0
+    nb_v_keep, nb_v_abandon, nb_p_keep, nb_p_abandon = 0, 0, 0, 0
+
+    while(assignment_incomplete(voxels)):
+        #print("voxel remaining={}".format(remaining_voxel))
+        #(x_low, y_low, z_low) = lowest_voxel(voxels)
+        voxel_low = lowest_voxel(voxels)
+        (x_low, y_low, z_low) = voxel_low
+        q_v = deque([(x_low, y_low, z_low)])
+        seen = set()
+        seen.add(voxel_low)
+        nb_in_comp = 0
+        nb_p_in_comp = 0
+        while(len(q_v)>0):
+            #print("len(q_v)={}".format(len(q_v)))
+            v_act = q_v.popleft() # coordooné d'un voxel
+            nb_in_comp = nb_in_comp + 1
+            #print("v_act={}".format(v_act))
+            father, child, gd_fa_min = find_neighbours_and_assign_gd(v_act, voxels)
+            
+            points,_ = voxels[v_act]
+            voxels[v_act] = points, gd_fa_min+1
+            nb_p_in_comp = nb_p_in_comp + len(points)
+            x_a,y_a,z_a = v_act
+            
+            if len(father)==0:
+                points,_ = voxels[v_act]
+                voxels[v_act] = points, 0
+            else:
+                # here, setting the limits about IER or geodesic distance
+                # extend limit
+
+                if (gd_fa_min+1) > 100:
+                    continue
+                '''
+                # 关于高度与gd的限制
+                if (gd_fa_min+1) > 2.5*(z_a-z_low):
+                    continue
+                
+                # 关于树木直径的限制
+                #if (((x_a-x_low)**2 + (y_a-y_low)**2)**0.5) > tree_radius:
+                    #continue
+                
+                # 树木直径的限制
+                # radius limit
+                if dist((x_a,y_a), (x_low, y_low))* voxel_size > tree_radius:
+                    continue
+                '''
+
+            for c in child:
+                if c not in seen:
+                    q_v.append(c)
+                    seen.add(c) # seen add the coordinate of the voxels
+            #print("queue =", q_v)
+            #print("child={}, father={}".format(child,father))
+        
+        # when a set of component is processed
+        if nb_in_comp < limit_comp or nb_p_in_comp < limit_p_in_comp:
+            nb_v_abandon = nb_v_abandon + nb_in_comp
+            nb_p_abandon = nb_p_abandon + nb_p_in_comp
+            for i in seen:
+                del voxels[i]
+        else:
+            nb_v_keep = nb_v_keep + nb_in_comp
+            nb_p_keep = nb_p_keep + nb_p_in_comp
+            cauculate_ier(voxels, (x_low, y_low, z_low), seen, voxel_size, nb_component)
+            print(">> {} voxels in component n°{} : ier calculated".format(nb_in_comp, nb_component))
+            nb_component = nb_component + 1
+        
+    print(">> All voxels are processed, we have {} component in this zone".format(nb_component))
+    print(">> {} voxels keeped, {} voxels abondaned because of small component, remove {}% voxels.".format(nb_v_keep, nb_v_abandon, round((100*nb_v_abandon)/(nb_v_abandon+nb_v_keep),2)))
+    print(">> {} points keeped, {} points abondaned because of small component, remove {}% points.".format(nb_p_keep, nb_p_abandon, round((100*nb_p_abandon)/(nb_p_abandon+nb_p_keep),2)))
+
+    return voxels, nb_component
+
+# deprecessed
+
+# This function works for the preprocessing the data with intensity
+def read_data_with_intensity_bak(path, feature, feature2='intensity', detail=False):
+    '''
+    Args:
+        path : a string. The path of the data file.
+        feature : a string. Which feature we want to keep in the output.
+        detail : a bool. False by default.
+    Returns:
+        res : a 4-D numpy array type tensor.
+    '''
+    data_las = laspy.read(path)
+    x_min, x_max, y_min, y_max, z_min, z_max = get_info(data_las)
+    
+    print(">> data_las.z min={} max={} diff={}".format(z_min, z_max, z_max - z_min))
+
+    # intensity
+    #f2_max = np.log(np.max(data_las[feature2]))
+    #f2_min = np.log(np.min(data_las[feature2]))
+    #f_intensity = ((np.log(data_las[feature2])-f2_min)/(f2_max-f2_min))
+    
+    #(data_target['intensity']/65535)*35 - 30 for TLS
+    f_intensity = (data_las[feature2]/65535)*40 - 40
+    
+    #print(">> f_intensity.shape={}, nan size={}, non nan={}".format(f_intensity.shape, f_intensity[np.isnan(f_intensity)].shape, f_intensity[~np.isnan(f_intensity)].shape))
+
+    f_roughness = data_las["Roughness (0.7)"]
+    f_roughness[np.isnan(f_roughness)] = -0.1
+    f_roughness = f_roughness + 0.1
+    
+    f_ncr = data_las["Normal change rate (0.7)"]
+    f_ncr[np.isnan(f_ncr)] = -0.1
+    f_ncr = f_ncr + 0.1
+
+    max_nb_of_returns = 5
+    # order
+    f_return_nb = data_las["return_number"]
+    f_return_nb[np.isnan(f_return_nb)] = 1
+    f_return_nb = f_return_nb/max_nb_of_returns
+    
+    # total number
+    f_nb_of_returns = data_las["number_of_returns"]
+    f_nb_of_returns[np.isnan(f_nb_of_returns)] = 1
+    f_nb_of_returns = f_nb_of_returns/max_nb_of_returns
+    
+    f_rest_return = (f_nb_of_returns - f_return_nb)/max_nb_of_returns
+    f_ratio_return = f_return_nb/(f_nb_of_returns*max_nb_of_returns)
+    f_ratio_return[np.isnan(f_ratio_return)] = 0
+    
+    '''
+    print("nan shape = {} {} {} {}".format(
+        f_return_nb[np.isnan(f_return_nb)].shape, 
+        f_nb_of_returns[np.isnan(f_nb_of_returns)].shape,
+        f_rest_return[np.isnan(f_rest_return)].shape,
+        f_ratio_return[np.isnan(f_ratio_return)].shape
+        ))
+    exit()
+    '''
+    data = np.vstack((
+        data_las.x - x_min, 
+        data_las.y - y_min, 
+        data_las.z - z_min, 
+        data_las[feature],
+        normalize_feature(f_intensity),
+        normalize_feature(f_roughness), 
+        normalize_feature(f_ncr)
+        #f_return_nb,
+        #f_nb_of_returns,
+        #f_rest_return,
+        #f_ratio_return
+        ))
+
+    print(">>>[!data with intensity] data shape =", data.shape, " type =", type(data))
+
+    return data.transpose(), x_min, x_max, y_min, y_max, z_min, z_max

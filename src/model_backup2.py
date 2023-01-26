@@ -5,10 +5,6 @@ import numpy as np
 from torch.autograd import Variable
 from pointnet2_utils import PointNetSetAbstraction,PointNetFeaturePropagation
 
-###############
-# version ier #
-###############
-
 # PointNet++
 class Pointnet_plus(nn.Module):
     def __init__(self, num_classes):
@@ -149,6 +145,7 @@ class PointWiseModel(nn.Module):
         [*] points, p.shape=torch.Size([4, 1, 1, 20000, 3])
         [*] v_cuboid, v.shape=torch.Size([4, 1, 25, 25, 250])
         '''
+
 
         # grid_sample 
         # align_corner = True, consider the center of pixels/voxels 
