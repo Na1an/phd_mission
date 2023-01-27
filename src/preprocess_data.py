@@ -412,7 +412,7 @@ def prepare_procedure(path, grid_size, voxel_size, voxel_sample_mode, sample_siz
 ##########################
 # training - ier version #
 ##########################
-def prepare_dataset_ier(data, voxel_size_ier, voxel_sample_mode, resolution=20, augmentation=True):
+def prepare_dataset_ier(data, voxel_size_ier, voxel_sample_mode, augmentation, resolution=20):
     '''
     Args:
         data: a np.ndarray. (x,y,z,label,reflectance)
@@ -521,12 +521,12 @@ def prepare_dataset_ier(data, voxel_size_ier, voxel_sample_mode, resolution=20, 
 
     return samples, sample_voxelized
 
-def prepare_procedure_ier(path, resolution, voxel_sample_mode, label_name, sample_size=5000, augmentation=True):
+def prepare_procedure_ier(path, resolution, voxel_sample_mode, label_name, augmentation, sample_size=5000):
     '''
     Args:
     Returns:
     '''
-    
+    print("augmen is",augmentation)
     # (1) load data
     data_preprocessed, x_min, x_max, y_min, y_max, z_min, z_max = read_data_with_intensity(path, label_name=label_name, detail=True)
     print("> input data: {} \n> data_preprocess.shape = {}".format(path, data_preprocessed.shape))

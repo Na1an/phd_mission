@@ -23,6 +23,8 @@ if __name__ == "__main__":
     parser.add_argument("--predict_threshold", help="The predict threshold.", type=float, default=0.5)
     parser.add_argument("--global_height", help="The global_height.", type=int, default=50)
     parser.add_argument("--nb_window", help="int(nb_window**0.5) is the number of cuboids we want on the training set.", type=int, default=400)
+    parser.add_argument("--augmentation", help="if we do the augmentation or not.", type=bool, default=False)
+
     args = parser.parse_args()
 
     # take arguments
@@ -36,6 +38,7 @@ if __name__ == "__main__":
     batch_size = args.batch_size
     global_height = args.global_height
     nb_window = int(args.nb_window**0.5)
+    augmentation = False
 
     # set by default
     voxel_sample_mode = 'mc'
@@ -55,7 +58,7 @@ if __name__ == "__main__":
                                                         voxel_sample_mode,
                                                         label_name="WL", 
                                                         sample_size=5000,
-                                                        augmentation=False)
+                                                        augmentation=augmentation)
     train_dataset = TrainDataSet(samples_train, sample_voxel_net_index_train, train_voxel_nets, my_device)
     train_dataset.show_info()
 
@@ -65,7 +68,7 @@ if __name__ == "__main__":
                                                     voxel_sample_mode, 
                                                     label_name="WL",
                                                     sample_size=5000,
-                                                    augmentation=False)
+                                                    augmentation=augmentation)
     val_dataset = TrainDataSet(samples_val, sample_voxel_net_index_val, val_voxel_nets, my_device)
     val_dataset.show_info()
     

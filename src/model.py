@@ -46,7 +46,7 @@ class Pointnet_plus(nn.Module):
 # MPVCNN: multi-scale Point Voxel CNN
 class PointWiseModel(nn.Module):
     # initialization
-    def __init__(self, device, num_classes=1, hidden_dim=128):
+    def __init__(self, device, num_classes=2, hidden_dim=128):
         '''
         Args:
             device : 'cuda' GPU or 'cpu' CPU.
@@ -90,8 +90,8 @@ class PointWiseModel(nn.Module):
         # +3 : intensity added + roughness added + ncr added ... 
         # + 128 : output of fc of the pointwise_features
         # + (128 + 64) : pointnet segmentation output
-        #feature_size = 1 + (32 + 64 + 64) + 3 + 128 + (128)
-        feature_size = 1 + (32 + 64 + 64) + (3 + 32) + (128)
+        feature_size = 1 + (32 + 64 + 64) + 3 + 32 + (128)
+        #feature_size = 1 + (32 + 64 + 64) + 3 + 32
 
         # conditionnal VAE, co-variabale, regression
         self.fc_0 = nn.Conv1d(feature_size, hidden_dim*2, 1)
