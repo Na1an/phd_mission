@@ -162,8 +162,8 @@ class Trainer():
                 cf_matrix = confusion_matrix(label, logits, labels=[0,1])
                 tn, fp, fn, tp = cf_matrix.ravel()
                 recall, specificity, precision, npv, fpr, fnr, fdr, acc = calculate_recall_precision(tn, fp, fn, tp)
-                m_spe = BinarySpecificity()
-                specificity = m_spe(logits, label)
+                #m_spe = BinarySpecificity()
+                #specificity = m_spe(logits, label)
                 f1_score_val = f1_score(label, logits)
                 #print("tn-{} fp-{} fn-{} tp-{} recall-{} specificity-{} precision-{} npv-{} fpr-{} fnr-{} fdr-{} acc-{} f1_score-{}".format(tn, fp, fn, tp, recall, specificity, precision, npv, fpr, fnr, fdr, acc, f1_score_val))
 
@@ -370,8 +370,8 @@ class Trainer():
         print("tn-{} fp-{} fn-{} tp-{}".format(tn, fp, fn, tp))
         # precision, recall, f1-score
         recall, specificity, precision, npv, fpr, fnr, fdr, acc = calculate_recall_precision(tn, fp, fn, tp)
-        m_spe = BinarySpecificity()
-        specificity = m_spe(y_predict_wood_all, y_true_all)
+        #m_spe = BinarySpecificity()
+        #specificity = m_spe(y_predict_wood_all, y_true_all)
         f1_score_val = f1_score(y_true_all, y_predict_all)
         print("tn-{} fp-{} fn-{} tp-{} recall-{} specificity-{} precision-{} npv-{} fpr-{} fnr-{} fdr-{} acc-{} f1_score-{} auroc-{}".format(tn, fp, fn, tp, recall, specificity, precision, npv, fpr, fnr, fdr, acc, f1_score_val, auroc_score))
         df_cm = pd.DataFrame(cf_matrix/np.sum(cf_matrix), index = [ic for ic in classes], columns = [ic for ic in classes])
