@@ -11,6 +11,8 @@ from collections import deque
 from mpl_toolkits import mplot3d
 from sklearn.metrics import confusion_matrix, matthews_corrcoef, f1_score, roc_auc_score
 from sklearn.neighbors import NearestNeighbors
+from torchmetrics.classification import BinarySpecificity
+
 '''
 from torchsummary import summary
 summary = summary(model, (1, 512, 512))
