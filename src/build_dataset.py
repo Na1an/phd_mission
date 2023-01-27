@@ -48,7 +48,7 @@ class TrainDataSet(Dataset):
         '''
 
         # convert to one-hot form
-        labels = np.eye(self.num_classes)[labels.astype(int)].transpose()
+        #labels = np.eye(self.num_classes)[labels.astype(int)].transpose()
 
         # put them into self.device
         points = torch.from_numpy(points.copy()).type(torch.float).to(self.device)

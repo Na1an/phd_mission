@@ -46,7 +46,7 @@ class Pointnet_plus(nn.Module):
 # MPVCNN: multi-scale Point Voxel CNN
 class PointWiseModel(nn.Module):
     # initialization
-    def __init__(self, device, num_classes=2, hidden_dim=128):
+    def __init__(self, device, num_classes=1, hidden_dim=128):
         '''
         Args:
             device : 'cuda' GPU or 'cpu' CPU.
@@ -91,7 +91,7 @@ class PointWiseModel(nn.Module):
         # + 128 : output of fc of the pointwise_features
         # + (128 + 64) : pointnet segmentation output
         #feature_size = 1 + (32 + 64 + 64) + 3 + 128 + (128)
-        feature_size = 1 + (32 + 64 + 64) + 3 + 32
+        feature_size = 1 + (32 + 64 + 64) + (3 + 32) + (128)
 
         # conditionnal VAE, co-variabale, regression
         self.fc_0 = nn.Conv1d(feature_size, hidden_dim*2, 1)
@@ -134,7 +134,7 @@ class PointWiseModel(nn.Module):
         print("[*] v_cuboid, v.shape={}".format(v.shape))
         '''
         
-        #pointnet_features = self.point_base_model(points_for_pointnet)
+        pointnet_features = self.point_base_model(points_for_pointnet)
         #print("[*] point_features={}".format(point_features.shape))
 
         # swap x y z to z y x
@@ -252,8 +252,8 @@ class PointWiseModel(nn.Module):
         features.shape torch.Size([4, 904, 5000])
         '''
         
-        #features = torch.cat((features, feature_mlp, pointwise_features, pointnet_features), dim=1)
-        features = torch.cat((features, feature_mlp, pointwise_features), dim=1)
+        features = torch.cat((features, feature_mlp, pointwise_features, pointnet_features), dim=1)
+        #features = torch.cat((features, feature_mlp, pointwise_features), dim=1)
         net_out = self.actvn(self.fc_0(features))
         net_out = self.actvn(self.fc_1(net_out))
         #net_out = self.actvn(self.fc_2(net_out))

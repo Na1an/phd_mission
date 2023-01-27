@@ -35,7 +35,7 @@ class Trainer():
         self.global_height = global_height
 
         # optimizer
-        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=2e-5, weight_decay=0.0001)
+        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=1e-7, weight_decay=0)
         #self.optimizer = torch.optim.SGD(self.model.parameters(), lr=2e-3, momentum=0.9, nesterov=True)
 
         # check_point path
@@ -121,17 +121,26 @@ class Trainer():
                 
                 # version cluster
                 #print("label.shape={}".format(label.shape))
+                '''
                 y_true = label.detach().clone().cpu().data.numpy().transpose(0,2,1).reshape(self.batch_size*self.sample_size, 2).astype('int64')
                 logits = logits.permute(0,2,1).reshape(self.batch_size*self.sample_size, 2).to(self.device)
                 logits = F.softmax(logits, dim=1)
+                logits_leaf = logits[:,0].detach().clone().cpu().data.numpy()
+                print(">>>> logits_leaf[0:0] ={}".format(logits_leaf[0:10]))
                 logits_wood = logits[:,1].detach().clone().cpu().data.numpy()
+                print(">>>> logits_wood[0:10] ={}".format(logits_wood[0:10]))
                 label = label.permute(0,2,1).reshape(self.batch_size*self.sample_size, 2).to(self.device)
-                
+                print("logits[0:20]=",logits[0:20])
+                print("label[0:20]=",label[0:20])
                 class_weights=class_weight.compute_class_weight(class_weight="balanced", classes=np.unique(np.argmax(y_true, axis=1)), y=np.argmax(y_true, axis=1))
                 #class_weights=torch.tensor(class_weights, dtype=torch.float)
-                class_weights=torch.tensor([5,1], dtype=torch.float)
-                
-                tmp_loss = nn.functional.binary_cross_entropy_with_logits(weight=class_weights.to(self.device), input=logits, target=label)
+                '''
+                print("logits.shape={}, label.shape={}".format(logits.shape, label.shape))
+                print("logits[:,0]={}\n label[:,0].shape={}".format(logits[0], label[0]))
+                #class_weights=torch.tensor([1,1], dtype=torch.float)
+                logits = logits.reshape(self.batch_size*self.sample_size).to(self.device)
+                label = label.reshape(self.batch_size*self.sample_size).to(self.device)
+                tmp_loss = nn.functional.binary_cross_entropy_with_logits(input=logits, target=label)
                
                 '''
                 print(">>>> [new] logits.shape = {}, label.shape = {}".format(logits.shape, label.shape))
@@ -142,9 +151,11 @@ class Trainer():
                 self.optimizer.step()
                 
                 #res1, res2 = label.max(1), res = [0.77, 0.78, 0.22, ... proba] res2 = [1,1,0,0... label]
-                _, label = label.max(1)
-                _, logits = logits.max(1)
-
+                #_, label = label.max(1)
+                #_, logits = logits.max(1)
+                logits = torch.where(logits>0.5, 1, 0)
+                print("logits.shape={}, label.shape={}".format(logits.shape, label.shape))
+                print("logits[0:10]={}, label[0:10].shape={}".format(logits[:10], label[:10]))
                 num_correct = torch.eq(logits.to(self.device), label.to(self.device)).sum().item()
                 
                 #print(" logits.argmax(dim=1).float() shape = {} label.argmax(dim=1).float() shape = {} num_correct = {}".format(logits.float().shape, label.float().shape,num_correct))
@@ -152,8 +163,8 @@ class Trainer():
                 #label = label.reshape(self.batch_size*self.sample_size)
                 #print("logits.shape = {} logits = {}\n, label.shape = {} label = {}\n".format(logits.shape, logits, label.shape, label))
                 
-                print("bincount logits.shape={}".format(torch.bincount(logits)))
-                print("bincount label.shape={}".format(torch.bincount(label)))
+                #print("bincount logits.shape={}".format(torch.bincount(logits)))
+                #print("bincount label.shape={}".format(torch.bincount(label)))
                 
                 # [metric bloc] precision, recall, f1-score
                 #auroc = calculate_auroc(y_score=logits[:,1], y_true=label)
@@ -292,10 +303,13 @@ class Trainer():
             points_for_pointnet[:,6:,:] = points_for_pointnet[:,6:,:] + 0.5
             #print("pointsfor_pointnet.shape={}".format(points_for_pointnet.shape))
             logits = self.model(points, pointwise_features, voxel_net, points_for_pointnet)
+            '''
             logits = logits.permute(0,2,1).reshape(self.batch_size*self.sample_size, 2)
             logits = F.softmax(logits, dim=1)
             label = label.permute(0,2,1).reshape(self.batch_size*self.sample_size, 2)
-
+            '''
+            logits = logits.reshape(self.batch_size*self.sample_size).to(self.device)
+            label = label.reshape(self.batch_size*self.sample_size).to(self.device)
             #logits = output.argmax(dim=1).float()
             #preds, answer_id = nn.functional.softmax(logits, dim=1).data.cpu().max(dim=1)
             
@@ -308,9 +322,9 @@ class Trainer():
             #y_predict = logits.detach().numpy().astype('float64')
             #y_predict = F.softmax(y_predict, dim=1)
 
-            y_true_all[nb] = np.argmax(label.detach().numpy().astype('int64'), axis=1)
-            y_predict_all[nb] = np.argmax(logits.detach().numpy().astype('float64'), axis=1)
-            print("shape: y_true={}, y_predict={}".format( y_true_all[nb].shape, y_predict_all[nb].shape))
+            y_true_all[nb] = label.detach().numpy().astype('int64')
+            y_predict_all[nb] = logits.detach().numpy().astype('float64')
+            print("shape: y_true={}, y_predict={}".format(y_true_all[nb].shape, y_predict_all[nb].shape))
 
             '''
             # evaluate the contribution of layers
@@ -337,20 +351,21 @@ class Trainer():
             # loss
             # binary_cross_entropy_with_logits : input doesn't need to be [0,1], but target/label need to be [0, N-1] (therwise the loss will be wired)
             #tmp_loss = nn.functional.binary_cross_entropy_with_logits(logits, label)
-            class_weights=class_weight.compute_class_weight(class_weight="balanced", classes=[0,1], y=y_true_all[nb])
+            #class_weights=class_weight.compute_class_weight(class_weight="balanced", classes=[0,1], y=y_true_all[nb])
             #class_weights=torch.tensor(class_weights, dtype=torch.float)
-            class_weights=torch.tensor([5,1], dtype=torch.float)
+            #class_weights=torch.tensor([1,1], dtype=torch.float)
 
-            print("[val]>>> class_weights = {}".format(class_weights))
+            #print("[val]>>> class_weights = {}".format(class_weights))
             # with weights
-            tmp_loss = nn.functional.binary_cross_entropy_with_logits(weight=class_weights.to(self.device), reduction='mean', input=logits, target=label)
+            tmp_loss = nn.functional.binary_cross_entropy_with_logits(reduction='mean', input=logits, target=label)
             
             #tmp_loss = nn.functional.binary_cross_entropy_with_logits(reduction='mean', input=logits.to(self.device), target=label.to(self.device))
             sum_val_loss = sum_val_loss + tmp_loss.item()
 
             # accuracy
             #preds = logits.argmax(dim=1).float()
-            num_correct = torch.eq(logits.argmax(dim=1).float(),label.argmax(dim=1).float()).sum().item()/self.batch_size
+            #num_correct = torch.eq(logits.argmax(dim=1).float(),label.argmax(dim=1).float()).sum().item()/self.batch_size
+            num_correct = torch.eq(logits.to(self.device), label.to(self.device)).sum().item()
             predict_correct = predict_correct + num_correct
         
         print("y_true_all.shape={} y_true_all = {}".format(y_true_all.shape, y_true_all))
@@ -362,8 +377,8 @@ class Trainer():
         y_predict_all = y_predict_all.reshape(num_batches*self.sample_size*self.batch_size).astype(int)
         y_predict_wood_all = y_predict_wood_all.reshape(num_batches*self.sample_size*self.batch_size).astype(int)
         #print("shape: y_true={}, y_predict={}".format(y_true_all.shape, y_predict_all.shape))
-        print("bincount y_true_all.shape={}".format(np.bincount(y_true_all)))
-        print("bincount y_predict_all.shape={}".format(np.bincount(y_predict_all)))
+        #print("bincount y_true_all.shape={}".format(np.bincount(y_true_all)))
+        #print("bincount y_predict_all.shape={}".format(np.bincount(y_predict_all)))
         #cf_matrix = confusion_matrix(y_true_all, y_predict_all, labels=[0,1])
         
         mcc = matthews_corrcoef(y_true_all, y_predict_all)
@@ -378,8 +393,9 @@ class Trainer():
         recall, specificity, precision, npv, fpr, fnr, fdr, acc = calculate_recall_precision(tn, fp, fn, tp)
         #m_spe = BinarySpecificity()
         #specificity = m_spe(y_predict_wood_all, y_true_all)
-        f1_score_val = f1_score(y_true_all, y_predict_all)
-        print("tn-{} fp-{} fn-{} tp-{} recall-{} specificity-{} precision-{} npv-{} fpr-{} fnr-{} fdr-{} acc-{} f1_score-{} auroc-{}".format(tn, fp, fn, tp, recall, specificity, precision, npv, fpr, fnr, fdr, acc, f1_score_val, auroc_score))
+        #f1_score_val = f1_score(y_true_all, y_predict_all)
+        f1_score_val = 0
+        print("tn-{} fp-{} fn-{} tp-{} recall-{} specificity-{} precision-{} npv-{} fpr-{} fnr-{} fdr-{} acc-{} f1_score=0-{} auroc-{}".format(tn, fp, fn, tp, recall, specificity, precision, npv, fpr, fnr, fdr, acc, 0, auroc_score))
         df_cm = pd.DataFrame(cf_matrix/np.sum(cf_matrix), index = [ic for ic in classes], columns = [ic for ic in classes])
 
         list_stat_res = [tn, fp, fn, tp, recall, specificity, precision, npv, fpr, fnr, fdr, acc, f1_score_val, auroc_score]
