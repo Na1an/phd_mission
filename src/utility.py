@@ -141,14 +141,14 @@ def normalize_point_cloud_remake(pc, mode="gm"):
     return pc_normalized, centroid, m  # centroid: 点云中心, m: 长轴长度, centroid和m可用于keypoints的计算
 
 # plot pc
-def plot_pc(data):
+def plot_pc(data, c=1):
     
     x = data[:, 0]
     y = data[:, 1]
     z = data[:, 2]
     fig = plt.figure(figsize=(8, 8))
     ax = fig.add_subplot(111, projection='3d')
-    ax.scatter(x, y, z)
+    ax.scatter(x, y, z, c=c, cmap=plt.hot())
     plt.show()
 
 def plot_voxels(voxels, grid_size=0, voxel_size=0.5):

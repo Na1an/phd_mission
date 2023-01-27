@@ -90,7 +90,8 @@ class PointWiseModel(nn.Module):
         # +3 : intensity added + roughness added + ncr added ... 
         # + 128 : output of fc of the pointwise_features
         # + (128 + 64) : pointnet segmentation output
-        feature_size = 1 + (32 + 64 + 64) + 3 + 128 + (128)
+        #feature_size = 1 + (32 + 64 + 64) + 3 + 128 + (128)
+        feature_size = 1 + (32 + 64 + 64) + 3 + 32
 
         # conditionnal VAE, co-variabale, regression
         self.fc_0 = nn.Conv1d(feature_size, hidden_dim*2, 1)
@@ -105,9 +106,9 @@ class PointWiseModel(nn.Module):
 
         # point_feature_size = 7
         #self.mlp_0 = nn.Conv1d(7, hidden_dim*2, 1)
-        self.mlp_0 = nn.Conv1d(3, hidden_dim*2, 1)
-        self.mlp_1 = nn.Conv1d(hidden_dim*2, hidden_dim, 1)
-        self.mlp_2 = nn.Conv1d(hidden_dim, 128, 1)
+        self.mlp_0 = nn.Conv1d(3, hidden_dim, 1)
+        self.mlp_1 = nn.Conv1d(hidden_dim, hidden_dim, 1)
+        self.mlp_2 = nn.Conv1d(hidden_dim, 32, 1)
 
         # point-based branch: PointNet
         self.point_base_model = Pointnet_plus(num_classes=self.num_classes)
@@ -133,7 +134,7 @@ class PointWiseModel(nn.Module):
         print("[*] v_cuboid, v.shape={}".format(v.shape))
         '''
         
-        pointnet_features = self.point_base_model(points_for_pointnet)
+        #pointnet_features = self.point_base_model(points_for_pointnet)
         #print("[*] point_features={}".format(point_features.shape))
 
         # swap x y z to z y x
@@ -203,10 +204,11 @@ class PointWiseModel(nn.Module):
 
         pointwise_features = pointwise_features.permute(0,2,1)
         # mlp
+        
         feature_mlp = self.actvn(self.mlp_0(pointwise_features))
         feature_mlp = self.actvn(self.mlp_1(feature_mlp))
         feature_mlp = self.actvn(self.mlp_2(feature_mlp))
-
+        
         #features = torch.cat((feature_0, feature_1, feature_1_ks5, feature_1_ks7, feature_2, feature_2_ks5, feature_2_ks7, feature_3, feature_3_ks5, feature_3_ks7, feature_intensity), dim=1)  # (B, features, 1,7,sample_num)
         #features = torch.cat((feature_0, feature_1, feature_2, feature_3, feature_intensity, point_features, feature_elevation), dim=1)  # (B, features, 1,7,sample_num)
         
@@ -250,7 +252,8 @@ class PointWiseModel(nn.Module):
         features.shape torch.Size([4, 904, 5000])
         '''
         
-        features = torch.cat((features, feature_mlp, pointwise_features, pointnet_features), dim=1)
+        #features = torch.cat((features, feature_mlp, pointwise_features, pointnet_features), dim=1)
+        features = torch.cat((features, feature_mlp, pointwise_features), dim=1)
         net_out = self.actvn(self.fc_0(features))
         net_out = self.actvn(self.fc_1(net_out))
         #net_out = self.actvn(self.fc_2(net_out))

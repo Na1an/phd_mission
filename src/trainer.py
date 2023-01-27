@@ -35,8 +35,8 @@ class Trainer():
         self.global_height = global_height
 
         # optimizer
-        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=1e-5, weight_decay=0.0001)
-        #self.optimizer = torch.optim.SGD(self.model.parameters(), lr=1e-5, momentum=0.9, nesterov=True)
+        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=2e-5, weight_decay=0.0001)
+        #self.optimizer = torch.optim.SGD(self.model.parameters(), lr=2e-3, momentum=0.9, nesterov=True)
 
         # check_point path
         self.checkpoint_path = get_current_direct_path() + "/checkpoints"
@@ -129,7 +129,7 @@ class Trainer():
                 
                 class_weights=class_weight.compute_class_weight(class_weight="balanced", classes=np.unique(np.argmax(y_true, axis=1)), y=np.argmax(y_true, axis=1))
                 #class_weights=torch.tensor(class_weights, dtype=torch.float)
-                class_weights=torch.tensor([2,1], dtype=torch.float)
+                class_weights=torch.tensor([5,1], dtype=torch.float)
                 
                 tmp_loss = nn.functional.binary_cross_entropy_with_logits(weight=class_weights.to(self.device), input=logits, target=label)
                
@@ -339,8 +339,8 @@ class Trainer():
             #tmp_loss = nn.functional.binary_cross_entropy_with_logits(logits, label)
             class_weights=class_weight.compute_class_weight(class_weight="balanced", classes=[0,1], y=y_true_all[nb])
             #class_weights=torch.tensor(class_weights, dtype=torch.float)
-            class_weights=torch.tensor([2,1], dtype=torch.float)
-            
+            class_weights=torch.tensor([5,1], dtype=torch.float)
+
             print("[val]>>> class_weights = {}".format(class_weights))
             # with weights
             tmp_loss = nn.functional.binary_cross_entropy_with_logits(weight=class_weights.to(self.device), reduction='mean', input=logits, target=label)
