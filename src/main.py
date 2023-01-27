@@ -1,5 +1,6 @@
 import argparse as ap
 from model import *
+from unet import *
 from trainer import *
 from build_dataset import *
 from preprocess_data import *
@@ -46,8 +47,29 @@ if __name__ == "__main__":
         my_device = torch.device('cpu')
     print('> Device : {}'.format(my_device))
 
-    
+    resolution = 20
     # (2) prepare train dataset and validation dataset
+    samples_train, sample_voxel_net_index_train, train_voxel_nets = prepare_procedure_ier(
+                                                        train_data_path, 
+                                                        resolution,
+                                                        voxel_sample_mode,
+                                                        label_name="WL", 
+                                                        sample_size=5000,
+                                                        augmentation=False)
+    train_dataset = TrainDataSet(samples_train, sample_voxel_net_index_train, train_voxel_nets, my_device)
+    train_dataset.show_info()
+
+    samples_val, sample_voxel_net_index_val, val_voxel_nets = prepare_procedure_ier(
+                                                    val_data_path, 
+                                                    resolution,
+                                                    voxel_sample_mode, 
+                                                    label_name="WL",
+                                                    sample_size=5000,
+                                                    augmentation=False)
+    val_dataset = TrainDataSet(samples_val, sample_voxel_net_index_val, val_voxel_nets, my_device)
+    val_dataset.show_info()
+    
+    '''
     samples_train, sample_cuboid_index_train, train_voxel_nets = prepare_procedure_ier(
                                                                     train_data_path, 
                                                                     grid_size, 
@@ -74,11 +96,12 @@ if __name__ == "__main__":
                                                                     nb_window=4)
     val_dataset = TrainDataSet(samples_val, sample_cuboid_index_val, my_device)
     val_dataset.show_info()
-
+    '''
     # (3) create model and trainning
     # create a model
     #global_height = z_max - z_min # the absolute height, set to 50 for the moment
     my_model = PointWiseModel(device=my_device)
+    #my_model = UNet(dim=3)
     
     my_trainer = Trainer(
                 my_model, 

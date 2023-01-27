@@ -138,12 +138,12 @@ class PointWiseModel(nn.Module):
 
         # swap x y z to z y x
         p = points[:,:,[2,1,0]]
-        v = v.unsqueeze(1)
+        v = v.unsqueeze(1).to(torch.float32)
         #v = torch.permute(v, dims=[0,1,4,2,3])
         '''
         v = v.permute((0,1,4,2,3))
         '''
-        p = p.unsqueeze(1).unsqueeze(1)
+        p = p.unsqueeze(1).unsqueeze(1).to(torch.float32)
         
         '''
         [*] points, p.shape=torch.Size([4, 1, 1, 20000, 3])

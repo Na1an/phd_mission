@@ -1,5 +1,6 @@
 import os
 import copy
+import math
 import torch
 import laspy
 import numpy as np
@@ -9,6 +10,11 @@ import matplotlib.pyplot as plt
 from collections import deque 
 from mpl_toolkits import mplot3d
 from sklearn.metrics import confusion_matrix, matthews_corrcoef, f1_score, roc_auc_score
+from sklearn.neighbors import NearestNeighbors
+'''
+from torchsummary import summary
+summary = summary(model, (1, 512, 512))
+'''
 
 # print info of the laspy data
 def get_info(las):
@@ -321,6 +327,10 @@ def calculate_auroc(y_score, y_true):
 
     roc_auc_score(y_score=logits[:,1], y_true=label[:,1])
     return 0
+
+def split_reminder(x, chunk_size, axis=0):
+    indices = np.arange(chunk_size, x.shape[axis], chunk_size)
+    return np.array_split(x, indices, axis)
 
 #######
 # ier #

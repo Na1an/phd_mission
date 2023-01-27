@@ -26,10 +26,10 @@ class Trainer():
         self.device = device
         self.model = model.to(device)
         self.train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers, drop_last=True)
-        self.train_voxel_nets = torch.from_numpy(train_voxel_nets.copy()).type(torch.float).to(self.device)
+        #self.train_voxel_nets = torch.from_numpy(train_voxel_nets.copy()).type(torch.float).to(self.device)
 
         self.val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers)
-        self.val_voxel_nets = torch.from_numpy(val_voxel_nets.copy()).type(torch.float).to(self.device)
+        #self.val_voxel_nets = torch.from_numpy(val_voxel_nets.copy()).type(torch.float).to(self.device)
         self.grid_size = grid_size
         self.global_height = global_height
 
@@ -80,7 +80,7 @@ class Trainer():
         Return:
             None.
         '''
-        
+
         print("len(self.train_loader.dataset) =", len(self.train_loader.dataset))
         start = self.load_checkpoint()
         for e in range(start, nb_epoch):         
@@ -96,13 +96,16 @@ class Trainer():
                 self.model.train() # tell torch we are traning
                 self.optimizer.zero_grad()
                 
+                
                 points_for_pointnet = torch.cat([points.transpose(2,1), pointwise_features.transpose(2,1), points.transpose(2,1)], dim=1)
-                points_for_pointnet[:,0:2,:] = points_for_pointnet[:,0:2,:] * self.grid_size
-                points_for_pointnet[:,2,:] = points_for_pointnet[:,2,:] * self.global_height + (self.global_height/2)
+                #points_for_pointnet[:,:2,:] = points_for_pointnet[:,0:2,:] * self.grid_size
+                #points_for_pointnet[:,2,:] = points_for_pointnet[:,2,:] * self.global_height + (self.global_height/2)
                 points_for_pointnet[:,6:,:] = points_for_pointnet[:,6:,:] + 0.5
                 print("pointsfor_pointnet.shape={}".format(points_for_pointnet.shape))
-                logits = self.model(points, pointwise_features, self.train_voxel_nets[voxel_net], points_for_pointnet)
-                #print("logits = ", logits[0:10])
+                
+                #print(">>> points.shape = {}, pointwise_features.shape={}, labels.shape={}, voxel_net.shape={}".format(points.shape, pointwise_features.shape, label.shape, voxel_net.shape))
+                logits = self.model(points, pointwise_features, voxel_net, points_for_pointnet)
+                #print("logits.shape = {}, logits[0:10]={}".format(logits.shape,logits[0:10]))
 
                 '''
                 Visualization model
@@ -111,23 +114,6 @@ class Trainer():
                 '''
                 
                 #criterion
-                '''
-                #y_true = label.detach().numpy().transpose(0,2,1).reshape(self.batch_size*self.sample_size, 2).astype('int64')
-                #print("test label.detach().numpy().transpose(0,2,1).reshape(batch_size*sample_size, 2).shape {}".format(y_true.shape))
-                #y_true = label.detach().numpy()[0].T.astype('int64')
-                class_weights = []
-                for bs in range(self.batch_size):
-                    y_true_tmp = label.detach().numpy()[bs].T.astype('int64')
-                    class_weights.append(class_weight.compute_class_weight(class_weight="balanced", classes=np.unique(np.argmax(y_true_tmp, axis=1)), y=np.argmax(y_true_tmp, axis=1)))
-                #class_weights=class_weight.compute_class_weight(class_weight="balanced", classes=np.unique(np.argmax(y_true, axis=1)), y=np.argmax(y_true, axis=1))
-                class_weights=torch.tensor(class_weights,dtype=torch.float)
-                print("[e={}]>>> [Training] - class_weights = {}".format(e, class_weights))
-                print("[e={}]>>> [Training] logits.shape={}".format(e, logits.shape))
-                #print("[e={}]>>> [Training] y_true.shape={}".format(e, y_true.shape))
-                print("[e={}]>>> [Training] label.shape={}".format(e, label.shape))
-                # put here a set of weights
-                tmp_loss = nn.functional.binary_cross_entropy_with_logits(weight=class_weights, reduction='mean', input=logits.permute(0,2,1), target=label.permute(0,2,1))
-                '''
                 # version laptop
                 #y_true = label.detach().numpy().transpose(0,2,1).reshape(self.batch_size*self.sample_size, 2).astype('int64')
                 
@@ -295,11 +281,11 @@ class Trainer():
                 points, pointwise_features, label, voxel_net = self.val_data_iterator.next()
             
             points_for_pointnet = torch.cat([points.transpose(2,1), pointwise_features.transpose(2,1), points.transpose(2,1)], dim=1)
-            points_for_pointnet[:,0:2,:] = points_for_pointnet[:,0:2,:] * self.grid_size
-            points_for_pointnet[:,2,:] = points_for_pointnet[:,2,:] * self.global_height + (self.global_height/2)
+            #points_for_pointnet[:,0:2,:] = points_for_pointnet[:,0:2,:] * self.grid_size
+            #points_for_pointnet[:,2,:] = points_for_pointnet[:,2,:] * self.global_height + (self.global_height/2)
             points_for_pointnet[:,6:,:] = points_for_pointnet[:,6:,:] + 0.5
-            print("pointsfor_pointnet.shape={}".format(points_for_pointnet.shape))
-            logits = self.model(points, pointwise_features, self.val_voxel_nets[voxel_net], points_for_pointnet)
+            #print("pointsfor_pointnet.shape={}".format(points_for_pointnet.shape))
+            logits = self.model(points, pointwise_features, voxel_net, points_for_pointnet)
             logits = logits.permute(0,2,1).reshape(self.batch_size*self.sample_size, 2)
             logits = F.softmax(logits, dim=1)
             label = label.permute(0,2,1).reshape(self.batch_size*self.sample_size, 2)
@@ -320,19 +306,6 @@ class Trainer():
             y_predict_all[nb] = np.argmax(logits.detach().numpy().astype('float64'), axis=1)
             print("shape: y_true={}, y_predict={}".format( y_true_all[nb].shape, y_predict_all[nb].shape))
 
-            '''
-            classes = ('leaf', 'wood')
-            
-            y_true = label.detach().numpy()[0].T.astype('int64')
-            y_predict = logits.detach().numpy()[0].T.astype('int64')
-            print("shape: y_true={}, y_predict={}".format(y_true.shape, y_predict.shape))
-            cf_matrix = confusion_matrix(np.argmax(y_true, axis=1), np.argmax(y_predict, axis=1))
-            df_cm = pd.DataFrame(cf_matrix/np.sum(cf_matrix), index = [i for i in classes],
-            columns = [i for i in classes])
-            plt.figure(figsize = (12,7))
-            sn.heatmap(df_cm, annot=True)
-            plt.savefig('output_{}.png'.format(nb))
-            '''
             '''
             # evaluate the contribution of layers
             layer_act = LayerActivation(self.model, self.model.fc_0)

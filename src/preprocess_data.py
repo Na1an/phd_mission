@@ -162,7 +162,25 @@ def voxel_grid_sample(cuboid, voxel_size, mode):
     return voxel_grid, np.array(nb_points_per_voxel), voxel_and_points
 
 # analyse
-def analyse_voxel_in_cuboid(voxel_skeleton_cuboid, h, side):
+def analyse_voxel_in_cuboid_ier(voxels, resolution):
+    '''
+    Args:
+        voxels : a list of ndarray.
+        h : a float. The height cuboid.
+        side : a float. side length.
+    Returns:
+        res: a voxelized space, indicate each voxel is occupied or not.
+    '''
+    print(">> voxels[0].shape=", voxels[0].shape)
+    nb_cuboid = len(voxels)
+    res = np.zeros([nb_cuboid, resolution, resolution, resolution])
+    for i in range(len(voxels)):
+        for j in range(len(voxels[i])):
+            v_x,v_y,v_z,v_p = voxels[i][j]
+            res[i,int(v_x),int(v_y),int(v_z)] = v_p
+    return res
+
+def analyse_voxel_in_cuboid_bak(voxel_skeleton_cuboid, h, side):
     '''
     Args:
         voxel_skeleton_cuboid : a dictionnary.
@@ -440,7 +458,20 @@ def prepare_dataset_ier(data, voxel_size_ier, voxel_sample_mode, resolution=20, 
         sample_tmp[ic] = np.concatenate((sample_tmp[ic],features), axis=1)
         #print("sample_tmp[ic].shape={} type={}".format(sample_tmp[ic].shape, type(sample_tmp[ic].shape)))
         
-        #直到这一步，我们有了平移于原点（0,0,0）的点云
+        #we have point clouds removed to（0,0,0）
+        #replace nan value by mean of 5 nearest points no-nan
+        #print(">>>>!!!sample_tmp[ic] is nan shape=", sample_tmp[ic][np.isnan(sample_tmp[ic])].shape)
+        neigh = NearestNeighbors(n_neighbors=6, radius=0.6)
+        neigh.fit(sample_tmp[ic][:, 0:3])
+        dist, ind = neigh.kneighbors(sample_tmp[ic][:, 0:3], return_distance=True)
+        for ep in range(len(sample_tmp[ic])):
+            for ef in range(len(sample_tmp[ic][ep][3:])):
+                if np.isnan(sample_tmp[ic][ep][3+ef]):
+                    knn_f = sample_tmp[ic][ind[ep]][:,3+ef]
+                    #print("knn_f ={} mean={}".format(knn_f[~np.isnan(knn_f)], np.mean(knn_f[~np.isnan(knn_f)])))
+                    sample_tmp[ic][ep][3+ef] = np.mean(knn_f[~np.isnan(knn_f)])
+        #print(">>>>!!! after sample_tmp[ic] is nan shape=", sample_tmp[ic][np.isnan(sample_tmp[ic])].shape)
+        # no nan value
         #plot_pc(sample_tmp[ic][:,:3]) scaled to 0,1
         sample_tmp[ic][:,:3], max_axe = normalize_long_axe(sample_tmp[ic][:,:3])
         new_voxel_size = 1/resolution
@@ -487,7 +518,7 @@ def prepare_dataset_ier(data, voxel_size_ier, voxel_sample_mode, resolution=20, 
 
     return samples, sample_voxelized
 
-def prepare_procedure_ier(path, grid_size, voxel_size, voxel_sample_mode, sample_size, global_height=50, label_name="llabel", detail=False, naif_sliding=False, nb_window=10):
+def prepare_procedure_ier(path, resolution, voxel_sample_mode, label_name, sample_size=5000, augmentation=True):
     '''
     Args:
     Returns:
@@ -499,15 +530,62 @@ def prepare_procedure_ier(path, grid_size, voxel_size, voxel_sample_mode, sample
 
     # (2) build samples
     # data_preprocessed : (x,y,z,label,intensity)
-    samples, samples_voxelized = prepare_dataset_ier(data_preprocessed, 0.6, voxel_sample_mode, resolution=20, augmentation=True)
+    samples, samples_voxelized = prepare_dataset_ier(data_preprocessed, 0.6, voxel_sample_mode, resolution=20, augmentation=augmentation)
+    #samples : [[x,y,z,label,reflectance,gd,ier,PCA1,linearity,verticality], ...]
+    #samples_voxelized : [[x,y,z,point_density], ...]
+    #print("samples[0].shape = {} samples_voxelized[0].shape = {}".format(samples[0].shape, samples_voxelized[0].shape))
+    #print("samples[1].shape = {} samples_voxelized[1].shape = {}".format(samples[1].shape, samples_voxelized[1].shape))
+    #print("type(samples)={} type(samples[0])={} samples[0].shape={}".format(type(samples),type(samples[0]),samples[0].shape))
+    
+    voxel_nets = analyse_voxel_in_cuboid_ier(samples_voxelized, resolution)
+    samples_res = []
+    sample_voxel_net_index = []
+    for i in range(len(samples)):
+        #new_sample_tmp = np.array_split(samples[i], math.ceil(len(samples[i])/sample_size))
+        new_sample_tmp = split_reminder(samples[i], sample_size, axis=0)
+        # p_size, the last one 
+        p_size, f_size = new_sample_tmp[-1].shape
+        #print("p_size={}, f_size={} (10)".format(p_size, f_size))
+
+        if len(new_sample_tmp) == 1:
+            new_sample_tmp[-1] = np.concatenate((new_sample_tmp[-1], samples[i][np.random.choice([c for c in range(p_size)], sample_size - p_size)]))
+        else:
+            new_sample_tmp[-1] = np.concatenate((new_sample_tmp[-1], samples[i][np.random.choice([c for c in range(sample_size*(len(new_sample_tmp)-1))], sample_size - p_size)]))
+        #print("new_sample_tmp[-1].shape=",new_sample_tmp[-1].shape)
+        '''
+        for eee in new_sample_tmp:
+            print(eee.shape, end = "\t")
+        print("\n########")
+        '''
+        samples_res = samples_res + new_sample_tmp
+        for c in range(len(new_sample_tmp)):
+            sample_voxel_net_index.append(i)
+    
+    samples_res = np.array(samples_res)
+    #print("sample_voxel_net_index.shape={},samples_res.shape={}, voxel_nets.shape ={}".format(len(sample_voxel_net_index),samples_res.shape,voxel_nets.shape))
+    #print(sample_voxel_net_index)
+    
+    return samples_res, sample_voxel_net_index, voxel_nets
+
+def prepare_procedure_ier_bak(path, resolution, voxel_sample_mode, label_name, sample_size=5000, augmentation=True):
+    '''
+    Args:
+    Returns:
+    '''
+    
+    # (1) load data
+    data_preprocessed, x_min, x_max, y_min, y_max, z_min, z_max = read_data_with_intensity(path, label_name=label_name, detail=True)
+    print("> input data: {} \n> data_preprocess.shape = {}".format(path, data_preprocessed.shape))
+
+    # (2) build samples
+    # data_preprocessed : (x,y,z,label,intensity)
+    samples, samples_voxelized = prepare_dataset_ier(data_preprocessed, 0.6, voxel_sample_mode, resolution=20, augmentation=augmentation)
     #samples : [[x,y,z,label,reflectance,gd,ier,PCA1,linearity,verticality], ...]
     #samples_voxelized : [[x,y,z,point_density], ...]
 
-    print("end prog for now")
-    exit()
-    
+    #voxel_nets = analyse_voxel_in_cuboid_ier(voxel_skeleton_cuboid, int(global_height/voxel_size), int(grid_size/voxel_size))
 
-    return None
+    return samples, samples_voxelized
 
 ############################## for prediction ###############################
 # return the set of sliding window coordinates
