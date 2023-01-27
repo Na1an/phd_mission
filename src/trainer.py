@@ -9,6 +9,7 @@ from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 from captum.attr import LayerGradCam, Saliency, LayerActivation
 from sklearn.utils import class_weight
+from sklearn.metrics import precision_recall_fscore_support
 
 class Trainer():
     def __init__(self, model, device, train_dataset, train_voxel_nets, val_dataset, val_voxel_nets, batch_size, sample_size, predict_threshold, num_workers, grid_size, global_height, shuffle=True, opt="Adam"):
@@ -88,6 +89,7 @@ class Trainer():
             epoch_loss = 0.0
             epoch_acc = 0.0
             epoch_specificity = 0.0
+            epoch_recall = 0.0
             epoch_auroc = 0.0
             loader_len = 1
             # points, labels, v_cuboid
@@ -126,7 +128,8 @@ class Trainer():
                 label = label.permute(0,2,1).reshape(self.batch_size*self.sample_size, 2).to(self.device)
                 
                 class_weights=class_weight.compute_class_weight(class_weight="balanced", classes=np.unique(np.argmax(y_true, axis=1)), y=np.argmax(y_true, axis=1))
-                class_weights=torch.tensor(class_weights, dtype=torch.float)
+                #class_weights=torch.tensor(class_weights, dtype=torch.float)
+                class_weights=torch.tensor([2,1], dtype=torch.float)
                 
                 tmp_loss = nn.functional.binary_cross_entropy_with_logits(weight=class_weights.to(self.device), input=logits, target=label)
                
@@ -170,11 +173,12 @@ class Trainer():
                 epoch_loss = epoch_loss + tmp_loss.item()
                 epoch_acc = epoch_acc + num_correct/self.sample_size
                 epoch_specificity = epoch_specificity + specificity
+                epoch_recall = epoch_recall + recall
                 #epoch_auroc = epoch_auroc + auroc_score
                 loader_len = loader_len + 1
-                print("[e={}]>>> [Training] - Current test loss: {} - accuracy - {} specificity - {}".format(e, tmp_loss.item(), num_correct/(self.sample_size*self.batch_size), specificity))
+                print("[e={}]>>> [Training] - Current test loss: {} - accuracy - {} specificity - {} recall - {}".format(e, tmp_loss.item(), num_correct/(self.sample_size*self.batch_size), specificity, recall))
             
-            print("============ Epoch {}/{} is trained - epoch_loss - {} - epoch_acc - {} epoch_specificity - {}===========".format(e, nb_epoch, epoch_loss/loader_len, epoch_acc/(loader_len*self.batch_size), epoch_specificity/loader_len))
+            print("============ Epoch {}/{} is trained - epoch_loss - {} - epoch_acc - {} epoch_specificity - {} epoch_recall - {}===========".format(e, nb_epoch, epoch_loss/loader_len, epoch_acc/(loader_len*self.batch_size), epoch_specificity/loader_len, epoch_recall/loader_len))
             self.writer.add_scalar('training loss - epoch avg', epoch_loss/loader_len, e)
             self.writer.add_scalar('training accuracy - epoch avg', epoch_acc/(loader_len*self.batch_size), e)
             self.writer.add_scalar('training specificity - epoch avg', epoch_specificity/(loader_len), e)
@@ -334,7 +338,9 @@ class Trainer():
             # binary_cross_entropy_with_logits : input doesn't need to be [0,1], but target/label need to be [0, N-1] (therwise the loss will be wired)
             #tmp_loss = nn.functional.binary_cross_entropy_with_logits(logits, label)
             class_weights=class_weight.compute_class_weight(class_weight="balanced", classes=[0,1], y=y_true_all[nb])
-            class_weights=torch.tensor(class_weights, dtype=torch.float)
+            #class_weights=torch.tensor(class_weights, dtype=torch.float)
+            class_weights=torch.tensor([2,1], dtype=torch.float)
+            
             print("[val]>>> class_weights = {}".format(class_weights))
             # with weights
             tmp_loss = nn.functional.binary_cross_entropy_with_logits(weight=class_weights.to(self.device), reduction='mean', input=logits, target=label)

@@ -31,11 +31,11 @@ class TrainDataSet(Dataset):
         #samples_voxelized : [[x,y,z,point_density], ...]
         # (x,y,z,label), label index is 3
         points = self.samples[index][:,:3]
-        labels = self.samples[index][:,3]
+        labels = self.samples[index][:,3] - 1
         
         # for input data, leave is 2, wood is 1
-        # we will change it to : leave = 0, wood=1
-        labels[labels==2] = 0  
+        # we will change it to : leave = 1, wood=0
+        #labels[labels==2] = 0  
 
         '''
         # features
