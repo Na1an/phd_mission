@@ -1,6 +1,7 @@
 import torch
 import numpy as np
 from torch.utils.data import Dataset
+
 def check_nan_in_array(feature_name,a):
     print(feature_name + "shape={} nan size={}".format(a.shape, a[np.isnan(a)].shape))
     return None
@@ -56,7 +57,7 @@ class TrainDataSet(Dataset):
         #pointwise_features = [reflectance,gd,ier,PCA1,linearity,verticality]
         #pointwise_features = torch.from_numpy(self.samples[index][:,4:].copy()).type(torch.float).to(self.device)
         pointwise_features = torch.from_numpy(self.samples[index][:,[6,8,9]].copy()).type(torch.float).to(self.device)
-        voxel_net = self.samples_voxelized[self.sample_voxel_net_index[index]]
+        voxel_net = self.samples_voxelized[self.sample_voxel_net_index[index]].to(self.device)
         return points, pointwise_features, labels, voxel_net
 
     # print the info
