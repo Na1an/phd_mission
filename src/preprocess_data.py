@@ -455,7 +455,7 @@ def prepare_dataset_ier(data, voxel_size_ier, voxel_sample_mode, augmentation, r
         sample_tmp[ic][:,0] = sample_tmp[ic][:,0] - np.min(sample_tmp[ic][:,0])
         sample_tmp[ic][:,1] = sample_tmp[ic][:,1] - np.min(sample_tmp[ic][:,1])
         sample_tmp[ic][:,2] = sample_tmp[ic][:,2] - np.min(sample_tmp[ic][:,2])
-        features = compute_features(sample_tmp[ic][:,:3], search_radius=voxel_size_ier, feature_names=["PCA1","linearity","verticality"])
+        features = compute_features(sample_tmp[ic][:,:3], search_radius=voxel_size_ier, feature_names=["PCA1","linearity","sphericity"])
         sample_tmp[ic] = np.concatenate((sample_tmp[ic],features), axis=1)
         #print("sample_tmp[ic].shape={} type={}".format(sample_tmp[ic].shape, type(sample_tmp[ic].shape)))
         
@@ -475,7 +475,7 @@ def prepare_dataset_ier(data, voxel_size_ier, voxel_sample_mode, augmentation, r
         # no nan value scaled to 0,1
         #plot_pc(sample_tmp[ic][:,:3], c=sample_tmp[ic][:,7]) 
         #plot_pc(sample_tmp[ic][:,:3], c=sample_tmp[ic][:,8])
-        #plot_pc(sample_tmp[ic][:,:3], c=sample_tmp[ic][:,9]) 
+        #plot_pc(sample_tmp[ic][:,:3], c=sample_tmp[ic][:,9])
         sample_tmp[ic][:,:3], max_axe = normalize_long_axe(sample_tmp[ic][:,:3])
         new_voxel_size = 1/resolution
         '''

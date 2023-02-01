@@ -11,7 +11,6 @@ from collections import deque
 from mpl_toolkits import mplot3d
 from sklearn.metrics import confusion_matrix, matthews_corrcoef, f1_score, roc_auc_score
 from sklearn.neighbors import NearestNeighbors
-from torchmetrics.classification import BinarySpecificity
 
 '''
 from torchsummary import summary
@@ -314,7 +313,12 @@ def normalize_feature(f):
     f_min = np.min(f)
     f_max = np.max(f)
     print("f_min={}, f_max={}".format(f_min, f_max))
-    return (f-f_min)/(f_max-f_min)
+    return (2*(f-f_min)/(f_max-f_min)) - 1
+
+def standardization(data):
+    mu = np.mean(data, axis=0)
+    sigma = np.std(data, axis=0)
+    return (data - mu) / sigma
 
 #!!!!!!!!!!!!!!!!!!!!!! à faire
 # calculate auroc score
