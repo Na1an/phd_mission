@@ -50,7 +50,7 @@ if __name__ == "__main__":
         my_device = torch.device('cpu')
     print('> Device : {}'.format(my_device))
 
-    resolution = 20
+    resolution = 21
     # (2) prepare train dataset and validation dataset
     samples_train, sample_voxel_net_index_train, train_voxel_nets = prepare_procedure_ier(
                                                         train_data_path, 

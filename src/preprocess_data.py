@@ -477,7 +477,7 @@ def prepare_dataset_ier(data, voxel_size_ier, voxel_sample_mode, augmentation, r
         #plot_pc(sample_tmp[ic][:,:3], c=sample_tmp[ic][:,8])
         #plot_pc(sample_tmp[ic][:,:3], c=sample_tmp[ic][:,9]) 
         sample_tmp[ic][:,:3], max_axe = normalize_long_axe(sample_tmp[ic][:,:3])
-        new_voxel_size = 1/resolution
+        new_voxel_size = 1/resolution 
         '''
         if max_axe//new_voxel_size != 20:
             new_voxel_size = max_axe/20 - 0.000001

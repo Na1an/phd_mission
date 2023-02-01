@@ -252,7 +252,7 @@ class PointWiseModel(nn.Module):
         features.shape torch.Size([4, 904, 5000])
         '''
         
-        features = torch.cat((features, feature_mlp, pointwise_features, pointnet_features), dim=1)
+        features = torch.cat((features, pointwise_features, feature_mlp, pointnet_features) , dim=1)
         #features = torch.cat((features, feature_mlp, pointwise_features), dim=1)
         net_out = self.actvn(self.fc_0(features))
         net_out = self.actvn(self.fc_1(net_out))

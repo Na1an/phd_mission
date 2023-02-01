@@ -326,9 +326,9 @@ class Trainer():
             #y_predict = logits.detach().numpy().astype('float64')
             #y_predict = F.softmax(y_predict, dim=1)
 
-            y_true_all[nb] = np.argmax(label.detach().numpy().astype('int64'), axis=1)
-            y_predict_all[nb] = np.argmax(logits.detach().numpy().astype('float64'), axis=1)
-            print("shape: y_true={}, y_predict={}".format( y_true_all[nb].shape, y_predict_all[nb].shape))
+            y_true_all[nb] = label.detach().clone().cpu().data.numpy().astype('int64')
+            y_predict_all[nb] = logits.detach().clone().cpu().data.numpy().astype('float64')
+            print("shape: y_true={}, y_predict={}".format(y_true_all[nb].shape, y_predict_all[nb].shape))
 
             '''
             # evaluate the contribution of layers
