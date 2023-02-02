@@ -200,6 +200,7 @@ class Trainer():
             self.writer.add_scalar('training accuracy - epoch avg', epoch_acc/(loader_len*self.batch_size), e)
             self.writer.add_scalar('training specificity - epoch avg', epoch_specificity/(loader_len), e)
             self.writer.add_scalar('training auroc - epoch avg', epoch_auroc/(loader_len), e)
+            self.writer.add_scalar('training recall - epoch avg', epoch_recall/(loader_len), e)
 
             if e % 1 == 0:
                 self.save_checkpoint(e)
@@ -252,6 +253,11 @@ class Trainer():
                 {
                     'train_sp (epoch average)': epoch_specificity/loader_len,
                     'val_sp': list_stat_res[5] # validation specificity
+                }, e)
+            self.writer.add_scalars('Recall', 
+                {
+                    'train_recall (epoch average)': epoch_recall/loader_len,
+                    'val_recall': list_stat_res[4] # validation recall
                 }, e)
 
         self.writer.close()

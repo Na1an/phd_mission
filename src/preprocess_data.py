@@ -475,7 +475,7 @@ def prepare_dataset_ier(data, voxel_size_ier, voxel_sample_mode, augmentation, r
         # no nan value scaled to 0,1
         #plot_pc(sample_tmp[ic][:,:3], c=sample_tmp[ic][:,7]) 
         #plot_pc(sample_tmp[ic][:,:3], c=sample_tmp[ic][:,8])
-        #plot_pc(sample_tmp[ic][:,:3], c=sample_tmp[ic][:,9])
+        #plot_pc(sample_tmp[ic][:,:3], c=sample_tmp[ic][:,6])
         sample_tmp[ic][:,7] = standardization(sample_tmp[ic][:,7])
         sample_tmp[ic][:,8] = standardization(sample_tmp[ic][:,8])
         sample_tmp[ic][:,9] = standardization(sample_tmp[ic][:,9])

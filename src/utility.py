@@ -361,7 +361,7 @@ def find_neighbours_and_assign_gd(v_act, voxels):
     x,y,z = v_act
     adjacent = [(x+1,y,z), (x-1,y,z), (x,y+1,z), (x,y-1,z), (x,y,z+1), (x,y,z-1)]
     
-    gd_fa_min = 100000
+    gd_fa_min = 10000000
     for e in adjacent:
         if e in voxels:
             points,gd = voxels[e]
@@ -456,7 +456,7 @@ def geodesic_distance(voxels, voxel_size, tree_radius=7.0, limit_comp=10, limit_
                 # here, setting the limits about IER or geodesic distance
                 # extend limit
 
-                if (gd_fa_min+1) > 100:
+                if (gd_fa_min+1) > 20:
                     continue
                 '''
                 # 关于高度与gd的限制
