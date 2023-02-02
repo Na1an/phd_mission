@@ -63,8 +63,8 @@ class Trainer():
         # gamma = 2, =0 close the function
         # alpha =0.5 close the function, 
         # alpha 越小，负样本越重要
-        self.alpha = 0.10
-        self.gamma = 2
+        self.alpha = 0.95
+        self.gamma = 3
         self.writer = SummaryWriter(get_current_direct_path() + "/tensorboard")
 
     # this is a cute function for calculating the loss
@@ -143,7 +143,7 @@ class Trainer():
                 print("logits[:,0:10]={}, label[:,0:10].shape={}".format(logits[:10], label[:,0:10]))
                 #class_weights=torch.tensor([1,1], dtype=torch.float)
                 
-                BCE_loss = nn.functional.binary_cross_entropy_with_logits(input=logits, target=label)
+                BCE_loss = nn.functional.binary_cross_entropy_with_logits(input=logits.to(self.device), target=label.to(self.device))
                 pt = torch.exp(-BCE_loss) # prevents nans when probability 0
                 focal_loss = self.alpha * (1-pt)**self.gamma * BCE_loss
                 tmp_loss = focal_loss.mean()
@@ -292,9 +292,9 @@ class Trainer():
         predict_correct = 0
         
         mcc = 0
-        y_true_all = np.zeros((num_batches, self.sample_size*self.batch_size))
-        y_predict_all = np.zeros((num_batches, self.sample_size*self.batch_size))
-        y_predict_wood_all = np.zeros((num_batches, self.sample_size*self.batch_size))
+        y_true_all = np.zeros((num_batches, self.sample_size*self.batch_size, 2))
+        y_predict_all = np.zeros((num_batches, self.sample_size*self.batch_size, 2))
+        #y_predict_wood_all = np.zeros((num_batches, self.sample_size*self.batch_size))
         for nb in range(num_batches):
             #output = self.model(points, self.train_voxel_nets[voxel_net])
             #tmp_loss = nn.functional.binary_cross_entropy_with_logits(output, label)
@@ -355,16 +355,18 @@ class Trainer():
             # loss
             # binary_cross_entropy_with_logits : input doesn't need to be [0,1], but target/label need to be [0, N-1] (therwise the loss will be wired)
             #tmp_loss = nn.functional.binary_cross_entropy_with_logits(logits, label)
-            class_weights=class_weight.compute_class_weight(class_weight="balanced", classes=[0,1], y=y_true_all[nb])
+            #class_weights=class_weight.compute_class_weight(class_weight="balanced", classes=[0,1], y=y_true_all[nb])
             #class_weights=torch.tensor(class_weights, dtype=torch.float)
-            class_weights=torch.tensor([1,1], dtype=torch.float)
+            #class_weights=torch.tensor([1,1], dtype=torch.float)
 
-            print("[val]>>> class_weights = {}".format(class_weights))
+            #print("[val]>>> class_weights = {}".format(class_weights))
             # with weights
             #tmp_loss = nn.functional.binary_cross_entropy_with_logits(weight=class_weights.to(self.device), reduction='mean', input=logits, target=label)
             #tmp_loss = self.criterion(input=logits, target=label)
             #tmp_loss = nn.functional.binary_cross_entropy_with_logits(reduction='mean', input=logits.to(self.device), target=label.to(self.device))
-            BCE_loss = nn.functional.binary_cross_entropy_with_logits(input=logits, target=label)
+            logits = logits.to(self.device)
+            label = label.to(self.device)
+            BCE_loss = nn.functional.binary_cross_entropy_with_logits(input=logits.to(self.device), target=label.to(self.device))
             pt = torch.exp(-BCE_loss) # prevents nans when probability 0
             focal_loss = self.alpha * (1-pt)**self.gamma * BCE_loss
             tmp_loss = focal_loss.mean()
@@ -380,9 +382,9 @@ class Trainer():
         #print("bincount y_true_all.shape={}".format(np.bincount(y_true_all)))
         #print("bincount y_predict_all.shape={}".format(np.bincount(y_predict_all)))
         
-        y_true_all = y_true_all.reshape(num_batches*self.sample_size*self.batch_size).astype(int)
-        y_predict_all = y_predict_all.reshape(num_batches*self.sample_size*self.batch_size).astype(int)
-        y_predict_wood_all = y_predict_wood_all.reshape(num_batches*self.sample_size*self.batch_size).astype(int)
+        y_true_all = y_true_all.reshape(num_batches*self.sample_size*self.batch_size*2).astype(int)
+        y_predict_all = y_predict_all.reshape(num_batches*self.sample_size*self.batch_size*2).astype(int)
+        #y_predict_wood_all = y_predict_wood_all.reshape(num_batches*self.sample_size*self.batch_size).astype(int)
         #print("shape: y_true={}, y_predict={}".format(y_true_all.shape, y_predict_all.shape))
         print("bincount y_true_all.shape={}".format(np.bincount(y_true_all)))
         print("bincount y_predict_all.shape={}".format(np.bincount(y_predict_all)))
@@ -392,7 +394,7 @@ class Trainer():
         classes = ('leaf', 'wood')
         cf_matrix = confusion_matrix(y_true_all, y_predict_all, labels=[0,1])
         
-        auroc_score = roc_auc_score(y_score=y_predict_wood_all, y_true=y_true_all)
+        auroc_score = roc_auc_score(y_score=y_predict_all, y_true=y_true_all)
 
         tn, fp, fn, tp = cf_matrix.ravel()
         print("tn-{} fp-{} fn-{} tp-{}".format(tn, fp, fn, tp))
