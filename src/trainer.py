@@ -60,8 +60,7 @@ class Trainer():
         self.sample_size = sample_size
         self.batch_size = batch_size
         #self.criterion = FocalLoss(gamma=5,alpha=0.25)
-        # gamma = 2, =0 close the function
-        # alpha =0.5 close the function, 
+        # gamma = 3, alpha = 0.95 not bad, bad recall=0
         # alpha 越小，负样本越重要
         self.alpha = 0.95
         self.gamma = 3

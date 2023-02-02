@@ -24,6 +24,7 @@ if __name__ == "__main__":
     data_target.add_extra_dim(laspy.ExtraBytesParams(name="intensity_transform", type=np.float64))
     data_target.add_extra_dim(laspy.ExtraBytesParams(name="intensity_transform_pct", type=np.float64))
     data_target.return_ratio = (data_target['return_number'])/(data_target['number_of_returns'])
+    
     # ULS
     data_target.intensity_transform = (data_target['intensity']/65535)*40 - 40
     

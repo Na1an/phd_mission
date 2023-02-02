@@ -320,6 +320,7 @@ def standardization(data):
     sigma = np.std(data, axis=0)
     return (data - mu) / sigma
 
+# L1/L2
 #!!!!!!!!!!!!!!!!!!!!!! à faire
 # calculate auroc score
 def calculate_auroc(y_score, y_true):
