@@ -136,15 +136,22 @@ class Trainer():
                 print("logits[0:20]=",logits[0:20])
                 print("label[0:20]=",label[0:20])
                 class_weights=class_weight.compute_class_weight(class_weight="balanced", classes=np.unique(np.argmax(y_true, axis=1)), y=np.argmax(y_true, axis=1))
-                #class_weights=torch.tensor(class_weights, dtype=torch.float)
+                class_weights=torch.tensor(class_weights, dtype=torch.float)
                 '''
+                label_w = label.permute(0,2,1).reshape(self.batch_size*self.sample_size, 2)
+                label_w = torch.argmax(label_w, dim=1).int()
+                class_weights=class_weight.compute_class_weight(class_weight="balanced", classes=np.unique(label_w.to(self.device)), y=label_w.to(self.device).numpy())
+                class_weights=torch.tensor(class_weights, dtype=torch.float)
+                
+                print("[train]>>> class_weights = {}, class_weights[1] = {}".format(class_weights,class_weights[1]))
                 print("logits.shape={}, label.shape={}".format(logits.shape, label.shape))
                 print("logits[:,0:10]={}, label[:,0:10].shape={}".format(logits[:10], label[:,0:10]))
                 #class_weights=torch.tensor([1,1], dtype=torch.float)
                 
                 BCE_loss = nn.functional.binary_cross_entropy_with_logits(input=logits.to(self.device), target=label.to(self.device))
                 pt = torch.exp(-BCE_loss) # prevents nans when probability 0
-                focal_loss = self.alpha * (1-pt)**self.gamma * BCE_loss
+                #focal_loss = self.alpha * (1-pt)**self.gamma * BCE_loss
+                focal_loss = class_weights[1] * (1-pt)**self.gamma * BCE_loss
                 tmp_loss = focal_loss.mean()
                 '''
                 print(">>>> [new] logits.shape = {}, label.shape = {}".format(logits.shape, label.shape))
@@ -360,11 +367,9 @@ class Trainer():
             # loss
             # binary_cross_entropy_with_logits : input doesn't need to be [0,1], but target/label need to be [0, N-1] (therwise the loss will be wired)
             #tmp_loss = nn.functional.binary_cross_entropy_with_logits(logits, label)
-            #class_weights=class_weight.compute_class_weight(class_weight="balanced", classes=[0,1], y=y_true_all[nb])
-            #class_weights=torch.tensor(class_weights, dtype=torch.float)
-            #class_weights=torch.tensor([1,1], dtype=torch.float)
-
-            #print("[val]>>> class_weights = {}".format(class_weights))
+            class_weights=class_weight.compute_class_weight(class_weight="balanced", classes=[0,1], y=y_true_all[nb])
+            class_weights=torch.tensor(class_weights, dtype=torch.float)
+            print("[val]>>> class_weights = {}, class_weights[1] = {}".format(class_weights,class_weights[1]))
             # with weights
             #tmp_loss = nn.functional.binary_cross_entropy_with_logits(weight=class_weights.to(self.device), reduction='mean', input=logits, target=label)
             #tmp_loss = self.criterion(input=logits, target=label)
@@ -373,7 +378,8 @@ class Trainer():
             label = label.to(self.device)
             BCE_loss = nn.functional.binary_cross_entropy_with_logits(input=logits.to(self.device), target=label.to(self.device))
             pt = torch.exp(-BCE_loss) # prevents nans when probability 0
-            focal_loss = self.alpha * (1-pt)**self.gamma * BCE_loss
+            #focal_loss = self.alpha * (1-pt)**self.gamma * BCE_loss
+            focal_loss = class_weights[1] * (1-pt)**self.gamma * BCE_loss
             tmp_loss = focal_loss.mean()
             sum_val_loss = sum_val_loss + tmp_loss.item()
 

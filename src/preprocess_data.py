@@ -774,7 +774,7 @@ def prepare_procedure_predict(path, grid_size, voxel_size, voxel_sample_mode, sa
     
     if detail:
         print("> grid_size:", grid_size)
-        print("> voxel_size:", voxel_size)
+        #print("> voxel_size:", voxel_size)
         print("> voxel sample mode is:", voxel_sample_mode)
         print("len(voxel_skeleton_cuboid) =", len(voxel_skeleton_cuboid), " ", type(voxel_skeleton_cuboid))
         print("v_k_c[0]=type",type(voxel_skeleton_cuboid[0]))
