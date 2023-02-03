@@ -140,7 +140,7 @@ class Trainer():
                 '''
                 label_w = label.permute(0,2,1).reshape(self.batch_size*self.sample_size, 2)
                 label_w = torch.argmax(label_w, dim=1).int()
-                class_weights=class_weight.compute_class_weight(class_weight="balanced", classes=np.unique(label_w.to(self.device)), y=label_w.to(self.device).numpy())
+                class_weights=class_weight.compute_class_weight(class_weight=None, classes=np.unique(label_w.to(self.device)), y=label_w.to(self.device).numpy())
                 class_weights=torch.tensor(class_weights, dtype=torch.float)
                 
                 print("[train]>>> class_weights = {}, class_weights[1] = {}".format(class_weights,class_weights[1]))
@@ -367,7 +367,7 @@ class Trainer():
             # loss
             # binary_cross_entropy_with_logits : input doesn't need to be [0,1], but target/label need to be [0, N-1] (therwise the loss will be wired)
             #tmp_loss = nn.functional.binary_cross_entropy_with_logits(logits, label)
-            class_weights=class_weight.compute_class_weight(class_weight="balanced", classes=[0,1], y=y_true_all[nb])
+            class_weights=class_weight.compute_class_weight(class_weight=None, classes=[0,1], y=y_true_all[nb])
             class_weights=torch.tensor(class_weights, dtype=torch.float)
             print("[val]>>> class_weights = {}, class_weights[1] = {}".format(class_weights,class_weights[1]))
             # with weights
