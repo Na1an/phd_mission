@@ -5,10 +5,12 @@ library("caret")
 library("lidUrb")
 library("ggplot2")
 
-tls <- readLAS("/home/yuchen/Documents/PhD/data_for_project/22-04-05_tls_labelled_data_corrected/res_corrected_only_identified_treeid_220.las")
-predict <- readLAS("/home/yuchen/Documents/PhD/res_corrected_only_identified_treeid_220_FSCT_output_retrain/segmented.las")
-summary(tls)
-summary(predict)
+
+#tls <- readLAS("/home/yuchen/Documents/PhD/data_for_project/22-04-05_tls_labelled_data_corrected/res_corrected_only_identified.las")
+#predict <- readLAS("/home/yuchen/segmented_retrain_tls.las")
+
+tls <- readLAS("/home/yuchen/uls_retrain_test.las")
+predict <- readLAS("/home/yuchen/uls_retrain_test_FSCT_output/segmented.las")
 
 tls@data <- tls@data[order(tls@data$X, tls@data$Y, tls@data$Z)]
 predict@data <- predict@data[order(predict@data$X, predict@data$Y, predict@data$Z)]
@@ -16,13 +18,19 @@ predict@data <- predict@data[order(predict@data$X, predict@data$Y, predict@data$
 head(tls@data[0:10])
 head(predict@data[0:10])
 
+lidR::plot(tls,color="label",size=2,colorPalette = c("chartreuse4","cornsilk2"), legend=TRUE)
+table(tls@data$label)
 # leave=0, wood=1
-tls@data$WL <- replace(tls@data$WL, tls@data$WL==2, 0)
-predict@data$label <- replace(predict@data$label, predict@data$label==1, 2)
-predict@data$label <- replace(predict@data$label, predict@data$label==0, 1)
-predict@data$label <- replace(predict@data$label, predict@data$label==2, 0)
+tls@data$label <- replace(tls@data$label, tls@data$label==2, 0)
+tls@data$label <- replace(tls@data$label, tls@data$label==4, 1)
+table(tls@data$label)
 
-truth <- factor(tls@data$WL)
+table(predict@data$label)
+predict@data$label <- replace(predict@data$label, predict@data$label==1, 0)
+predict@data$label <- replace(predict@data$label, predict@data$label==3, 1)
+table(predict@data$label)
+
+truth <- factor(tls@data$label)
 pred <- factor(predict@data$label)
 
 table(truth, pred)
@@ -32,7 +40,7 @@ draw_confusion_matrix <- function(cm, f_name) {
   layout(matrix(c(1,1,2)))
   par(mar=c(2,2,2,2))
   plot(c(100, 345), c(300, 450), type = "n", xlab="", ylab="", xaxt='n', yaxt='n')
-  title(paste('FSCT (retrain) on TLS - Confusion Matrix :',f_name), cex.main=2)
+  title(paste('FSCT (retrain) on LS - Confusion Matrix :',f_name), cex.main=2)
   
   # create the matrix 
   rect(150, 430, 240, 370, col='#3F97D0')
@@ -73,9 +81,11 @@ draw_confusion_matrix <- function(cm, f_name) {
   text(70, 20, round(as.numeric(cm$overall[2]), 3), cex=1.4)
 }
 table(truth)
-table(pred)
-cm <- confusionMatrix(truth, pred)
+
+cm <- confusionMatrix(pred, truth)
 draw_confusion_matrix(cm, "label")
+
+
 
 p <- ggplot(data=tls@data, aes(x=WL)) + 
   geom_bar(aes(y = (after_stat(count)))) + 
@@ -86,3 +96,6 @@ p2 <- ggplot(data=predict@data, aes(x=label)) +
   geom_bar(aes(y = (after_stat(count)))) + 
   geom_bar(aes(x=label),color="red")
 p2
+
+summary(tls)
+summary(predict)
