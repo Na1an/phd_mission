@@ -90,9 +90,9 @@ class PointWiseModel(nn.Module):
         # +3 : intensity added + roughness added + ncr added ... 
         # + 128 : output of fc of the pointwise_features
         # + (128 + 64) : pointnet segmentation output
-        #feature_size = (1 + 32 + 64 + 64) + (3 + 32) + (128)
+        feature_size = (1 + 32 + 64 + 64) + (3 + 32) + (128)
         #feature_size = 1 + (32 + 64 + 64) + 3 + 32
-        feature_size = (3 + 32) + (128)
+        #feature_size = (3 + 32) + (128)
         # conditionnal VAE, co-variabale, regression
         self.fc_0 = nn.Conv1d(feature_size, hidden_dim*2, 1)
         self.fc_1 = nn.Conv1d(hidden_dim*2, hidden_dim, 1)
@@ -252,9 +252,9 @@ class PointWiseModel(nn.Module):
         features.shape torch.Size([4, 904, 5000])
         '''
         
-        #features = torch.cat((features, pointwise_features, feature_mlp, pointnet_features) , dim=1)
+        features = torch.cat((features, pointwise_features, feature_mlp, pointnet_features) , dim=1)
         #features = torch.cat((features, feature_mlp, pointwise_features), dim=1)
-        features = torch.cat((pointwise_features, feature_mlp, pointnet_features) , dim=1)
+        #features = torch.cat((pointwise_features, feature_mlp, pointnet_features) , dim=1)
         net_out = self.actvn(self.fc_0(features))
         net_out = self.actvn(self.fc_1(net_out))
         #net_out = self.actvn(self.fc_2(net_out))
@@ -262,20 +262,4 @@ class PointWiseModel(nn.Module):
         out = net_out.squeeze(1)
 
         return out
-
-'''
-feature_0.shape torch.Size([4, 1, 1, 7, 5000])
-after first conv_1, net= torch.Size([4, 32, 100, 10, 10])
-after first conv_1_1, net= torch.Size([4, 64, 100, 10, 10])
-feature_1.shape torch.Size([4, 64, 1, 7, 5000])
-after first conv_2, net= torch.Size([4, 128, 50, 5, 5])
-after first conv_2_1, net= torch.Size([4, 128, 50, 5, 5])
-feature_2.shape torch.Size([4, 128, 1, 7, 5000])
-after first conv_3, net= torch.Size([4, 128, 25, 2, 2])
-after first conv_3_1, net= torch.Size([4, 128, 25, 2, 2])
-feature_3.shape torch.Size([4, 128, 1, 7, 5000])
-features.shape torch.Size([4, 321, 1, 7, 5000])
-features.shape torch.Size([4, 2247, 5000])
-out shape: torch.Size([4, 5000])
-'''
 

@@ -12,6 +12,43 @@ from sklearn.utils import class_weight
 from sklearn.metrics import precision_recall_fscore_support
 from torch.autograd import Variable
 
+class FocalLoss(nn.Module):
+
+    def __init__(self,
+                 alpha=0.25,
+                 gamma=2,
+                 reduction='mean',):
+        super(FocalLoss, self).__init__()
+        self.alpha = alpha
+        self.gamma = gamma
+        self.reduction = reduction
+        self.crit = nn.BCEWithLogitsLoss(reduction='none')
+
+    def forward(self, logits, label):
+        '''
+        Usage is same as nn.BCEWithLogits:
+            >>> criteria = FocalLossV1()
+            >>> logits = torch.randn(8, 19, 384, 384)
+            >>> lbs = torch.randint(0, 2, (8, 19, 384, 384)).float()
+            >>> loss = criteria(logits, lbs)
+        '''
+        probs = torch.sigmoid(logits)
+        coeff = torch.abs(label - probs).pow(self.gamma).neg()
+        log_probs = torch.where(logits >= 0,
+                F.softplus(logits, -1, 50),
+                logits - F.softplus(logits, 1, 50))
+        log_1_probs = torch.where(logits >= 0,
+                -logits + F.softplus(logits, -1, 50),
+                -F.softplus(logits, 1, 50))
+        loss = label * self.alpha * log_probs + (1. - label) * (1. - self.alpha) * log_1_probs
+        loss = loss * coeff
+
+        if self.reduction == 'mean':
+            loss = loss.mean()
+        if self.reduction == 'sum':
+            loss = loss.sum()
+        return loss
+
 class Trainer():
     def __init__(self, model, device, train_dataset, train_voxel_nets, val_dataset, val_voxel_nets, batch_size, sample_size, predict_threshold, num_workers, grid_size, global_height, shuffle=True, opt="Adam"):
         '''
@@ -59,11 +96,11 @@ class Trainer():
         self.threshold = predict_threshold
         self.sample_size = sample_size
         self.batch_size = batch_size
-        #self.criterion = FocalLoss(gamma=5,alpha=0.25)
+        self.criterion = FocalLoss(gamma=0,alpha=0.2)
         # gamma = 3, alpha = 0.95 not bad, bad recall=0
         # alpha 越小，负样本越重要
-        self.alpha = 0.95
-        self.gamma = 3
+        self.alpha = 0.2
+        self.gamma = 0
         self.writer = SummaryWriter(get_current_direct_path() + "/tensorboard")
 
     # this is a cute function for calculating the loss
@@ -137,7 +174,7 @@ class Trainer():
                 print("label[0:20]=",label[0:20])
                 class_weights=class_weight.compute_class_weight(class_weight="balanced", classes=np.unique(np.argmax(y_true, axis=1)), y=np.argmax(y_true, axis=1))
                 class_weights=torch.tensor(class_weights, dtype=torch.float)
-                '''
+                
                 label_w = label.permute(0,2,1).reshape(self.batch_size*self.sample_size, 2)
                 label_w = torch.argmax(label_w, dim=1).int()
                 class_weights=class_weight.compute_class_weight(class_weight=None, classes=np.unique(label_w.to(self.device)), y=label_w.to(self.device).numpy())
@@ -147,17 +184,19 @@ class Trainer():
                 print("logits.shape={}, label.shape={}".format(logits.shape, label.shape))
                 print("logits[:,0:10]={}, label[:,0:10].shape={}".format(logits[:10], label[:,0:10]))
                 #class_weights=torch.tensor([1,1], dtype=torch.float)
+                '''
                 
-                BCE_loss = nn.functional.binary_cross_entropy_with_logits(input=logits.to(self.device), target=label.to(self.device))
-                pt = torch.exp(-BCE_loss) # prevents nans when probability 0
-                #focal_loss = self.alpha * (1-pt)**self.gamma * BCE_loss
-                focal_loss = class_weights[1] * (1-pt)**self.gamma * BCE_loss
-                tmp_loss = focal_loss.mean()
+                logits = logits.to(self.device)
+                label = label.to(self.device)
                 '''
-                print(">>>> [new] logits.shape = {}, label.shape = {}".format(logits.shape, label.shape))
-                print(">>>> [new] logits = {}, label = {}".format(logits[0:5], label[0:5]))
+                p = torch.sigmoid(logits)
+                ce_loss = F.binary_cross_entropy_with_logits(logits, label)
+                p_t = p * label + (1 - p) * (1 - label)
+                loss = ce_loss * ((1 - p_t) ** self.gamma)
+                alpha_t = self.alpha * label + (1 - self.alpha) * (1 - label)
+                tmp_loss = alpha_t * loss
                 '''
-
+                tmp_loss = self.criterion(logits, label)
                 tmp_loss.backward()
                 self.optimizer.step()
                 
@@ -367,21 +406,16 @@ class Trainer():
             # loss
             # binary_cross_entropy_with_logits : input doesn't need to be [0,1], but target/label need to be [0, N-1] (therwise the loss will be wired)
             #tmp_loss = nn.functional.binary_cross_entropy_with_logits(logits, label)
-            class_weights=class_weight.compute_class_weight(class_weight=None, classes=[0,1], y=y_true_all[nb])
-            class_weights=torch.tensor(class_weights, dtype=torch.float)
-            print("[val]>>> class_weights = {}, class_weights[1] = {}".format(class_weights,class_weights[1]))
+            #class_weights=class_weight.compute_class_weight(class_weight=None, classes=[0,1], y=y_true_all[nb])
+            #class_weights=torch.tensor(class_weights, dtype=torch.float)
+            #print("[val]>>> class_weights = {}, class_weights[1] = {}".format(class_weights,class_weights[1]))
             # with weights
             #tmp_loss = nn.functional.binary_cross_entropy_with_logits(weight=class_weights.to(self.device), reduction='mean', input=logits, target=label)
             #tmp_loss = self.criterion(input=logits, target=label)
             #tmp_loss = nn.functional.binary_cross_entropy_with_logits(reduction='mean', input=logits.to(self.device), target=label.to(self.device))
             logits = logits.to(self.device)
             label = label.to(self.device)
-            
-            BCE_loss = nn.functional.binary_cross_entropy_with_logits(input=logits.to(self.device), target=label.to(self.device))
-            pt = torch.exp(-BCE_loss) # prevents nans when probability 0
-            #focal_loss = self.alpha * (1-pt)**self.gamma * BCE_loss
-            focal_loss = class_weights[1] * (1-pt)**self.gamma * BCE_loss
-            tmp_loss = focal_loss.mean()
+            tmp_loss = self.criterion(logits, label)
             sum_val_loss = sum_val_loss + tmp_loss.item()
 
             # accuracy

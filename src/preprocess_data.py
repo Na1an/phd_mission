@@ -502,11 +502,9 @@ def prepare_dataset_ier(data, voxel_size_ier, voxel_sample_mode, augmentation, r
                 data_tmp = sample_tmp[ic][sample_tmp[ic][:,ind_f] >= th_exp]
             else:
                 data_tmp = sample_tmp[ic][sample_tmp[ic][:,ind_f] <= th_exp]
-                print("sample_tmp_bis.shape=", data_tmp.shape)
             return np.delete(data_tmp, ind_f, axis=1)
 
         sample_tmp_bis = partition(9, 0.1, bigger=False)
-        print("sample_tmp_bis.shape=", sample_tmp_bis.shape)
         sample_tmp_bis[:,7:] = standardization(sample_tmp_bis[:,7:])
         sample_tmp_bis[:,:3], max_axe, max_x_axe, max_y_axe, max_z_axe = normalize_long_axe(sample_tmp_bis[:,:3])
         new_voxel_size = 1/resolution
@@ -581,7 +579,6 @@ def prepare_procedure_ier(path, resolution, voxel_sample_mode, label_name, augme
     samples_res = []
     sample_voxel_net_index = []
     for i in range(len(samples)):
-        print("samples[i].shape=",samples[i].shape)
         new_sample_tmp = split_reminder(samples[i], sample_size, axis=0)
         # p_size, the last one 
         p_size, f_size = new_sample_tmp[-1].shape

@@ -58,7 +58,7 @@ if __name__ == "__main__":
                                                         resolution,
                                                         voxel_sample_mode,
                                                         label_name="WL", 
-                                                        sample_size=5000,
+                                                        sample_size=sample_size,
                                                         augmentation=augmentation)
     train_dataset = TrainDataSet(samples_train, sample_voxel_net_index_train, train_voxel_nets, my_device)
     train_dataset.show_info()
@@ -69,7 +69,7 @@ if __name__ == "__main__":
                                                     resolution,
                                                     voxel_sample_mode, 
                                                     label_name="WL",
-                                                    sample_size=5000,
+                                                    sample_size=sample_size,
                                                     augmentation=augmentation)
     val_dataset = TrainDataSet(samples_val, sample_voxel_net_index_val, val_voxel_nets, my_device)
     val_dataset.show_info()
