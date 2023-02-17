@@ -415,11 +415,6 @@ def cauculate_ier(voxels, voxel_low, seen, voxel_size, nb_component, limit_comp=
         
         voxels[k] = points, gd
 
-def dist_3d(a,b):
-    x_a, y_a, z_a = a
-    x_b, y_b, z_b = b
-    return (((x_a-x_b)**2 + (y_a-y_b)**2 + (z_a - z_b**2))**0.5)
-
 # calculate the geodesic diatance of a voxelized space (cuboid)
 def geodesic_distance(voxels, voxel_size, tree_radius=7.0, limit_comp=10, limit_p_in_comp=100):
     '''

@@ -155,7 +155,9 @@ def voxel_grid_sample(cuboid, voxel_size, mode):
 
     nb_p_max = np.max(nb_points_per_voxel)
     nb_p_min = np.min(nb_points_per_voxel)
-    voxel_and_points = np.concatenate((no_empty_voxel, np.array([(nb_points_per_voxel - nb_p_min)/(nb_p_max - nb_p_min)]).T), axis=1)
+    
+    #voxel_and_points = np.concatenate((no_empty_voxel, np.array([(nb_points_per_voxel - nb_p_min)/(nb_p_max - nb_p_min)]).T), axis=1)
+    voxel_and_points = np.concatenate((no_empty_voxel, np.array([(nb_points_per_voxel/nb_p_max)]).T), axis=1)
     #voxel_and_points = np.append(no_empty_voxel, np.array(intensity_std).reshape(-1, 1), axis=1)
 
     #return np.array(res), np.array(nb_points_per_voxel), voxel_and_points
@@ -208,214 +210,6 @@ def analyse_voxel_in_cuboid_bak(voxel_skeleton_cuboid, h, side):
             res[k,int(v_x),int(v_y),int(v_z)] = v_p
 
     return res
-
-# calculate IER (intrinsic-extrinsic ratio) and its gradient
-def IER():
-    return None
-
-############################# for training #################################
-# for prepare dataset
-def prepare_dataset(data, coords_sw, grid_size, voxel_size, global_height, voxel_sample_mode, sample_size, detail=False, data_augmentation=False):
-    '''
-    Args:
-        data: a numpy.ndarray (x,y,z,label). 
-        coords_sw: (cuboid_x, cuboid_y, 2). The coordinates of sliding window.
-        grid_size: The cuboid length and width.
-        voxel_size: The voxel size.
-        global_height: a float. The global height, our cuboid height.
-        voxel_sample_mode: a string. mc or cmc.
-        sample_size: how many points in a sample.
-    Returns:
-        samples: (nb_sample/sample_id, 5000, 4 :x + y + z + label).
-        sample_cuboid_index: (nb_sample/sample_id, index of nb_cuboid).
-        voxel_skeleton_cuboid: (nb_voxel, 4:x+y+z+[1 or 0]).
-    '''
-
-    # get voxel_skeleton_cuboid
-    (nb_cuboid,_) = coords_sw.shape
-    cub_s_nb = int(grid_size/voxel_size)
-    cub_h_nb = int(global_height/voxel_size)
-    
-    # returns
-    samples = []
-    sample_cuboid_index = {}
-    voxel_skeleton_cuboid = {}
-
-    w_nb = 0
-    nb_sample = 0
-    count_voxel_skeleton = 0
-
-    for coord in coords_sw:
-        
-        # (1) global coordinates of each cuboids
-        local_x, local_y = coord
-        print("\n>> sliding window n°", w_nb, "bottom left coordinate :(",local_x, ',',local_y,')')
-
-        # (2) find index of the data_preprocessed in this sliding window
-        local_index = get_region_index(data, local_x, local_x+grid_size, local_y, local_y+grid_size)
-        #print(">> there are {} points in this cuboid".format(len(local_index[0])))
-        
-        if len(local_index[0]) < 100:
-            print(">> point number not enough, cuboid-{} skiped".format(w_nb))
-            #voxel_skeleton_cuboid[w_nb] = []
-            w_nb = w_nb + 1
-            continue
-
-        # (3) shift points to local origin (0, 0, 0) and zero-centered
-        local_points = data[local_index]
-        local_points[:,0] = local_points[:,0] - local_x
-        local_points[:,1] = local_points[:,1] - local_y
-        local_z_min = np.min(local_points[:,2])
-        local_abs_height = np.max(local_points[:,2]) - local_z_min
-        # local_abs_height
-        local_points[:,2] = local_points[:,2] - local_z_min
-        print("local points size={} shape={} type={}".format(local_points.size, local_points.shape, type(local_points)))
-        
-        if len(local_index[0]) < sample_size:
-            print(">> local points shape={}".format(local_points.shape))
-            local_points = np.repeat(local_points, (sample_size//len(local_index[0]))+1, axis=0)
-            print(">> [duplicate] local points shape={}".format(local_points.shape))
-
-        if detail:
-            print(">>> local abs height :", local_abs_height)
-            print(">>> local data.shape :", local_points.shape)
-            print(">>> local_data (points in cuboid) zero-centered and standardization/normalization")
-            #print(">>> local_points=", local_points[:,:3][0:100])
-
-        # the number of local_points
-        tmp_nb_sample = int(len(local_points)/sample_size)
-
-        # (4) voxelization
-        key_points_in_voxel, nb_points_per_voxel, voxel = voxel_grid_sample(local_points, voxel_size, voxel_sample_mode)
-        
-        voxel_skeleton_cuboid[count_voxel_skeleton] = voxel
-        #visualize_voxel_key_points(voxel, nb_points_per_voxel, "TLS voxelized data")
-
-        # (5) centralization in (x y z) thress axis by the center of voxels
-        #local_points[:,:3] = local_points[:,:3] - np.mean(local_points[:, :3], axis=0)
-        local_points_tmp = local_points.copy()
-        local_points_tmp[:,:3] = local_points_tmp[:,:3] - np.array([grid_size/2, grid_size/2, global_height/2])
-        local_points_tmp[:,:2] = local_points_tmp[:,:2]/grid_size
-        local_points_tmp[:,2] = local_points_tmp[:,2]/global_height
-        
-        #print(">>> nb_sample={}".format(nb_sample))
-        # set sample_cuboid_index
-        for i_s in range(nb_sample, nb_sample+tmp_nb_sample):
-            sample_cuboid_index[i_s] = count_voxel_skeleton
-        count_voxel_skeleton = count_voxel_skeleton + 1
-        
-        nb_sample = nb_sample + tmp_nb_sample
-        if detail:
-            print(">>> tmp_nb_sample={}, nb_sample+tmp={}".format(tmp_nb_sample, nb_sample))
-
-        # set samples
-        np.random.shuffle(local_points_tmp)
-        tmp_samples = [local_points_tmp[sample_size*i_t:sample_size*(i_t+1)] for i_t in range(tmp_nb_sample)]
-        [samples.append(item) for item in tmp_samples]
-
-        if data_augmentation:            
-            # data augmentation
-            rotation = Rotation.from_euler('z', [90, 180, 270], degrees=True)
-            for angle in range(3):
-                #rotation[angle]
-                local_points_tmp = local_points.copy()
-                local_points_tmp[:,:2] = local_points_tmp[:,:2] - np.array([grid_size/2, grid_size/2])
-                local_points_tmp[:,:3] = rotation[angle].apply(local_points_tmp[:,:3])
-                local_points_tmp[:,:2] = local_points_tmp[:,:2] + np.array([grid_size/2, grid_size/2])
-
-                '''
-                # $$$$$$$$$$$$$$see what we used for training$$$$$$$$$$$$$$$
-                new_file = laspy.create(point_format=3)
-                new_file.x = local_points_tmp[:,0]
-                new_file.y = local_points_tmp[:,1]
-                new_file.z = local_points_tmp[:,2]
-                new_file.write(os.getcwd()+"/test_"+ datetime.now().strftime('%Y-%m-%d_%H-%M-%S') + "-" + str(angle)+".las")
-                '''
-
-                # (4) voxelization
-                key_points_in_voxel, nb_points_per_voxel, voxel = voxel_grid_sample(local_points_tmp, voxel_size, voxel_sample_mode)
-                voxel_skeleton_cuboid[count_voxel_skeleton] = voxel
-                #visualize_voxel_key_points(voxel, nb_points_per_voxel, "TLS voxelized data")
-
-                local_points_tmp[:,:3] = local_points_tmp[:,:3] - np.array([grid_size/2, grid_size/2, global_height/2])
-                local_points_tmp[:,:2] = local_points_tmp[:,:2]/grid_size
-                local_points_tmp[:,2] = local_points_tmp[:,2]/global_height
-                
-                # set sample_cuboid_index
-                for i_s in range(nb_sample, nb_sample+tmp_nb_sample):
-                    sample_cuboid_index[i_s] = count_voxel_skeleton
-                count_voxel_skeleton = count_voxel_skeleton + 1
-                nb_sample = nb_sample + tmp_nb_sample
-
-                if detail:
-                    print(">>> [data augmentation - sample rotated:{}°]".format((angle+1)*90))
-                    print(">>> tmp_nb_sample={}, nb_sample+tmp={}".format(tmp_nb_sample, nb_sample))
-                
-                # set samples
-                np.random.shuffle(local_points_tmp)
-                tmp_samples = [local_points_tmp[sample_size*i_t:sample_size*(i_t+1)] for i_t in range(tmp_nb_sample)]
-                [samples.append(item) for item in tmp_samples]
-            
-        # sliding_window added 1
-        w_nb = w_nb + 1
-        
-    return np.array(samples), sample_cuboid_index, voxel_skeleton_cuboid
-
-def prepare_procedure(path, grid_size, voxel_size, voxel_sample_mode, sample_size, global_height=50, label_name="llabel", detail=False, naif_sliding=False, nb_window=10):
-    '''
-    Args:
-        path : raw_data_path. The path of training/validation/test file.
-        detail : a bool. If we want to show the details below.
-    Returns:
-    '''
-    # (1) preprocess data and get set of sliding window coordinates
-    print("> input data:", path)
-    data_preprocessed, x_min, x_max, y_min, y_max, z_min, z_max = read_data_with_intensity(path, label_name=label_name, detail=True)
-    print("\n> data_preprocess.shape =", data_preprocessed.shape)
-
-    # sliding window
-    if naif_sliding:
-        print(">> ok, we do naif sliding")
-        t1 = sliding_window_naif(0, x_max - x_min, 0, y_max - y_min, grid_size)
-        d1,d2,d3 = t1.shape
-        coords_sw = t1.reshape((d1*d2, 2))
-    else:
-        t1 = sliding_window(0, x_max - x_min, 0, y_max - y_min, grid_size, nb_window)
-        d1,d2,d3 = t1.shape
-        t1 = t1.reshape((d1*d2, 2))
-        t2 = sliding_window_old(0, x_max - x_min, 0, y_max - y_min, grid_size)
-        d1,d2,d3 = t2.shape
-        t2 = t2.reshape((d1*d2, 2))
-        #print("t1.shape={} t1={}".format(t1.shape, t1))
-        #print("t2.shape={} t2={}".format(t2.shape, t2))
-        coords_sw = np.concatenate((t1,t2), axis=0)
-
-    d1,d2 = coords_sw.shape
-    nb_cuboid = d1
-    print("> sliding window : coords.shape={}".format(coords_sw.shape))
-    #exit()
-
-    #global_height = z_max - z_min
-    #global_height = 50
-    samples, sample_cuboid_index, voxel_skeleton_cuboid = prepare_dataset(data_preprocessed, coords_sw, grid_size, voxel_size, global_height, voxel_sample_mode, sample_size, detail=detail)
-    print(">>> samples.shape={}, sample_cuboid_index.shape={}, voxel_skele.len={}".format(samples.shape, len(sample_cuboid_index), len(voxel_skeleton_cuboid)))
-    
-    voxel_nets = analyse_voxel_in_cuboid(voxel_skeleton_cuboid, int(global_height/voxel_size), int(grid_size/voxel_size))
-    
-    unique,count = np.unique(voxel_nets, return_counts=True)
-    data_count = dict(zip(unique, count))
-    
-    if detail:
-        print("> grid_size:", grid_size)
-        print("> voxel_size:", voxel_size)
-        print("> voxel sample mode is:", voxel_sample_mode)
-        print("len(voxel_skeleton_cuboid) =", len(voxel_skeleton_cuboid), " ", type(voxel_skeleton_cuboid))
-        print("v_k_c[0]=type",type(voxel_skeleton_cuboid[0]))
-        print("v_k_c[0]=",voxel_skeleton_cuboid[0])
-        print("voxel_nets.shape=", voxel_nets.shape)
-        #print("> data_count", data_count)
-
-    return samples, sample_cuboid_index, voxel_nets
 
 ##########################
 # training - ier version #
@@ -1033,3 +827,207 @@ def prepare_dataset_ier_bak(data, voxel_size_ier, voxel_sample_mode, augmentatio
     print(">> prepare_dataset_ier finesehd samples.shape={} sample_voxelized.shape={}".format(samples.shape, sample_voxelized.shape))
 
     return samples, sample_voxelized, sample_position
+
+############################# for training #################################
+# for prepare dataset
+def prepare_dataset(data, coords_sw, grid_size, voxel_size, global_height, voxel_sample_mode, sample_size, detail=False, data_augmentation=False):
+    '''
+    Args:
+        data: a numpy.ndarray (x,y,z,label). 
+        coords_sw: (cuboid_x, cuboid_y, 2). The coordinates of sliding window.
+        grid_size: The cuboid length and width.
+        voxel_size: The voxel size.
+        global_height: a float. The global height, our cuboid height.
+        voxel_sample_mode: a string. mc or cmc.
+        sample_size: how many points in a sample.
+    Returns:
+        samples: (nb_sample/sample_id, 5000, 4 :x + y + z + label).
+        sample_cuboid_index: (nb_sample/sample_id, index of nb_cuboid).
+        voxel_skeleton_cuboid: (nb_voxel, 4:x+y+z+[1 or 0]).
+    '''
+
+    # get voxel_skeleton_cuboid
+    (nb_cuboid,_) = coords_sw.shape
+    cub_s_nb = int(grid_size/voxel_size)
+    cub_h_nb = int(global_height/voxel_size)
+    
+    # returns
+    samples = []
+    sample_cuboid_index = {}
+    voxel_skeleton_cuboid = {}
+
+    w_nb = 0
+    nb_sample = 0
+    count_voxel_skeleton = 0
+
+    for coord in coords_sw:
+        
+        # (1) global coordinates of each cuboids
+        local_x, local_y = coord
+        print("\n>> sliding window n°", w_nb, "bottom left coordinate :(",local_x, ',',local_y,')')
+
+        # (2) find index of the data_preprocessed in this sliding window
+        local_index = get_region_index(data, local_x, local_x+grid_size, local_y, local_y+grid_size)
+        #print(">> there are {} points in this cuboid".format(len(local_index[0])))
+        
+        if len(local_index[0]) < 100:
+            print(">> point number not enough, cuboid-{} skiped".format(w_nb))
+            #voxel_skeleton_cuboid[w_nb] = []
+            w_nb = w_nb + 1
+            continue
+
+        # (3) shift points to local origin (0, 0, 0) and zero-centered
+        local_points = data[local_index]
+        local_points[:,0] = local_points[:,0] - local_x
+        local_points[:,1] = local_points[:,1] - local_y
+        local_z_min = np.min(local_points[:,2])
+        local_abs_height = np.max(local_points[:,2]) - local_z_min
+        # local_abs_height
+        local_points[:,2] = local_points[:,2] - local_z_min
+        print("local points size={} shape={} type={}".format(local_points.size, local_points.shape, type(local_points)))
+        
+        if len(local_index[0]) < sample_size:
+            print(">> local points shape={}".format(local_points.shape))
+            local_points = np.repeat(local_points, (sample_size//len(local_index[0]))+1, axis=0)
+            print(">> [duplicate] local points shape={}".format(local_points.shape))
+
+        if detail:
+            print(">>> local abs height :", local_abs_height)
+            print(">>> local data.shape :", local_points.shape)
+            print(">>> local_data (points in cuboid) zero-centered and standardization/normalization")
+            #print(">>> local_points=", local_points[:,:3][0:100])
+
+        # the number of local_points
+        tmp_nb_sample = int(len(local_points)/sample_size)
+
+        # (4) voxelization
+        key_points_in_voxel, nb_points_per_voxel, voxel = voxel_grid_sample(local_points, voxel_size, voxel_sample_mode)
+        
+        voxel_skeleton_cuboid[count_voxel_skeleton] = voxel
+        #visualize_voxel_key_points(voxel, nb_points_per_voxel, "TLS voxelized data")
+
+        # (5) centralization in (x y z) thress axis by the center of voxels
+        #local_points[:,:3] = local_points[:,:3] - np.mean(local_points[:, :3], axis=0)
+        local_points_tmp = local_points.copy()
+        local_points_tmp[:,:3] = local_points_tmp[:,:3] - np.array([grid_size/2, grid_size/2, global_height/2])
+        local_points_tmp[:,:2] = local_points_tmp[:,:2]/grid_size
+        local_points_tmp[:,2] = local_points_tmp[:,2]/global_height
+        
+        #print(">>> nb_sample={}".format(nb_sample))
+        # set sample_cuboid_index
+        for i_s in range(nb_sample, nb_sample+tmp_nb_sample):
+            sample_cuboid_index[i_s] = count_voxel_skeleton
+        count_voxel_skeleton = count_voxel_skeleton + 1
+        
+        nb_sample = nb_sample + tmp_nb_sample
+        if detail:
+            print(">>> tmp_nb_sample={}, nb_sample+tmp={}".format(tmp_nb_sample, nb_sample))
+
+        # set samples
+        np.random.shuffle(local_points_tmp)
+        tmp_samples = [local_points_tmp[sample_size*i_t:sample_size*(i_t+1)] for i_t in range(tmp_nb_sample)]
+        [samples.append(item) for item in tmp_samples]
+
+        if data_augmentation:            
+            # data augmentation
+            rotation = Rotation.from_euler('z', [90, 180, 270], degrees=True)
+            for angle in range(3):
+                #rotation[angle]
+                local_points_tmp = local_points.copy()
+                local_points_tmp[:,:2] = local_points_tmp[:,:2] - np.array([grid_size/2, grid_size/2])
+                local_points_tmp[:,:3] = rotation[angle].apply(local_points_tmp[:,:3])
+                local_points_tmp[:,:2] = local_points_tmp[:,:2] + np.array([grid_size/2, grid_size/2])
+
+                '''
+                # $$$$$$$$$$$$$$see what we used for training$$$$$$$$$$$$$$$
+                new_file = laspy.create(point_format=3)
+                new_file.x = local_points_tmp[:,0]
+                new_file.y = local_points_tmp[:,1]
+                new_file.z = local_points_tmp[:,2]
+                new_file.write(os.getcwd()+"/test_"+ datetime.now().strftime('%Y-%m-%d_%H-%M-%S') + "-" + str(angle)+".las")
+                '''
+
+                # (4) voxelization
+                key_points_in_voxel, nb_points_per_voxel, voxel = voxel_grid_sample(local_points_tmp, voxel_size, voxel_sample_mode)
+                voxel_skeleton_cuboid[count_voxel_skeleton] = voxel
+                #visualize_voxel_key_points(voxel, nb_points_per_voxel, "TLS voxelized data")
+
+                local_points_tmp[:,:3] = local_points_tmp[:,:3] - np.array([grid_size/2, grid_size/2, global_height/2])
+                local_points_tmp[:,:2] = local_points_tmp[:,:2]/grid_size
+                local_points_tmp[:,2] = local_points_tmp[:,2]/global_height
+                
+                # set sample_cuboid_index
+                for i_s in range(nb_sample, nb_sample+tmp_nb_sample):
+                    sample_cuboid_index[i_s] = count_voxel_skeleton
+                count_voxel_skeleton = count_voxel_skeleton + 1
+                nb_sample = nb_sample + tmp_nb_sample
+
+                if detail:
+                    print(">>> [data augmentation - sample rotated:{}°]".format((angle+1)*90))
+                    print(">>> tmp_nb_sample={}, nb_sample+tmp={}".format(tmp_nb_sample, nb_sample))
+                
+                # set samples
+                np.random.shuffle(local_points_tmp)
+                tmp_samples = [local_points_tmp[sample_size*i_t:sample_size*(i_t+1)] for i_t in range(tmp_nb_sample)]
+                [samples.append(item) for item in tmp_samples]
+            
+        # sliding_window added 1
+        w_nb = w_nb + 1
+        
+    return np.array(samples), sample_cuboid_index, voxel_skeleton_cuboid
+
+def prepare_procedure(path, grid_size, voxel_size, voxel_sample_mode, sample_size, global_height=50, label_name="llabel", detail=False, naif_sliding=False, nb_window=10):
+    '''
+    Args:
+        path : raw_data_path. The path of training/validation/test file.
+        detail : a bool. If we want to show the details below.
+    Returns:
+    '''
+    # (1) preprocess data and get set of sliding window coordinates
+    print("> input data:", path)
+    data_preprocessed, x_min, x_max, y_min, y_max, z_min, z_max = read_data_with_intensity(path, label_name=label_name, detail=True)
+    print("\n> data_preprocess.shape =", data_preprocessed.shape)
+
+    # sliding window
+    if naif_sliding:
+        print(">> ok, we do naif sliding")
+        t1 = sliding_window_naif(0, x_max - x_min, 0, y_max - y_min, grid_size)
+        d1,d2,d3 = t1.shape
+        coords_sw = t1.reshape((d1*d2, 2))
+    else:
+        t1 = sliding_window(0, x_max - x_min, 0, y_max - y_min, grid_size, nb_window)
+        d1,d2,d3 = t1.shape
+        t1 = t1.reshape((d1*d2, 2))
+        t2 = sliding_window_old(0, x_max - x_min, 0, y_max - y_min, grid_size)
+        d1,d2,d3 = t2.shape
+        t2 = t2.reshape((d1*d2, 2))
+        #print("t1.shape={} t1={}".format(t1.shape, t1))
+        #print("t2.shape={} t2={}".format(t2.shape, t2))
+        coords_sw = np.concatenate((t1,t2), axis=0)
+
+    d1,d2 = coords_sw.shape
+    nb_cuboid = d1
+    print("> sliding window : coords.shape={}".format(coords_sw.shape))
+    #exit()
+
+    #global_height = z_max - z_min
+    #global_height = 50
+    samples, sample_cuboid_index, voxel_skeleton_cuboid = prepare_dataset(data_preprocessed, coords_sw, grid_size, voxel_size, global_height, voxel_sample_mode, sample_size, detail=detail)
+    print(">>> samples.shape={}, sample_cuboid_index.shape={}, voxel_skele.len={}".format(samples.shape, len(sample_cuboid_index), len(voxel_skeleton_cuboid)))
+    
+    voxel_nets = analyse_voxel_in_cuboid(voxel_skeleton_cuboid, int(global_height/voxel_size), int(grid_size/voxel_size))
+    
+    unique,count = np.unique(voxel_nets, return_counts=True)
+    data_count = dict(zip(unique, count))
+    
+    if detail:
+        print("> grid_size:", grid_size)
+        print("> voxel_size:", voxel_size)
+        print("> voxel sample mode is:", voxel_sample_mode)
+        print("len(voxel_skeleton_cuboid) =", len(voxel_skeleton_cuboid), " ", type(voxel_skeleton_cuboid))
+        print("v_k_c[0]=type",type(voxel_skeleton_cuboid[0]))
+        print("v_k_c[0]=",voxel_skeleton_cuboid[0])
+        print("voxel_nets.shape=", voxel_nets.shape)
+        #print("> data_count", data_count)
+
+    return samples, sample_cuboid_index, voxel_nets
