@@ -376,6 +376,7 @@ class Trainer():
             #tmp_loss = nn.functional.binary_cross_entropy_with_logits(reduction='mean', input=logits.to(self.device), target=label.to(self.device))
             logits = logits.to(self.device)
             label = label.to(self.device)
+            
             BCE_loss = nn.functional.binary_cross_entropy_with_logits(input=logits.to(self.device), target=label.to(self.device))
             pt = torch.exp(-BCE_loss) # prevents nans when probability 0
             #focal_loss = self.alpha * (1-pt)**self.gamma * BCE_loss

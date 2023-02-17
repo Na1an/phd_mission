@@ -116,18 +116,18 @@ def dist(a,b):
 # centerization by long axe
 def normalize_long_axe(pc):
     #print("pc.shape = {}".format(pc.shape))
-    max_x_axe = np.max(pc[:,0]) - np.min(pc[:,0])
-    max_y_axe = np.max(pc[:,1]) - np.min(pc[:,1])
-    max_z_axe = np.max(pc[:,2]) - np.min(pc[:,2])
+    max_x_axe = np.max(pc[:,0])
+    max_y_axe = np.max(pc[:,1])
+    max_z_axe = np.max(pc[:,2])
 
     max_axe = max(max(max_x_axe, max_y_axe), max_z_axe)
     #print("max_x_axe={}, max_y_axe={}, max_z_axe={}, max_axe = {}".format(max_x_axe, max_y_axe, max_z_axe, max_axe))
-    pc[:,0] = pc[:,0] + (max_axe - max_x_axe)/2
-    pc[:,1] = pc[:,1] + (max_axe - max_y_axe)/2
-    pc[:,2] = pc[:,2] + (max_axe - max_z_axe)/2
     pc[:,:3] = pc[:,:3]/max_axe
+    pc[:,0] = pc[:,0] - np.min(pc[:,0])/2
+    pc[:,1] = pc[:,1] - np.min(pc[:,0])/2
+    pc[:,2] = pc[:,2] - np.min(pc[:,0])/2
     #print("after pc.shape = {}".format(pc.shape))
-    return pc, max_axe
+    return pc, max_axe, max_x_axe, max_y_axe, max_z_axe
 
 def normalize_point_cloud_remake(pc, mode="gm"):
     if mode == "cm":
@@ -415,6 +415,11 @@ def cauculate_ier(voxels, voxel_low, seen, voxel_size, nb_component, limit_comp=
         
         voxels[k] = points, gd
 
+def dist_3d(a,b):
+    x_a, y_a, z_a = a
+    x_b, y_b, z_b = b
+    return (((x_a-x_b)**2 + (y_a-y_b)**2 + (z_a - z_b**2))**0.5)
+
 # calculate the geodesic diatance of a voxelized space (cuboid)
 def geodesic_distance(voxels, voxel_size, tree_radius=7.0, limit_comp=10, limit_p_in_comp=100):
     '''
@@ -456,7 +461,10 @@ def geodesic_distance(voxels, voxel_size, tree_radius=7.0, limit_comp=10, limit_
                 # here, setting the limits about IER or geodesic distance
                 # extend limit
 
-                if (gd_fa_min+1) > 20:
+                if ((gd_fa_min+1)/dist_3d(v_act, voxel_low)) > 1.5:
+                    continue
+
+                if (gd_fa_min+1) > 40:
                     continue
                 '''
                 # 关于高度与gd的限制
@@ -499,79 +507,3 @@ def geodesic_distance(voxels, voxel_size, tree_radius=7.0, limit_comp=10, limit_
 
     return voxels, nb_component
 
-# deprecessed
-
-# This function works for the preprocessing the data with intensity
-def read_data_with_intensity_bak(path, feature, feature2='intensity', detail=False):
-    '''
-    Args:
-        path : a string. The path of the data file.
-        feature : a string. Which feature we want to keep in the output.
-        detail : a bool. False by default.
-    Returns:
-        res : a 4-D numpy array type tensor.
-    '''
-    data_las = laspy.read(path)
-    x_min, x_max, y_min, y_max, z_min, z_max = get_info(data_las)
-    
-    print(">> data_las.z min={} max={} diff={}".format(z_min, z_max, z_max - z_min))
-
-    # intensity
-    #f2_max = np.log(np.max(data_las[feature2]))
-    #f2_min = np.log(np.min(data_las[feature2]))
-    #f_intensity = ((np.log(data_las[feature2])-f2_min)/(f2_max-f2_min))
-    
-    #(data_target['intensity']/65535)*35 - 30 for TLS
-    f_intensity = (data_las[feature2]/65535)*40 - 40
-    
-    #print(">> f_intensity.shape={}, nan size={}, non nan={}".format(f_intensity.shape, f_intensity[np.isnan(f_intensity)].shape, f_intensity[~np.isnan(f_intensity)].shape))
-
-    f_roughness = data_las["Roughness (0.7)"]
-    f_roughness[np.isnan(f_roughness)] = -0.1
-    f_roughness = f_roughness + 0.1
-    
-    f_ncr = data_las["Normal change rate (0.7)"]
-    f_ncr[np.isnan(f_ncr)] = -0.1
-    f_ncr = f_ncr + 0.1
-
-    max_nb_of_returns = 5
-    # order
-    f_return_nb = data_las["return_number"]
-    f_return_nb[np.isnan(f_return_nb)] = 1
-    f_return_nb = f_return_nb/max_nb_of_returns
-    
-    # total number
-    f_nb_of_returns = data_las["number_of_returns"]
-    f_nb_of_returns[np.isnan(f_nb_of_returns)] = 1
-    f_nb_of_returns = f_nb_of_returns/max_nb_of_returns
-    
-    f_rest_return = (f_nb_of_returns - f_return_nb)/max_nb_of_returns
-    f_ratio_return = f_return_nb/(f_nb_of_returns*max_nb_of_returns)
-    f_ratio_return[np.isnan(f_ratio_return)] = 0
-    
-    '''
-    print("nan shape = {} {} {} {}".format(
-        f_return_nb[np.isnan(f_return_nb)].shape, 
-        f_nb_of_returns[np.isnan(f_nb_of_returns)].shape,
-        f_rest_return[np.isnan(f_rest_return)].shape,
-        f_ratio_return[np.isnan(f_ratio_return)].shape
-        ))
-    exit()
-    '''
-    data = np.vstack((
-        data_las.x - x_min, 
-        data_las.y - y_min, 
-        data_las.z - z_min, 
-        data_las[feature],
-        normalize_feature(f_intensity),
-        normalize_feature(f_roughness), 
-        normalize_feature(f_ncr)
-        #f_return_nb,
-        #f_nb_of_returns,
-        #f_rest_return,
-        #f_ratio_return
-        ))
-
-    print(">>>[!data with intensity] data shape =", data.shape, " type =", type(data))
-
-    return data.transpose(), x_min, x_max, y_min, y_max, z_min, z_max

@@ -24,7 +24,8 @@ if __name__ == "__main__":
     parser.add_argument("--global_height", help="The global_height.", type=int, default=50)
     parser.add_argument("--nb_window", help="int(nb_window**0.5) is the number of cuboids we want on the training set.", type=int, default=400)
     parser.add_argument("--augmentation", help="if we do the augmentation or not.", type=bool, default=False)
-
+    parser.add_argument("--resolution", help="resolution of data", type=int, default=20)
+    
     args = parser.parse_args()
 
     # take arguments
@@ -50,7 +51,7 @@ if __name__ == "__main__":
         my_device = torch.device('cpu')
     print('> Device : {}'.format(my_device))
 
-    resolution = 21
+    resolution = 25
     # (2) prepare train dataset and validation dataset
     samples_train, sample_voxel_net_index_train, train_voxel_nets = prepare_procedure_ier(
                                                         train_data_path, 
