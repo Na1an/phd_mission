@@ -76,32 +76,6 @@ def visualize_voxel_key_points(points, points_per_voxel, title):
 def get_current_direct_path():
     return os.path.dirname(os.path.abspath(__file__))
 
-# create confusion matrix
-def createConfusionMatrix(loader):
-    y_pred = [] # save predction
-    y_true = [] # save ground truth
-
-    # iterate over data
-    for inputs, labels in loader:
-        output = net(inputs)  # Feed Network
-
-        output = (torch.max(torch.exp(output), 1)[1]).data.cpu().numpy()
-        y_pred.extend(output)  # save prediction
-
-        labels = labels.data.cpu().numpy()
-        y_true.extend(labels)  # save ground truth
-
-    # constant for classes
-    classes = ('T-shirt/top', 'Trouser', 'Pullover', 'Dress', 'Coat',
-               'Sandal', 'Shirt', 'Sneaker', 'Bag', 'Ankle Boot')
-
-    # Build confusion matrix
-    cf_matrix = confusion_matrix(y_true, y_pred)
-    df_cm = pd.DataFrame(cf_matrix/np.sum(cf_matrix) * 10, index=[i for i in classes],
-                         columns=[i for i in classes])
-    plt.figure(figsize=(12, 7))    
-    return sn.heatmap(df_cm, annot=True).get_figure()
-
 # to do
 # setting device
 def setting_device():
@@ -179,27 +153,6 @@ def plot_voxels(voxels, grid_size=0, voxel_size=0.5):
     m.set_array([])
     plt.colorbar(m, ax=ax, fraction=0.046, pad=0.04)
     plt.show()
-# once we have tn, fp, fn, tp = cf_matrix.ravel()
-# we then calculate recall, precision
-def calculate_recall_precision(tn, fp, fn, tp):
-    # Sensitivity, hit rate, recall, or true positive rate
-    recall = tp/(tp+fn)
-    # Specificity or true negative rate
-    specificity = tn/(tn+fp)
-    # Precision or positive predictive value
-    precision = tp/(tp+fp)
-    # Negative predictive value
-    npv = tn/(tn+fn)
-    # Fall out or false positive rate
-    fpr = fp/(fp+tn)
-    # False negative rate
-    fnr = fn/(tp+fn)
-    # False discovery rate
-    fdr = fp/(tp+fp)
-
-    # Overall accuracy
-    acc = (tp+tn)/(tp+fp+fn+tn)
-    return recall, specificity, precision, npv, fpr, fnr, fdr, acc
 
 def check_nan_in_array(feature_name,a):
     print(feature_name + "shape={} nan size={}".format(a.shape, a[np.isnan(a)].shape))
@@ -334,6 +287,35 @@ def calculate_auroc(y_score, y_true):
 
     roc_auc_score(y_score=logits[:,1], y_true=label[:,1])
     return 0
+
+# we then calculate recall, precision
+def calculate_recall_precision(tn, fp, fn, tp):
+    #confusion_matrix(y_true, y_pred)
+    # Sensitivity, hit rate, recall, or true positive rate
+    recall = tp/(tp+fn)
+    # Specificity or true negative rate
+    specificity = tn/(tn+fp)
+    # Precision or positive predictive value
+    precision = tp/(tp+fp)
+    # Negative predictive value
+    npv = tn/(tn+fn)
+    # Fall out or false positive rate
+    fpr = fp/(fp+tn)
+    # False negative rate
+    fnr = fn/(tp+fn)
+    # False discovery rate
+    fdr = fp/(tp+fp)
+
+    # Overall accuracy
+    acc = (tp+tn)/(tp+fp+fn+tn)
+    return recall, specificity, precision, npv, fpr, fnr, fdr, acc
+
+def calculate_metrics(y_true, y_pred):
+    cm = confusion_matrix(label, logits, labels=[0,1])
+    tn, fp, fn, tp = cm.ravel()
+    recall, specificity, precision, npv, fpr, fnr, fdr, acc = calculate_recall_precision(tn, fp, fn, tp)
+
+    return None
 
 def split_reminder(x, chunk_size, axis=0):
     indices = np.arange(chunk_size, x.shape[axis], chunk_size)

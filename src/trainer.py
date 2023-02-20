@@ -6,11 +6,11 @@ from utility import *
 from glob import glob
 from torch.utils.data import DataLoader
 #from torchviz import make_dot
+from torch.autograd import Variable
 from torch.utils.tensorboard import SummaryWriter
-from captum.attr import LayerGradCam, Saliency, LayerActivation
 from sklearn.utils import class_weight
 from sklearn.metrics import precision_recall_fscore_support
-from torch.autograd import Variable
+from captum.attr import LayerGradCam, Saliency, LayerActivation
 
 class FocalLoss(nn.Module):
 
@@ -161,41 +161,9 @@ class Trainer():
                 
                 # version cluster
                 #print("label.shape={}".format(label.shape))
-                '''
-                y_true = label.detach().clone().cpu().data.numpy().transpose(0,2,1).reshape(self.batch_size*self.sample_size, 2).astype('int64')
-                logits = logits.permute(0,2,1).reshape(self.batch_size*self.sample_size, 2).to(self.device)
-                logits = F.softmax(logits, dim=1)
-                logits_leaf = logits[:,0].detach().clone().cpu().data.numpy()
-                print(">>>> logits_leaf[0:0] ={}".format(logits_leaf[0:10]))
-                logits_wood = logits[:,1].detach().clone().cpu().data.numpy()
-                print(">>>> logits_wood[0:10] ={}".format(logits_wood[0:10]))
-                label = label.permute(0,2,1).reshape(self.batch_size*self.sample_size, 2).to(self.device)
-                print("logits[0:20]=",logits[0:20])
-                print("label[0:20]=",label[0:20])
-                class_weights=class_weight.compute_class_weight(class_weight="balanced", classes=np.unique(np.argmax(y_true, axis=1)), y=np.argmax(y_true, axis=1))
-                class_weights=torch.tensor(class_weights, dtype=torch.float)
-                
-                label_w = label.permute(0,2,1).reshape(self.batch_size*self.sample_size, 2)
-                label_w = torch.argmax(label_w, dim=1).int()
-                class_weights=class_weight.compute_class_weight(class_weight=None, classes=np.unique(label_w.to(self.device)), y=label_w.to(self.device).numpy())
-                class_weights=torch.tensor(class_weights, dtype=torch.float)
-                
-                print("[train]>>> class_weights = {}, class_weights[1] = {}".format(class_weights,class_weights[1]))
-                print("logits.shape={}, label.shape={}".format(logits.shape, label.shape))
-                print("logits[:,0:10]={}, label[:,0:10].shape={}".format(logits[:10], label[:,0:10]))
-                #class_weights=torch.tensor([1,1], dtype=torch.float)
-                '''
                 
                 logits = logits.to(self.device)
                 label = label.to(self.device)
-                '''
-                p = torch.sigmoid(logits)
-                ce_loss = F.binary_cross_entropy_with_logits(logits, label)
-                p_t = p * label + (1 - p) * (1 - label)
-                loss = ce_loss * ((1 - p_t) ** self.gamma)
-                alpha_t = self.alpha * label + (1 - self.alpha) * (1 - label)
-                tmp_loss = alpha_t * loss
-                '''
                 tmp_loss = self.criterion(logits, label)
                 tmp_loss.backward()
                 self.optimizer.step()
@@ -203,11 +171,10 @@ class Trainer():
                 #res1, res2 = label.max(1), res = [0.77, 0.78, 0.22, ... proba] res2 = [1,1,0,0... label]
                 _, label = label.max(1)
                 _, logits = logits.max(1)
-                #label = label.int()
-                #logits = logits.int()
+
                 #logits = torch.where(logits>0.99, 1, 0)
                 print("logits.shape={}, label.shape={}".format(logits.shape, label.shape))
-                print("logits[:,0:10]={}, label[:,0:10].shape={}".format(logits[:10], label[:,0:10]))
+                print("logits[:,0:5]={}, label[:,0:5].shape={}".format(logits[:5], label[:,0:5]))
                 num_correct = torch.eq(logits.to(self.device), label.to(self.device)).sum().item()
                 
                 #print(" logits.argmax(dim=1).float() shape = {} label.argmax(dim=1).float() shape = {} num_correct = {}".format(logits.float().shape, label.float().shape,num_correct))
@@ -228,10 +195,6 @@ class Trainer():
                 cf_matrix = confusion_matrix(label, logits, labels=[0,1])
                 tn, fp, fn, tp = cf_matrix.ravel()
                 recall, specificity, precision, npv, fpr, fnr, fdr, acc = calculate_recall_precision(tn, fp, fn, tp)
-                #m_spe = BinarySpecificity()
-                #specificity = m_spe(logits, label)
-                f1_score_val = f1_score(label, logits)
-                #print("tn-{} fp-{} fn-{} tp-{} recall-{} specificity-{} precision-{} npv-{} fpr-{} fnr-{} fdr-{} acc-{} f1_score-{}".format(tn, fp, fn, tp, recall, specificity, precision, npv, fpr, fnr, fdr, acc, f1_score_val))
 
                 epoch_loss = epoch_loss + tmp_loss.item()
                 epoch_acc = epoch_acc + num_correct/self.sample_size
@@ -250,7 +213,7 @@ class Trainer():
 
             if e % 1 == 0:
                 self.save_checkpoint(e)
-                val_loss, predict_correct, mcc, df_cm, list_stat_res = self.compute_val_loss()
+                val_loss, val_acc, mcc, list_stat_res = self.compute_val_loss()
 
                 if self.val_min is None:
                     self.val_min = val_loss
@@ -262,28 +225,18 @@ class Trainer():
                     np.save(self.gradient_clipping_path + '/val_min={}'.format(e),[e,val_loss])
                     #print(">> val_min saved here :",self.gradient_clipping_path,"val_min=".format(e))
                 
-                print("<<Epoch {}>> - val loss average {} - val accuracy average {}".format(e, val_loss, predict_correct/self.sample_size))
+                print("<<Epoch {}>> - val loss average {} - val accuracy average {}".format(e, val_loss, val_acc))
                 self.writer.add_scalar('validation loss - avg', val_loss, e)
-                self.writer.add_scalar('validation accuracy - avg', predict_correct/self.sample_size, e)
+                self.writer.add_scalar('validation accuracy - avg', val_acc, e)
                 # add matthew correlation coefficient
-                #list_stat_res = [tn, fp, fn, tp, recall, specificity, precision, npv, fpr, fnr, fdr, acc, f1_score_val, auroc]
-                self.writer.add_scalar('tn - avg', list_stat_res[0], e)
-                self.writer.add_scalar('fp - avg', list_stat_res[1], e)
-                self.writer.add_scalar('fn - avg', list_stat_res[2], e)
-                self.writer.add_scalar('tp - avg', list_stat_res[3], e)
-                self.writer.add_scalar('recall - avg', list_stat_res[4], e)
-                self.writer.add_scalar('specificity - avg', list_stat_res[5], e)
-                self.writer.add_scalar('precision - avg', list_stat_res[6], e)
-                self.writer.add_scalar('npv - avg', list_stat_res[7], e)
-                self.writer.add_scalar('fpr - avg', list_stat_res[8], e)
-                self.writer.add_scalar('fnr - avg', list_stat_res[9], e)
-                self.writer.add_scalar('fdr - avg', list_stat_res[10], e)
-                self.writer.add_scalar('f1_score - avg', list_stat_res[12], e)
-                self.writer.add_scalar('auroc - avg', list_stat_res[13], e)
-                
-                #fig = sns.heatmap(df_cm, annot=True, cmap='Spectral').get_figure()
-                #plt.close(fig_)
-                #self.writer.add_figure("Confusion matrix", fig, e)
+                #list_stat_res = [recall, specificity, precision, acc, f1_score, auroc, mcc]
+                self.writer.add_scalar('recall - avg', list_stat_res[0], e)
+                self.writer.add_scalar('specificity - avg', list_stat_res[1], e)
+                self.writer.add_scalar('precision - avg', list_stat_res[2], e)
+                self.writer.add_scalar('accuracy - avg', list_stat_res[3], e)
+                self.writer.add_scalar('f1_score - avg', list_stat_res[4], e)
+                self.writer.add_scalar('auroc - avg', list_stat_res[5], e)
+                self.writer.add_scalar('mcc - avg', list_stat_res[6], e)
 
             self.writer.add_scalars('Loss', 
                 {
@@ -293,17 +246,17 @@ class Trainer():
             self.writer.add_scalars('Accuracy', 
                 {
                     'train_acc (epoch average)': epoch_acc/(loader_len*self.batch_size),
-                    'val_acc': predict_correct/self.sample_size
+                    'val_acc': val_acc
                 }, e)
             self.writer.add_scalars('Specificity', 
                 {
                     'train_sp (epoch average)': epoch_specificity/loader_len,
-                    'val_sp': list_stat_res[5] # validation specificity
+                    'val_sp': list_stat_res[1] # validation specificity
                 }, e)
             self.writer.add_scalars('Recall', 
                 {
                     'train_recall (epoch average)': epoch_recall/loader_len,
-                    'val_recall': list_stat_res[4] # validation recall
+                    'val_recall': list_stat_res[0] # validation recall
                 }, e)
 
         self.writer.close()
@@ -341,11 +294,8 @@ class Trainer():
         sum_val_loss = 0
         num_batches = 5
         predict_correct = 0
-        
-        mcc = 0
-        y_true_all = np.zeros((num_batches, self.sample_size*self.batch_size, 2))
-        y_predict_all = np.zeros((num_batches, self.sample_size*self.batch_size, 2))
-        #y_predict_wood_all = np.zeros((num_batches, self.sample_size*self.batch_size))
+        mcc, f1_score_all, auroc = 0,0,0
+        rec_all, spe_all, pre_all, acc_all,f1_all = [],[],[],[],[]
         for nb in range(num_batches):
             #output = self.model(points, self.train_voxel_nets[voxel_net])
             #tmp_loss = nn.functional.binary_cross_entropy_with_logits(output, label)
@@ -365,96 +315,46 @@ class Trainer():
             logits = F.softmax(logits, dim=1)
             label = label.permute(0,2,1).reshape(self.batch_size*self.sample_size, 2)
 
-            #logits = output.argmax(dim=1).float()
-            #preds, answer_id = nn.functional.softmax(logits, dim=1).data.cpu().max(dim=1)
-            
-            # version laptop
-            #y_true = label.detach().numpy().transpose(0,2,1).reshape(self.batch_size*self.sample_size, 2).astype('int64')
-            #y_predict = logits.detach().numpy().transpose(0,2,1).reshape(self.batch_size*self.sample_size, 2).astype('int64')
-            
-            # version cluster
-            #y_true = label.detach().numpy().astype('int64')
-            #y_predict = logits.detach().numpy().astype('float64')
-            #y_predict = F.softmax(y_predict, dim=1)
-
-            y_true_all[nb] = label.detach().clone().cpu().data.numpy().astype('int64')
-            y_predict_all[nb] = logits.detach().clone().cpu().data.numpy().astype('float64')
-            print("shape: y_true={}, y_predict={}".format(y_true_all[nb].shape, y_predict_all[nb].shape))
-
-            '''
-            # evaluate the contribution of layers
-            layer_act = LayerActivation(self.model, self.model.fc_0)
-            attribution = layer_act.attribute(points, intensity, self.train_voxel_nets[voxel_net], target=answer_id)
-            print("attribution=", attribution)
-            plt.plot(attribution.to('cpu').numpy(),output.to('cpu').numpy())
-            '''
-            '''
-            layer_gc = LayerGradCam(self.model, self.model.fc_0)
-            vv = self.train_voxel_nets[voxel_net]
-            attr0 = layer_gc.attribute(points, intensity, vv, target=1)
-            #attr1 = layer_gc.attribute(points, intensity, self.train_voxel_nets[voxel_net])
-            print("atttr0=", attr0)
-            #print("atttr1=", attr1)
-            plt.plot(attr0.to('cpu').numpy(),output.to('cpu').numpy())
-            #plt.plot(attr1.to('cpu').numpy(),output.to('cpu').numpy())
-            '''
-            '''
-            saliency = Saliency(self.model)
-            attribution = saliency.attribute(points, intensity, self.train_voxel_nets[voxel_net],target=0)
-            '''
-
-            # loss
-            # binary_cross_entropy_with_logits : input doesn't need to be [0,1], but target/label need to be [0, N-1] (therwise the loss will be wired)
-            #tmp_loss = nn.functional.binary_cross_entropy_with_logits(logits, label)
-            #class_weights=class_weight.compute_class_weight(class_weight=None, classes=[0,1], y=y_true_all[nb])
-            #class_weights=torch.tensor(class_weights, dtype=torch.float)
-            #print("[val]>>> class_weights = {}, class_weights[1] = {}".format(class_weights,class_weights[1]))
-            # with weights
-            #tmp_loss = nn.functional.binary_cross_entropy_with_logits(weight=class_weights.to(self.device), reduction='mean', input=logits, target=label)
-            #tmp_loss = self.criterion(input=logits, target=label)
-            #tmp_loss = nn.functional.binary_cross_entropy_with_logits(reduction='mean', input=logits.to(self.device), target=label.to(self.device))
             logits = logits.to(self.device)
             label = label.to(self.device)
+
+            # loss
             tmp_loss = self.criterion(logits, label)
             sum_val_loss = sum_val_loss + tmp_loss.item()
 
             # accuracy
             #preds = logits.argmax(dim=1).float()
-            num_correct = torch.eq(logits.argmax(dim=1).float(),label.argmax(dim=1).float()).sum().item()/self.batch_size
+            _,logits = logits.max(1)
+            _,label = label.max(1)
+            print("bincount y_true.shape={}".format(np.bincount(label)))
+            print("bincount y_predict.shape={}".format(np.bincount(logits)))
+            num_correct = torch.eq(logits,label).sum().item()/self.batch_size
             predict_correct = predict_correct + num_correct
-        
-        print("y_true_all.shape={} y_true_all = {}".format(y_true_all.shape, y_true_all))
-        print("y_predict_all.shape={} y_predict_all = {}".format(y_predict_all.shape, y_predict_all))
-        #print("bincount y_true_all.shape={}".format(np.bincount(y_true_all)))
-        #print("bincount y_predict_all.shape={}".format(np.bincount(y_predict_all)))
-        
-        y_true_all = y_true_all.reshape(num_batches*self.sample_size*self.batch_size*2).astype(int)
-        y_predict_all = y_predict_all.reshape(num_batches*self.sample_size*self.batch_size*2).astype(int)
-        #y_predict_wood_all = y_predict_wood_all.reshape(num_batches*self.sample_size*self.batch_size).astype(int)
-        #print("shape: y_true={}, y_predict={}".format(y_true_all.shape, y_predict_all.shape))
-        print("bincount y_true_all.shape={}".format(np.bincount(y_true_all)))
-        print("bincount y_predict_all.shape={}".format(np.bincount(y_predict_all)))
-        #cf_matrix = confusion_matrix(y_true_all, y_predict_all, labels=[0,1])
-        
-        mcc = matthews_corrcoef(y_true_all, y_predict_all)
-        classes = ('leaf', 'wood')
-        cf_matrix = confusion_matrix(y_true_all, y_predict_all, labels=[0,1])
-        
-        auroc_score = roc_auc_score(y_score=y_predict_all, y_true=y_true_all)
 
-        tn, fp, fn, tp = cf_matrix.ravel()
-        print("tn-{} fp-{} fn-{} tp-{}".format(tn, fp, fn, tp))
-        # precision, recall, f1-score
-        recall, specificity, precision, npv, fpr, fnr, fdr, acc = calculate_recall_precision(tn, fp, fn, tp)
-        #m_spe = BinarySpecificity()
-        #specificity = m_spe(y_predict_wood_all, y_true_all)
-        f1_score_val = f1_score(y_true_all, y_predict_all)
-        print("tn-{} fp-{} fn-{} tp-{} recall-{} specificity-{} precision-{} npv-{} fpr-{} fnr-{} fdr-{} acc-{} f1_score-{} auroc-{}".format(tn, fp, fn, tp, recall, specificity, precision, npv, fpr, fnr, fdr, acc, f1_score_val, auroc_score))
-        df_cm = pd.DataFrame(cf_matrix/np.sum(cf_matrix), index = [ic for ic in classes], columns = [ic for ic in classes])
+            # tn tp fn tp
+            tn, fp, fn, tp = confusion_matrix(label, logits, labels=[0,1]).ravel()
+            print("tn-{} fp-{} fn-{} tp-{}".format(tn, fp, fn, tp))
+            # precision, recall, f1-score
+            recall, specificity, precision, npv, fpr, fnr, fdr, acc = calculate_recall_precision(tn, fp, fn, tp)
+            rec_all.append(recall)
+            pre_all.append(precision)
+            spe_all.append(specificity)
+            acc_all.append(acc)
 
-        list_stat_res = [tn, fp, fn, tp, recall, specificity, precision, npv, fpr, fnr, fdr, acc, f1_score_val, auroc_score]
+            # mcc, auroc_score, f1_score
+            mcc = mcc + matthews_corrcoef(y_true=label, y_pred=logits)
+            auroc = auroc + roc_auc_score(y_true=label, y_score=logits)
+            f1_score_all = f1_score_all + f1_score(y_true=label, y_pred=logits, average='macro')
+            
+        mcc = mcc/num_batches
+        auroc = auroc/num_batches
+        f1_score_avg = f1_score_all/num_batches
+        
+        print("recall-{} specificity-{} precision-{} acc-{} f1_score-{} auroc-{} mcc-{}".format(np.mean(rec_all), np.mean(spe_all), np.mean(pre_all), np.mean(acc_all), f1_score_avg, auroc, mcc))
+        list_stat_res = [np.mean(rec_all), np.mean(spe_all), np.mean(pre_all), np.mean(acc_all), f1_score_avg, auroc, mcc]
 
-        return sum_val_loss/num_batches, predict_correct/num_batches, mcc, df_cm, list_stat_res
+        # return [validation loss, validation accuracy, mcc, list of metrics]
+        return sum_val_loss/num_batches, predict_correct/(num_batches*self.sample_size), mcc, list_stat_res
 
 '''
 single dim output train function

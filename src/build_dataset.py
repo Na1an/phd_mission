@@ -36,7 +36,7 @@ class TrainDataSet(Dataset):
         # for input data, leave is 2, wood is 1
         # make wood = 1 leave = 0
         labels = self.samples[index][:,3]
-        labels[labels==2] = 0
+        labels = labels - 1
 
         '''
         # features
