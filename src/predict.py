@@ -83,9 +83,9 @@ if __name__ == "__main__":
         new_file.add_extra_dim(laspy.ExtraBytesParams(name="WL", type=np.float64))
         points = points.squeeze(0).cpu().detach().numpy()
         
-        new_file.x = points[:,0]*max_axe - (max_axe - max_x_axe)/2 + x_min
-        new_file.y = points[:,1]*max_axe - (max_axe - max_y_axe)/2 + y_min
-        new_file.z = points[:,2]*max_axe
+        new_file.x = points[:,0] + np.min(pc[:,0])
+        new_file.y = points[:,1] + 
+        new_file.z = points[:,2]
          - (max_axe - max_y_axe)/2 + z_min
         
         new_file.wood_proba = predict[0,:].cpu().detach().numpy()

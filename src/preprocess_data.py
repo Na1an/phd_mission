@@ -277,7 +277,7 @@ def prepare_dataset_ier(data, voxel_size_ier, voxel_sample_mode, augmentation, r
                     #print("knn_f ={} mean={}".format(knn_f[~np.isnan(knn_f)], np.mean(knn_f[~np.isnan(knn_f)])))
                     sample_tmp[ic][ep][3+ef] = np.mean(knn_f[~np.isnan(knn_f)])
         #print(">>>>!!! after sample_tmp[ic] is nan shape=", sample_tmp[ic][np.isnan(sample_tmp[ic])].shape)
-        # no nan value scaled to 0,1
+        # value scaled to 0,1
         # plot training dataset
         #plot_pc(sample_tmp[ic][:,:3], c=sample_tmp[ic][:,7]) 
         #plot_pc(sample_tmp[ic][:,:3], c=sample_tmp[ic][:,8])
