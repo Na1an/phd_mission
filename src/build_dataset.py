@@ -102,15 +102,6 @@ class TestDataSet(Dataset):
         labels = self.samples[index][:,3]
         #labels[labels==2] = 0
         sp = self.sample_position[self.sample_voxel_net_index[index]]
-        '''
-        # features
-        reflectance = self.samples[index][:,4]
-        gd = self.samples[index][:,5]
-        ier = self.samples[index][:,6]
-        pca1 = self.samples[index][:,7]
-        linearity = self.samples[index][:,8]
-        verticality = self.samples[index][:,9]
-        '''
 
         # convert to one-hot form
         #labels = np.eye(self.num_classes)[labels.astype(int)].transpose()

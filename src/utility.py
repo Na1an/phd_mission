@@ -98,8 +98,8 @@ def normalize_long_axe(pc):
     #print("max_x_axe={}, max_y_axe={}, max_z_axe={}, max_axe = {}".format(max_x_axe, max_y_axe, max_z_axe, max_axe))
     pc[:,:3] = pc[:,:3]/max_axe
     pc[:,0] = pc[:,0] - np.min(pc[:,0])/2
-    pc[:,1] = pc[:,1] - np.min(pc[:,0])/2
-    pc[:,2] = pc[:,2] - np.min(pc[:,0])/2
+    pc[:,1] = pc[:,1] - np.min(pc[:,1])/2
+    pc[:,2] = pc[:,2] - np.min(pc[:,2])/2
     #print("after pc.shape = {}".format(pc.shape))
     return pc, max_axe, max_x_axe, max_y_axe, max_z_axe
 

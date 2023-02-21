@@ -326,8 +326,8 @@ class Trainer():
             #preds = logits.argmax(dim=1).float()
             _,logits = logits.max(1)
             _,label = label.max(1)
-            print("bincount y_true.shape={}".format(np.bincount(label)))
-            print("bincount y_predict.shape={}".format(np.bincount(logits)))
+            print("bincount y_true.shape={}".format(torch.bincount(label)))
+            print("bincount y_predict.shape={}".format(torch.bincount(logits)))
             num_correct = torch.eq(logits,label).sum().item()/self.batch_size
             predict_correct = predict_correct + num_correct
 
