@@ -99,8 +99,8 @@ class Trainer():
         self.criterion = FocalLoss(gamma=0,alpha=0.2)
         # gamma = 3, alpha = 0.95 not bad, bad recall=0
         # alpha 越小，负样本越重要
-        self.alpha = 0.2
-        self.gamma = 0
+        self.alpha = 0.5
+        self.gamma = 2
         self.writer = SummaryWriter(get_current_direct_path() + "/tensorboard")
 
     # this is a cute function for calculating the loss
@@ -194,7 +194,7 @@ class Trainer():
                 #auroc_score = roc_auc_score(y_score=logits_wood, y_true=label)
                 cf_matrix = confusion_matrix(label, logits, labels=[0,1])
                 tn, fp, fn, tp = cf_matrix.ravel()
-                recall, specificity, precision, npv, fpr, fnr, fdr, acc = calculate_recall_precision(tn, fp, fn, tp)
+                recall, specificity, precision, acc = calculate_recall_precision(tn, fp, fn, tp)
 
                 epoch_loss = epoch_loss + tmp_loss.item()
                 epoch_acc = epoch_acc + num_correct/self.sample_size
@@ -294,8 +294,8 @@ class Trainer():
         sum_val_loss = 0
         num_batches = 5
         predict_correct = 0
-        mcc, f1_score_all, auroc = 0,0,0
-        rec_all, spe_all, pre_all, acc_all,f1_all = [],[],[],[],[]
+        mcc, f1_score_all = 0,0
+        rec_all, spe_all, pre_all, acc_all,f1_all, auroc_all = [],[],[],[],[],[]
         for nb in range(num_batches):
             #output = self.model(points, self.train_voxel_nets[voxel_net])
             #tmp_loss = nn.functional.binary_cross_entropy_with_logits(output, label)
@@ -335,19 +335,23 @@ class Trainer():
             tn, fp, fn, tp = confusion_matrix(label, logits, labels=[0,1]).ravel()
             print("tn-{} fp-{} fn-{} tp-{}".format(tn, fp, fn, tp))
             # precision, recall, f1-score
-            recall, specificity, precision, npv, fpr, fnr, fdr, acc = calculate_recall_precision(tn, fp, fn, tp)
+            recall, specificity, precision, acc = calculate_recall_precision(tn, fp, fn, tp)
             rec_all.append(recall)
             pre_all.append(precision)
             spe_all.append(specificity)
             acc_all.append(acc)
-
+            try:
+                auroc_all.append(roc_auc_score(y_true=label, y_score=logits))
+            except ValueError:
+                auroc_all.append(np.nan)
+            
             # mcc, auroc_score, f1_score
             mcc = mcc + matthews_corrcoef(y_true=label, y_pred=logits)
-            auroc = auroc + roc_auc_score(y_true=label, y_score=logits)
             f1_score_all = f1_score_all + f1_score(y_true=label, y_pred=logits, average='macro')
             
         mcc = mcc/num_batches
-        auroc = auroc/num_batches
+        auroc_all = np.array(auroc_all).astype(np.float64)
+        auroc = np.mean(auroc_all[~np.isnan(auroc_all)])
         f1_score_avg = f1_score_all/num_batches
         
         print("recall-{} specificity-{} precision-{} acc-{} f1_score-{} auroc-{} mcc-{}".format(np.mean(rec_all), np.mean(spe_all), np.mean(pre_all), np.mean(acc_all), f1_score_avg, auroc, mcc))

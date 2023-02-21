@@ -297,25 +297,10 @@ def calculate_recall_precision(tn, fp, fn, tp):
     specificity = tn/(tn+fp)
     # Precision or positive predictive value
     precision = tp/(tp+fp)
-    # Negative predictive value
-    npv = tn/(tn+fn)
-    # Fall out or false positive rate
-    fpr = fp/(fp+tn)
-    # False negative rate
-    fnr = fn/(tp+fn)
-    # False discovery rate
-    fdr = fp/(tp+fp)
 
     # Overall accuracy
     acc = (tp+tn)/(tp+fp+fn+tn)
-    return recall, specificity, precision, npv, fpr, fnr, fdr, acc
-
-def calculate_metrics(y_true, y_pred):
-    cm = confusion_matrix(label, logits, labels=[0,1])
-    tn, fp, fn, tp = cm.ravel()
-    recall, specificity, precision, npv, fpr, fnr, fdr, acc = calculate_recall_precision(tn, fp, fn, tp)
-
-    return None
+    return recall, specificity, precision, acc
 
 def split_reminder(x, chunk_size, axis=0):
     indices = np.arange(chunk_size, x.shape[axis], chunk_size)
