@@ -90,8 +90,8 @@ class PointWiseModel(nn.Module):
         # + (3 + 32): intensity added + roughness added + ncr added, 32 is output of pointfeatures ... 
         # + 128 : output of fc of the pointwise_features
         # + (128 + 64) : pointnet segmentation output
-        #feature_size = (1 + 32 + 64 + 64) + (3 + 32) + (128)
-        feature_size = (1 + 32 + 64 + 64) + (3) + (128)
+        feature_size = (1 + 32 + 64 + 64) + (3 + 32) + (128)
+        #feature_size = (1 + 32 + 64 + 64) + (3) + (128)
         #feature_size = 1 + (32 + 64 + 64) + 3 + 32
         #feature_size = (3 + 32) + (128)
         # conditionnal VAE, co-variabale, regression
@@ -233,8 +233,8 @@ class PointWiseModel(nn.Module):
         shape = features.shape
         features = torch.reshape(features, (shape[0], shape[1] * shape[3], shape[4]))  # (B, featues_per_sample, samples_num)
 
-        #features = torch.cat((features, pointwise_features, feature_mlp, pointnet_features) , dim=1)
-        features = torch.cat((features, pointwise_features, pointnet_features) , dim=1)
+        features = torch.cat((features, pointwise_features, feature_mlp, pointnet_features) , dim=1)
+        #features = torch.cat((features, pointwise_features, pointnet_features) , dim=1)
         #features = torch.cat((features, feature_mlp, pointwise_features), dim=1)
         #features = torch.cat((pointwise_features, feature_mlp, pointnet_features) , dim=1)
         net_out = self.actvn(self.fc_0(features))

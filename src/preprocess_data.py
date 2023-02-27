@@ -261,7 +261,7 @@ def prepare_dataset_ier(data, voxel_size_ier, voxel_sample_mode, augmentation, r
         sample_tmp[ic][:,1] = sample_tmp[ic][:,1] - y_min
         sample_tmp[ic][:,2] = sample_tmp[ic][:,2] - z_min
         features = compute_features(sample_tmp[ic][:,:3], search_radius=voxel_size_ier, feature_names=["PCA1","linearity","sphericity", "verticality"])
-        sample_tmp[ic] = np.concatenate((sample_tmp[ic],features), axis=1)
+        sample_tmp[ic] = np.concatenate((sample_tmp[ic],features), axis=1) # sod : significan of diference , normal_change_rate: acb pour tous les variables
         #print("sample_tmp[ic].shape={} type={}".format(sample_tmp[ic].shape, type(sample_tmp[ic].shape)))
         
         #we have point clouds removed to（0,0,0）
@@ -339,7 +339,6 @@ def prepare_dataset_ier(data, voxel_size_ier, voxel_sample_mode, augmentation, r
                 sample_tmp_aug[angle][ic] = s_tmp
                 sample_voxelized_aug[angle].append(voxel)
         
-
     if augmentation:
         sample_tmp = sample_tmp + sample_tmp_aug[0] + sample_tmp_aug[1] + sample_tmp_aug[2] + sample_tmp_aug[3]
         sample_voxelized = sample_voxelized + sample_voxelized_aug[0] + sample_voxelized_aug[1] + sample_voxelized_aug[2] + sample_voxelized_aug[3]

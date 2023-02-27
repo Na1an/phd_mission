@@ -46,7 +46,7 @@ if __name__ == "__main__":
                                                     resolution,
                                                     voxel_sample_mode, 
                                                     label_name="intensity",
-                                                    sample_size=3000,
+                                                    sample_size=5000,
                                                     augmentation=False,
                                                     for_test=True)
     test_dataset = TestDataSet(samples_test, sample_voxel_net_index_test, test_voxel_nets, my_device, sample_position)
@@ -67,15 +67,19 @@ if __name__ == "__main__":
     #predict label possibilty
     
     for points, pointwise_features, labels, voxel_net, sp in test_loader:
-
+        points_for_pointnet = torch.cat([points.transpose(2,1), pointwise_features.transpose(2,1), points.transpose(2,1)], dim=1)
+        #points_for_pointnet[:,0:2,:] = points_for_pointnet[:,0:2,:] * self.grid_size
+        #points_for_pointnet[:,2,:] = points_for_pointnet[:,2,:] * self.global_height + (self.global_height/2)
+        points_for_pointnet[:,6:,:] = points_for_pointnet[:,6:,:] + 0.5
+        #print("pointsfor_pointnet.shape={}".format(points_for_pointnet.shape))
         logits = my_model(points, pointwise_features, voxel_net, points_for_pointnet)
         logits = F.softmax(logits, dim=1)
         predict = logits.squeeze(0).float()
         predict_label = logits.argmax(dim=1).float()
         #print("predict.shape", predict.shape)
         #print("predict_label.shape", predict_label.shape)
-        [x_min, y_min, z_min, max_axe, max_x_axe, max_y_axe, max_z_axe] = np.array(sp[0])
-        #x_min, y_min, z_min, max_axe, max_x_axe, max_y_axe, max_z_axe = x_min.numpy(), y_min.numpy(), z_min.numpy(), max_axe.numpy(), max_x_axe.numpy(), max_y_axe.numpy(), max_z_axe.numpy()
+        [x_min, y_min, z_min, max_axe, max_x_axe, max_y_axe, max_z_axe] = sp[0]
+        x_min, y_min, z_min, max_axe, max_x_axe, max_y_axe, max_z_axe = x_min.numpy(), y_min.numpy(), z_min.numpy(), max_axe.numpy(), max_x_axe.numpy(), max_y_axe.numpy(), max_z_axe.numpy()
         #print("x_min, y_min, z_min, max_axe, max_x_axe, max_y_axe, max_z_axe".format(local_x, local_y, local_z, adjust_x, adjust_y, adjust_z))
         new_file = laspy.create(point_format=3)
         new_file.add_extra_dim(laspy.ExtraBytesParams(name="wood_proba", type=np.float64))
@@ -83,10 +87,13 @@ if __name__ == "__main__":
         new_file.add_extra_dim(laspy.ExtraBytesParams(name="WL", type=np.float64))
         points = points.squeeze(0).cpu().detach().numpy()
         
-        new_file.x = points[:,0] + np.min(pc[:,0])
-        new_file.y = points[:,1] + 
-        new_file.z = points[:,2]
-         - (max_axe - max_y_axe)/2 + z_min
+        # + 0.5 : react to centered to (0,0,0)
+        # - (1 - np.max(points[:,0])) : react to cube centering
+        # * max_axe : react to scaling
+        # + x_min : find global position
+        new_file.x = (points[:,0] + 0.5 - (1 - np.max(points[:,0]))) * max_axe + x_min
+        new_file.y = (points[:,1] + 0.5 - (1 - np.max(points[:,1]))) * max_axe + y_min
+        new_file.z = (points[:,2] + 0.5 - (1 - np.max(points[:,2]))) * max_axe + z_min
         
         new_file.wood_proba = predict[0,:].cpu().detach().numpy()
         new_file.leave_proba = predict[1,:].cpu().detach().numpy()

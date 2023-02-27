@@ -40,17 +40,19 @@ class FocalLoss(nn.Module):
         log_1_probs = torch.where(logits >= 0,
                 -logits + F.softplus(logits, -1, 50),
                 -F.softplus(logits, 1, 50))
+        # leave label=1, wood label=0
+        # 提高
         loss = label * self.alpha * log_probs + (1. - label) * (1. - self.alpha) * log_1_probs
         loss = loss * coeff
 
-        if self.reduction == 'mean':
+        if self.reduction == 'mean':    
             loss = loss.mean()
         if self.reduction == 'sum':
             loss = loss.sum()
         return loss
 
 class Trainer():
-    def __init__(self, model, device, train_dataset, train_voxel_nets, val_dataset, val_voxel_nets, batch_size, sample_size, predict_threshold, num_workers, grid_size, global_height, shuffle=True, opt="Adam"):
+    def __init__(self, model, device, train_dataset, train_voxel_nets, val_dataset, val_voxel_nets, batch_size, sample_size, predict_threshold, num_workers, grid_size, global_height, alpha=0, gamma=2, shuffle=True, opt="Adam"):
         '''
         Args:
             model: the Deep Learning model.
@@ -64,7 +66,7 @@ class Trainer():
         # put our data to device & DataLoader
         self.device = device
         self.model = model.to(device)
-        self.train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers, drop_last=True)
+        self.train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers, alpha=0.2, drop_last=True)
         #self.train_voxel_nets = torch.from_numpy(train_voxel_nets.copy()).type(torch.float).to(self.device)
 
         self.val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers)
@@ -96,11 +98,14 @@ class Trainer():
         self.threshold = predict_threshold
         self.sample_size = sample_size
         self.batch_size = batch_size
-        self.criterion = FocalLoss(gamma=0,alpha=0.2)
-        # gamma = 3, alpha = 0.95 not bad, bad recall=0
-        # alpha 越小，负样本越重要
-        self.alpha = 0.5
-        self.gamma = 2
+        # alpha is for label=1, 1-alpha if for label=0
+        # so in our case, if wood label=0, we should make alpha=0.2 for example -> make leave points less important
+        # but above is only true for gamma=0
+        # if gamma>0, alpha is not only a weight for adjusting the diff weights for both calsses
+        # also, alpha is used to adjust the big loss value bring by gamma
+        self.alpha = alpha
+        self.gamma = gamma
+        self.criterion = FocalLoss(gamma=self.gamma,alpha=self.alpha)
         self.writer = SummaryWriter(get_current_direct_path() + "/tensorboard")
 
     # this is a cute function for calculating the loss
