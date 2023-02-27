@@ -41,15 +41,15 @@ if __name__ == "__main__":
     
     # (2) prepare train dataset and validation dataset
     
-    samples_test, sample_voxel_net_index_test, test_voxel_nets, sample_position = prepare_procedure_ier(
+    samples_test, sample_voxel_net_index_test, test_voxel_nets, sample_position, x_min_all, y_min_all, z_min_all, samples_rest = prepare_procedure_ier(
                                                     data_path, 
                                                     resolution,
                                                     voxel_sample_mode, 
-                                                    label_name="intensity",
-                                                    sample_size=5000,
+                                                    label_name="WL",
+                                                    sample_size=sample_size,
                                                     augmentation=False,
                                                     for_test=True)
-    test_dataset = TestDataSet(samples_test, sample_voxel_net_index_test, test_voxel_nets, my_device, sample_position)
+    test_dataset = TestDataSet(samples_test, sample_voxel_net_index_test, test_voxel_nets, my_device, sample_position, samples_rest)
     #test_dataset.show_info()
 
     # (3) predict
@@ -66,7 +66,7 @@ if __name__ == "__main__":
     i = 0
     #predict label possibilty
     
-    for points, pointwise_features, labels, voxel_net, sp in test_loader:
+    for points, pointwise_features, labels, voxel_net, sp, samples_rest_single, points_raw in test_loader:
         points_for_pointnet = torch.cat([points.transpose(2,1), pointwise_features.transpose(2,1), points.transpose(2,1)], dim=1)
         #points_for_pointnet[:,0:2,:] = points_for_pointnet[:,0:2,:] * self.grid_size
         #points_for_pointnet[:,2,:] = points_for_pointnet[:,2,:] * self.global_height + (self.global_height/2)
@@ -86,21 +86,45 @@ if __name__ == "__main__":
         new_file.add_extra_dim(laspy.ExtraBytesParams(name="leave_proba", type=np.float64))
         new_file.add_extra_dim(laspy.ExtraBytesParams(name="WL", type=np.float64))
         points = points.squeeze(0).cpu().detach().numpy()
+        points_raw = points_raw.squeeze(0).cpu().detach().numpy()
         
         # + 0.5 : react to centered to (0,0,0)
         # - (1 - np.max(points[:,0])) : react to cube centering
         # * max_axe : react to scaling
         # + x_min : find global position
-        new_file.x = (points[:,0] + 0.5 - (1 - np.max(points[:,0]))) * max_axe + x_min
-        new_file.y = (points[:,1] + 0.5 - (1 - np.max(points[:,1]))) * max_axe + y_min
-        new_file.z = (points[:,2] + 0.5 - (1 - np.max(points[:,2]))) * max_axe + z_min
-        
+        new_file.x = points_raw[:,0] + x_min + x_min_all
+        new_file.y = points_raw[:,1] + y_min + y_min_all
+        new_file.z = points_raw[:,2] + z_min + z_min_all
+
         new_file.wood_proba = predict[0,:].cpu().detach().numpy()
         new_file.leave_proba = predict[1,:].cpu().detach().numpy()
         new_file.WL = predict_label.cpu().detach().numpy()
         new_file.write(os.getcwd()+"/predict_res/res_{:04}.las".format(i))
+
+        # sample rest
+        new_file_bis = laspy.create(point_format=3)
+        new_file_bis.add_extra_dim(laspy.ExtraBytesParams(name="wood_proba", type=np.float64))
+        new_file_bis.add_extra_dim(laspy.ExtraBytesParams(name="leave_proba", type=np.float64))
+        new_file_bis.add_extra_dim(laspy.ExtraBytesParams(name="WL", type=np.float64))
+        samples_rest_single = samples_rest_single.squeeze(0).cpu().detach().numpy()
+        samples_rest_single = samples_rest_single[:,:3]
+        
+        # + 0.5 : react to centered to (0,0,0)
+        # - (1 - np.max(points[:,0])) : react to cube centering
+        # * max_axe : react to scaling
+        # + x_min : find global position
+        new_file_bis.x = samples_rest_single[:,0] + x_min + x_min_all
+        new_file_bis.y = samples_rest_single[:,1] + y_min + y_min_all
+        new_file_bis.z = samples_rest_single[:,2] + z_min + z_min_all
+        
+        new_file_bis.wood_proba = -1 * np.ones(len(samples_rest_single[:]))
+        new_file_bis.leave_proba = -1 * np.ones(len(samples_rest_single[:]))
+        new_file_bis.WL = np.ones(len(samples_rest_single[:]))
+        new_file_bis.write(os.getcwd()+"/predict_res/rest_{:04}.las".format(i))
+
         i = i+1
         print(">>> cube - N°{} predicted ".format(i))
+    
     print("\n###### End ######")
 
         

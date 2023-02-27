@@ -78,7 +78,7 @@ class TestDataSet(Dataset):
         sample_cuboid_index: (nb_sample, index of nb_cuboid).
         voxelized_cuboids: (nb_voxel, 4:x+y+z+[1 or 0]).
     '''
-    def __init__(self, samples, sample_voxel_net_index, samples_voxelized, device, sample_position, num_classes=2):
+    def __init__(self, samples, sample_voxel_net_index, samples_voxelized, device, sample_position, samples_rest, num_classes=2):
         self.samples = samples
         self.sample_voxel_net_index = sample_voxel_net_index
         self.samples_voxelized = samples_voxelized
@@ -86,6 +86,7 @@ class TestDataSet(Dataset):
         self.adjust_label = 1
         self.num_classes = num_classes
         self.sample_position = sample_position
+        self.samples_rest = samples_rest
 
     def __len__(self):
         return len(self.samples)
@@ -96,6 +97,7 @@ class TestDataSet(Dataset):
         #samples_voxelized : [[x,y,z,point_density], ...]
         # (x,y,z,label), label index is 3
         points = self.samples[index][:,:3]
+        points_raw = self.samples[index][:,-3:]
         
         # for input data, leave is 2, wood is 1
         # make wood = 1 leave = 0
@@ -113,7 +115,7 @@ class TestDataSet(Dataset):
         #pointwise_features = torch.from_numpy(self.samples[index][:,4:].copy()).type(torch.float).to(self.device)
         pointwise_features = torch.from_numpy(self.samples[index][:,[7,8,9]].copy()).type(torch.float).to(self.device)
         voxel_net = torch.from_numpy(self.samples_voxelized[self.sample_voxel_net_index[index]]).type(torch.float).to(self.device)
-        return points, pointwise_features, labels, voxel_net, sp
+        return points, pointwise_features, labels, voxel_net, sp, self.samples_rest[self.sample_voxel_net_index[index]], points_raw
 
     # print the info
     def show_info(self):
