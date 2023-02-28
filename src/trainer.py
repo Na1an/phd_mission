@@ -66,7 +66,7 @@ class Trainer():
         # put our data to device & DataLoader
         self.device = device
         self.model = model.to(device)
-        self.train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers, alpha=0.2, drop_last=True)
+        self.train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers, drop_last=True)
         #self.train_voxel_nets = torch.from_numpy(train_voxel_nets.copy()).type(torch.float).to(self.device)
 
         self.val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers)
@@ -98,8 +98,9 @@ class Trainer():
         self.threshold = predict_threshold
         self.sample_size = sample_size
         self.batch_size = batch_size
-        # alpha is for label=1, 1-alpha if for label=0
-        # so in our case, if wood label=0, we should make alpha=0.2 for example -> make leave points less important
+
+        # alpha is for label=1, (1-alpha) if for label=0
+        # so in our case, if leaf label=0, we should make alpha=0.2 for example -> make leave points less important
         # but above is only true for gamma=0
         # if gamma>0, alpha is not only a weight for adjusting the diff weights for both calsses
         # also, alpha is used to adjust the big loss value bring by gamma
@@ -148,7 +149,7 @@ class Trainer():
                 #points_for_pointnet[:,:2,:] = points_for_pointnet[:,0:2,:] * self.grid_size
                 #points_for_pointnet[:,2,:] = points_for_pointnet[:,2,:] * self.global_height + (self.global_height/2)
                 points_for_pointnet[:,6:,:] = points_for_pointnet[:,6:,:] + 0.5
-                print("pointsfor_pointnet.shape={}".format(points_for_pointnet.shape))
+                #print("pointsfor_pointnet.shape={}".format(points_for_pointnet.shape))
                 
                 #print(">>> points.shape = {}, pointwise_features.shape={}, labels.shape={}, voxel_net.shape={}".format(points.shape, pointwise_features.shape, label.shape, voxel_net.shape))
                 logits = self.model(points, pointwise_features, voxel_net, points_for_pointnet)
@@ -178,8 +179,8 @@ class Trainer():
                 _, logits = logits.max(1)
 
                 #logits = torch.where(logits>0.99, 1, 0)
-                print("logits.shape={}, label.shape={}".format(logits.shape, label.shape))
-                print("logits[:,0:5]={}, label[:,0:5].shape={}".format(logits[:5], label[:,0:5]))
+                #print("logits.shape={}, label.shape={}".format(logits.shape, label.shape))
+                #print("logits[:,0:5]={}, label[:,0:5].shape={}".format(logits[:5], label[:,0:5]))
                 num_correct = torch.eq(logits.to(self.device), label.to(self.device)).sum().item()
                 
                 #print(" logits.argmax(dim=1).float() shape = {} label.argmax(dim=1).float() shape = {} num_correct = {}".format(logits.float().shape, label.float().shape,num_correct))

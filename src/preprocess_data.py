@@ -214,7 +214,7 @@ def analyse_voxel_in_cuboid_bak(voxel_skeleton_cuboid, h, side):
 ##########################
 # training - ier version #
 ##########################
-def prepare_dataset_ier(data, voxel_size_ier, voxel_sample_mode, augmentation, resolution=20):
+def prepare_dataset_ier(data, voxel_size_ier, voxel_sample_mode, augmentation, resolution=20, for_test=False):
     '''
     Args:
         data: a np.ndarray. (x,y,z,label,reflectance)
@@ -326,9 +326,14 @@ def prepare_dataset_ier(data, voxel_size_ier, voxel_sample_mode, augmentation, r
 
         sample_voxelized.append(voxel)
         # normalizeing, data centered to (0,0,0)
+        
         sample_tmp_bis[:,:3] = sample_tmp_bis[:,:3] - 0.5
         
-        sample_res[ic] = np.concatenate((sample_tmp_bis, pos_raw), axis=1)
+        if for_test:
+            sample_res[ic] = np.concatenate((sample_tmp_bis, pos_raw), axis=1)
+        else:
+            sample_res[ic] = sample_tmp_bis
+            
         sample_res_rest[ic] = sample_tmp_bis_rest
         if show_sample:
             plot_pc(sample_tmp_bis[:,:3])
