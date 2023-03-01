@@ -140,19 +140,14 @@ class Trainer():
             epoch_auroc = 0.0
             loader_len = 1
             # points, labels, v_cuboid
-            for points, pointwise_features, label, voxel_net in self.train_loader:
+            for points, pointwise_features, label, voxel_net, points_raw in self.train_loader:
                 
                 self.model.train() # tell torch we are traning
                 self.optimizer.zero_grad()
                 
-                points_for_pointnet = torch.cat([points.transpose(2,1), pointwise_features.transpose(2,1), points.transpose(2,1)], dim=1)
-                #points_for_pointnet[:,:2,:] = points_for_pointnet[:,0:2,:] * self.grid_size
-                #points_for_pointnet[:,2,:] = points_for_pointnet[:,2,:] * self.global_height + (self.global_height/2)
-                points_for_pointnet[:,6:,:] = points_for_pointnet[:,6:,:] + 0.5
-                #print("pointsfor_pointnet.shape={}".format(points_for_pointnet.shape))
-                
+                points_for_pointnet = torch.cat([points.transpose(2,1), pointwise_features.transpose(2,1), points_raw.transpose(2,1)], dim=1)
                 #print(">>> points.shape = {}, pointwise_features.shape={}, labels.shape={}, voxel_net.shape={}".format(points.shape, pointwise_features.shape, label.shape, voxel_net.shape))
-                logits = self.model(points, pointwise_features, voxel_net, points_for_pointnet)
+                logits = self.model(points, pointwise_features, voxel_net, points_for_pointnet.float())
                 #print("logits.shape = {}, logits[0:10]={}".format(logits.shape,logits[0:10]))
 
                 '''
@@ -301,7 +296,7 @@ class Trainer():
         num_batches = self.batch_size
         predict_correct = 0
         mcc, f1_score_all = 0,0
-        rec_all, spe_all, pre_all, acc_all,f1_all, auroc_all = [],[],[],[],[],[]
+        rec_all, spe_all, pre_all, acc_all, f1_all, auroc_all = [],[],[],[],[],[]
         
         for nb in range(num_batches):
             #output = self.model(points, self.train_voxel_nets[voxel_net])
@@ -310,14 +305,10 @@ class Trainer():
                 points, label, voxel_net = self.val_data_iterator.next()
             except:
                 self.val_data_iterator = self.val_loader.__iter__()
-                points, pointwise_features, label, voxel_net = self.val_data_iterator.next()
+                points, pointwise_features, label, voxel_net, points_raw = self.val_data_iterator.next()
             
-            points_for_pointnet = torch.cat([points.transpose(2,1), pointwise_features.transpose(2,1), points.transpose(2,1)], dim=1)
-            #points_for_pointnet[:,0:2,:] = points_for_pointnet[:,0:2,:] * self.grid_size
-            #points_for_pointnet[:,2,:] = points_for_pointnet[:,2,:] * self.global_height + (self.global_height/2)
-            points_for_pointnet[:,6:,:] = points_for_pointnet[:,6:,:] + 0.5
-            #print("pointsfor_pointnet.shape={}".format(points_for_pointnet.shape))
-            logits = self.model(points, pointwise_features, voxel_net, points_for_pointnet)
+            points_for_pointnet = torch.cat([points.transpose(2,1), pointwise_features.transpose(2,1), points_raw.transpose(2,1)], dim=1)
+            logits = self.model(points, pointwise_features, voxel_net, points_for_pointnet.float())
             logits = logits.permute(0,2,1).reshape(self.batch_size*self.sample_size, 2)
             logits = F.softmax(logits, dim=1)
             label = label.permute(0,2,1).reshape(self.batch_size*self.sample_size, 2)

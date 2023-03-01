@@ -313,6 +313,7 @@ def prepare_dataset_ier(data, voxel_size_ier, voxel_sample_mode, augmentation, r
         # [7:10] -> features ["PCA1","linearity","sphericity", "verticality"]
         sample_tmp_bis[:,7:10] = standardization(sample_tmp_bis[:,7:10])
         pos_raw = np.copy(sample_tmp_bis[:,:3])
+
         try:
             sample_tmp_bis[:,:3], max_axe, max_x_axe, max_y_axe, max_z_axe = normalize_long_axe(sample_tmp_bis[:,:3])
         except ValueError as e:
@@ -337,11 +338,7 @@ def prepare_dataset_ier(data, voxel_size_ier, voxel_sample_mode, augmentation, r
         # normalizeing, data centered to (0,0,0)
         
         sample_tmp_bis[:,:3] = sample_tmp_bis[:,:3] - 0.5
-        
-        if for_test:
-            sample_res[ic] = np.concatenate((sample_tmp_bis, pos_raw), axis=1)
-        else:
-            sample_res[ic] = sample_tmp_bis
+        sample_res[ic] = np.concatenate((sample_tmp_bis, pos_raw), axis=1)
 
         sample_res_rest[ic] = sample_tmp_bis_rest
         if show_sample:
