@@ -34,7 +34,7 @@ class TrainDataSet(Dataset):
         points = self.samples[index][:,:3]
         
         # for input data, leave is 2, wood is 1
-        # make wood = 1 leave = 0
+        # make wood = 0 leave = 1
         labels = self.samples[index][:,3]
         labels = labels - 1
 
@@ -100,9 +100,9 @@ class TestDataSet(Dataset):
         points_raw = self.samples[index][:,-3:]
         
         # for input data, leave is 2, wood is 1
-        # make wood = 1 leave = 0
+        # make wood = 0 leave = 1
         labels = self.samples[index][:,3]
-        #labels[labels==2] = 0
+        labels = labels - 1
         sp = self.sample_position[self.sample_voxel_net_index[index]]
 
         # convert to one-hot form
@@ -110,12 +110,22 @@ class TestDataSet(Dataset):
 
         # put them into self.device
         points = torch.from_numpy(points.copy()).type(torch.float).to(self.device)
-
+        
         #pointwise_features = [reflectance,gd,ier,PCA1,linearity,verticality]
         #pointwise_features = torch.from_numpy(self.samples[index][:,4:].copy()).type(torch.float).to(self.device)
         pointwise_features = torch.from_numpy(self.samples[index][:,[7,8,9]].copy()).type(torch.float).to(self.device)
         voxel_net = torch.from_numpy(self.samples_voxelized[self.sample_voxel_net_index[index]]).type(torch.float).to(self.device)
-        return points, pointwise_features, labels, voxel_net, sp, self.samples_rest[self.sample_voxel_net_index[index]], points_raw
+        sample_rest = self.samples_rest[self.sample_voxel_net_index[index]]
+        # just as label
+        if len(sample_rest) == 0:
+            sample_rest = []
+        else:
+            if np.max(sample_rest[:,3]) == 2: 
+                sample_rest[:,3] = sample_rest[:,3] - 1
+            else:
+                sample_rest[:,3] = sample_rest[:,3] - 100
+
+        return points, pointwise_features, labels, voxel_net, sp, sample_rest, points_raw
 
     # print the info
     def show_info(self):

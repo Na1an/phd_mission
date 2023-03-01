@@ -223,6 +223,7 @@ def prepare_dataset_ier(data, voxel_size_ier, voxel_sample_mode, augmentation, r
         sample_cuboid_index: (nb_sample/sample_id, index of nb_cuboid).
         voxel_skeleton_cuboid: (nb_voxel/voxel_id, 4:x+y+z+[1 or 0]).
     '''
+    sample_skipped = False
     show_sample = False
     sample_position = []
     # (1) calculate gd and ier. group trees is also splited in the same time.
@@ -253,6 +254,7 @@ def prepare_dataset_ier(data, voxel_size_ier, voxel_sample_mode, augmentation, r
     for ic in range(len(sample_tmp)):
         # sample_tmp[ic] : [[x,y,z,label,reflectance,gd,ier], ...]
         sample_tmp[ic] = np.vstack(sample_tmp[ic])
+        #print(">>>>!!! after sample_tmp[ic] is nan shape=", sample_tmp[ic][np.isnan(sample_tmp[ic])].shape)
         #sample_tmp[ic][np.isnan(sample_tmp[ic])] = 1
         sample_tmp[ic] = sample_tmp[ic][sample_tmp[ic][:, 5].argsort()]
         # normalize ier
@@ -311,7 +313,14 @@ def prepare_dataset_ier(data, voxel_size_ier, voxel_sample_mode, augmentation, r
         # [7:10] -> features ["PCA1","linearity","sphericity", "verticality"]
         sample_tmp_bis[:,7:10] = standardization(sample_tmp_bis[:,7:10])
         pos_raw = np.copy(sample_tmp_bis[:,:3])
-        sample_tmp_bis[:,:3], max_axe, max_x_axe, max_y_axe, max_z_axe = normalize_long_axe(sample_tmp_bis[:,:3])
+        try:
+            sample_tmp_bis[:,:3], max_axe, max_x_axe, max_y_axe, max_z_axe = normalize_long_axe(sample_tmp_bis[:,:3])
+        except ValueError as e:
+            print(">>>> [ERROR] we have a error:", e)
+            print(">>>> [ERROR] this sample will be skipped.")
+            sample_skipped = True
+            continue
+
         new_voxel_size = 1/resolution
         #print("new_voxel_size={} 1//new_voxel_size={}".format(new_voxel_size, 1//new_voxel_size))
         sample_position.append([(x_min, y_min, z_min, max_axe, max_x_axe, max_y_axe, max_z_axe)])
@@ -333,7 +342,7 @@ def prepare_dataset_ier(data, voxel_size_ier, voxel_sample_mode, augmentation, r
             sample_res[ic] = np.concatenate((sample_tmp_bis, pos_raw), axis=1)
         else:
             sample_res[ic] = sample_tmp_bis
-            
+
         sample_res_rest[ic] = sample_tmp_bis_rest
         if show_sample:
             plot_pc(sample_tmp_bis[:,:3])
@@ -361,14 +370,27 @@ def prepare_dataset_ier(data, voxel_size_ier, voxel_sample_mode, augmentation, r
         sample_tmp = sample_tmp + sample_tmp_aug[0] + sample_tmp_aug[1] + sample_tmp_aug[2] + sample_tmp_aug[3]
         sample_voxelized = sample_voxelized + sample_voxelized_aug[0] + sample_voxelized_aug[1] + sample_voxelized_aug[2] + sample_voxelized_aug[3]
     
+    if sample_skipped:
+        print(">> [sample skipped] some sample have been skipped, we need remove some [] array")
+        while(len(sample_res[-1])==0):
+            sample_res.pop(-1)
+            tmp = sample_res_rest.pop(-1)
+            if len(tmp) != 0:
+                print(">>> Error from sample_res_rest")
+            tmp = sample_voxelized.pop(-1)
+            if len(tmp) != 0:
+                print(">>> Error from sample_voxelized")
+            tmp = sample_position.pop(-1)
+            if len(tmp) != 0:
+                print(">>> Error from sample_position")
+
     samples = np.array(sample_res, dtype='object')
     samples_rest = np.array(sample_res_rest, dtype='object')
     sample_voxelized = np.array(sample_voxelized, dtype='object')
-    print(">> prepare_dataset_ier finesehd samples.shape={} sample_voxelized.shape={}".format(samples.shape, sample_voxelized.shape))
-
+    print(">> prepare_dataset_ier finesehd samples.shape={} sample_voxelized.shape={} samples_rest.shape={} len(sample_position)={}".format(samples.shape, sample_voxelized.shape, samples_rest.shape , len(sample_position)))
     return samples, sample_voxelized, sample_position, samples_rest
 
-def prepare_procedure_ier(path, resolution, voxel_sample_mode, label_name, augmentation, sample_size=5000, for_test=False):
+def prepare_procedure_ier(path, resolution, voxel_sample_mode, label_name, augmentation, sample_size=5000, for_test=False, voxel_size_ier=0.6):
     '''
     Args:
     Returns:
@@ -380,7 +402,7 @@ def prepare_procedure_ier(path, resolution, voxel_sample_mode, label_name, augme
 
     # (2) build samples
     # data_preprocessed : (x,y,z,label,intensity)
-    samples, samples_voxelized, sample_position, samples_rest = prepare_dataset_ier(data_preprocessed, 0.6, voxel_sample_mode, resolution=resolution, augmentation=augmentation)
+    samples, samples_voxelized, sample_position, samples_rest = prepare_dataset_ier(data_preprocessed, voxel_size_ier, voxel_sample_mode, resolution=resolution, augmentation=augmentation, for_test=for_test)
     #samples : [[x,y,z,label,reflectance,gd,ier,PCA1,linearity,verticality,...], ...]
     #samples_voxelized : [[x,y,z,point_density], ...]
     #print("samples[0].shape = {} samples_voxelized[0].shape = {}".format(samples[0].shape, samples_voxelized[0].shape))

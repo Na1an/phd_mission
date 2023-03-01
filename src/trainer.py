@@ -100,7 +100,7 @@ class Trainer():
         self.batch_size = batch_size
 
         # alpha is for label=1, (1-alpha) if for label=0
-        # so in our case, if leaf label=0, we should make alpha=0.2 for example -> make leave points less important
+        # so in our case, if wood label=0, we should make alpha=0.2 (leaf label=1) for example -> make leave points less important
         # but above is only true for gamma=0
         # if gamma>0, alpha is not only a weight for adjusting the diff weights for both calsses
         # also, alpha is used to adjust the big loss value bring by gamma
@@ -298,10 +298,11 @@ class Trainer():
     def compute_val_loss(self):
         self.model.eval()
         sum_val_loss = 0
-        num_batches = 5
+        num_batches = self.batch_size
         predict_correct = 0
         mcc, f1_score_all = 0,0
         rec_all, spe_all, pre_all, acc_all,f1_all, auroc_all = [],[],[],[],[],[]
+        
         for nb in range(num_batches):
             #output = self.model(points, self.train_voxel_nets[voxel_net])
             #tmp_loss = nn.functional.binary_cross_entropy_with_logits(output, label)

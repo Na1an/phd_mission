@@ -84,8 +84,10 @@ if __name__ == "__main__":
         new_file = laspy.create(point_format=3)
         new_file.add_extra_dim(laspy.ExtraBytesParams(name="wood_proba", type=np.float64))
         new_file.add_extra_dim(laspy.ExtraBytesParams(name="leave_proba", type=np.float64))
-        new_file.add_extra_dim(laspy.ExtraBytesParams(name="WL", type=np.float64))
+        new_file.add_extra_dim(laspy.ExtraBytesParams(name="predict", type=np.float64))
+        new_file.add_extra_dim(laspy.ExtraBytesParams(name="true", type=np.float64))
         points = points.squeeze(0).cpu().detach().numpy()
+        labels = labels.squeeze(0).cpu().detach().numpy()
         points_raw = points_raw.squeeze(0).cpu().detach().numpy()
         
         # + 0.5 : react to centered to (0,0,0)
@@ -98,16 +100,20 @@ if __name__ == "__main__":
 
         new_file.wood_proba = predict[0,:].cpu().detach().numpy()
         new_file.leave_proba = predict[1,:].cpu().detach().numpy()
-        new_file.WL = predict_label.cpu().detach().numpy()
+        new_file.predict = predict_label.cpu().detach().numpy()
+        new_file.true = labels
         new_file.write(os.getcwd()+"/predict_res/res_{:04}.las".format(i))
 
         # sample rest
         new_file_bis = laspy.create(point_format=3)
         new_file_bis.add_extra_dim(laspy.ExtraBytesParams(name="wood_proba", type=np.float64))
         new_file_bis.add_extra_dim(laspy.ExtraBytesParams(name="leave_proba", type=np.float64))
-        new_file_bis.add_extra_dim(laspy.ExtraBytesParams(name="WL", type=np.float64))
+        new_file_bis.add_extra_dim(laspy.ExtraBytesParams(name="predict", type=np.float64))
+        new_file_bis.add_extra_dim(laspy.ExtraBytesParams(name="true", type=np.float64))
+        if len(samples_rest_single) ==0:
+            continue
         samples_rest_single = samples_rest_single.squeeze(0).cpu().detach().numpy()
-        samples_rest_single = samples_rest_single[:,:3]
+        samples_rest_single = samples_rest_single[:,:4]
         
         # + 0.5 : react to centered to (0,0,0)
         # - (1 - np.max(points[:,0])) : react to cube centering
@@ -119,7 +125,9 @@ if __name__ == "__main__":
         
         new_file_bis.wood_proba = -1 * np.ones(len(samples_rest_single[:]))
         new_file_bis.leave_proba = -1 * np.ones(len(samples_rest_single[:]))
-        new_file_bis.WL = np.ones(len(samples_rest_single[:]))
+        # wood label=0, leaf label=1
+        new_file_bis.predict = np.ones(len(samples_rest_single[:]))
+        new_file_bis.true = samples_rest_single[:,3]
         new_file_bis.write(os.getcwd()+"/predict_res/rest_{:04}.las".format(i))
 
         i = i+1
