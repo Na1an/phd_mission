@@ -60,6 +60,7 @@ class TrainDataSet(Dataset):
         pointwise_features = torch.from_numpy(self.samples[index][:,[7,8,9]].copy()).type(torch.float).to(self.device)
         voxel_net = torch.from_numpy(self.samples_voxelized[self.sample_voxel_net_index[index]]).type(torch.float).to(self.device)
         return points, pointwise_features, labels, voxel_net, points_raw
+        
 
     # print the info
     def show_info(self):

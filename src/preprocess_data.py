@@ -32,8 +32,9 @@ def read_data_with_intensity(path, label_name, feature='intensity', detail=False
         res : a 4-D numpy array type tensor.
     '''
     data_las = laspy.read(path)
+    data_las = data_las[data_las[label_name]>0]
     x_min, x_max, y_min, y_max, z_min, z_max = get_info(data_las)
-    
+    print(">> bincount label_name={} : {}".format(label_name, np.bincount(data_las["label_name"])))
     print(">> data_las.z min={} max={} diff={}".format(z_min, z_max, z_max - z_min))
 
     # (data_target['intensity']/65535)*35 - 30 for TLS
@@ -338,6 +339,7 @@ def prepare_dataset_ier(data, voxel_size_ier, voxel_sample_mode, augmentation, r
         # normalizeing, data centered to (0,0,0)
         
         sample_tmp_bis[:,:3] = sample_tmp_bis[:,:3] - 0.5
+
         sample_res[ic] = np.concatenate((sample_tmp_bis, pos_raw), axis=1)
 
         sample_res_rest[ic] = sample_tmp_bis_rest

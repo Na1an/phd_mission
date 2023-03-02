@@ -193,7 +193,7 @@ class Trainer():
                 logits = logits.detach().clone().cpu().data.numpy()
 
                 #auroc_score = roc_auc_score(y_score=logits_wood, y_true=label)
-                cf_matrix = confusion_matrix(label, logits, labels=[0,1])
+                cf_matrix = confusion_matrix(y_true=label, y_pred=logits, labels=[0,1])
                 tn, fp, fn, tp = cf_matrix.ravel()
                 recall, specificity, precision, acc = calculate_recall_precision(tn, fp, fn, tp)
 
