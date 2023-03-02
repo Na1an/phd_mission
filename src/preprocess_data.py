@@ -34,7 +34,7 @@ def read_data_with_intensity(path, label_name, feature='intensity', detail=False
     data_las = laspy.read(path)
     data_las = data_las[data_las[label_name]>0]
     x_min, x_max, y_min, y_max, z_min, z_max = get_info(data_las)
-    print(">> bincount label_name={} : {}".format(label_name, np.bincount(data_las["label_name"])))
+    print(">> bincount label_name={} : {}".format(label_name, np.bincount(data_las[label_name])))
     print(">> data_las.z min={} max={} diff={}".format(z_min, z_max, z_max - z_min))
 
     # (data_target['intensity']/65535)*35 - 30 for TLS
