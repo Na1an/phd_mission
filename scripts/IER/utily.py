@@ -122,6 +122,11 @@ def normalize_feature(f):
     print("f_min={}, f_max={}".format(f_min, f_max))
     return (f-f_min)/(f_max-f_min)
 
+def standardization(data):
+    mu = np.mean(data, axis=0)
+    sigma = np.std(data, axis=0)
+    return (data - mu) / sigma
+
 def voxel_grid_sample(cuboid, voxel_size, mode, ier=False):
     '''
     Args:
@@ -224,3 +229,13 @@ def plot_voxels(voxels, grid_size=0, voxel_size=0.5):
     m.set_array([])
     plt.colorbar(m, ax=ax, fraction=0.046, pad=0.04)
     plt.show()
+
+def dist(a,b):
+    x_a, y_a = a
+    x_b, y_b = b
+    return (((x_a-x_b)**2 + (y_a-y_b)**2)**0.5)
+
+def dist_3d(a,b):
+    x_a, y_a, z_a = a
+    x_b, y_b, z_b = b
+    return (((x_a-x_b)**2 + (y_a-y_b)**2 + (z_a - z_b**2))**0.5)

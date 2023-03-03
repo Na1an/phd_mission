@@ -49,25 +49,21 @@ def initialize_voxels(voxels):
         # initialize geodesic distance to -1
         voxels[k] = (v,-1)
 
-def cauculate_ier(voxels, voxel_low, voxels_in_comp, voxel_size, nb_component):
+def cauculate_ier(voxels, voxel_low, seen, voxel_size, nb_component, limit_comp=10):
     # mean coordinate of lowest voxel
-    points, gd = voxels[voxel_low]
+    points, gd = voxels[voxel_low] 
+    '''
     if gd != 0:
         print("problem here, def cauculate_ier")
+    '''
+
     coord_low = np.mean(points[:,:3], axis=0)
-    len_points = len(points)
-    feature_add = np.zeros((len_points, 3), dtype=points.dtype)
     len_f = len(points[0])
-    points = np.concatenate((points,feature_add), axis=1)
-    #points[:,len_f] = gd
-    #points[:,len_f+1] = 0 # IER
-    points[:,len_f+2] = nb_component
-    voxels[voxel_low] = points, gd
-    
-    print("points[0]=",points[0])
-    for k in voxels_in_comp:
+
+    for k in seen:
         points, gd = voxels[k]
         len_points = len(points)
+    
         feature_add = np.zeros((len_points, 3), dtype=points.dtype)
         points = np.concatenate((points,feature_add), axis=1)
         points[:,len_f] = gd
@@ -76,10 +72,11 @@ def cauculate_ier(voxels, voxel_low, voxels_in_comp, voxel_size, nb_component):
             ed = np.linalg.norm(points[i][:3] - coord_low)
             points[i][len_f+1] = (gd * voxel_size)/ed # ier
             points[i][len_f+2] = nb_component
+        
         voxels[k] = points, gd
 
 # calculate the geodesic diatance of a voxelized space (cuboid)
-def geodesic_distance(voxels, voxel_size):
+def geodesic_distance(voxels, voxel_size, tree_radius=7.0, limit_comp=10):
     '''
     Args:
         voxles: a dict. Key is the coordinates of the occupied voxel and value is the points inside the voxel and geodesic distance initialised to 0.
@@ -88,29 +85,58 @@ def geodesic_distance(voxels, voxel_size):
     '''
     #remaining_voxel = len(voxels)
     nb_component = 0
+    nb_v_keep, nb_v_abandon, nb_p_keep, nb_p_abandon = 0, 0, 0, 0
+
     while(assignment_incomplete(voxels)):
         #print("voxel remaining={}".format(remaining_voxel))
-        (x_low, y_low, z_low) = lowest_voxel(voxels)
-        #voxel_low = lowest_voxel(voxels)
+        #(x_low, y_low, z_low) = lowest_voxel(voxels)
+        voxel_low = lowest_voxel(voxels)
+        (x_low, y_low, z_low) = voxel_low
         q_v = deque([(x_low, y_low, z_low)])
         seen = set()
+        seen.add(voxel_low)
+        nb_in_comp = 0
+        nb_p_in_comp = 0
         while(len(q_v)>0):
-            print("len(q_v)={}".format(len(q_v)))
+            #print("len(q_v)={}".format(len(q_v)))
             v_act = q_v.popleft() # coordooné d'un voxel
+            nb_in_comp = nb_in_comp + 1
             #print("v_act={}".format(v_act))
             father, child, gd_fa_min = find_neighbours_and_assign_gd(v_act, voxels)
             
             points,_ = voxels[v_act]
             voxels[v_act] = points, gd_fa_min+1
+            nb_p_in_comp = nb_p_in_comp + len(points)
             x_a,y_a,z_a = v_act
             
             if len(father)==0:
                 points,_ = voxels[v_act]
                 voxels[v_act] = points, 0
             else:
-                if (gd_fa_min+1) > 3*(z_a-z_low):
+                # here, setting the limits about IER or geodesic distance
+                # extend limit
+
+                if ((gd_fa_min+1)/dist_3d(v_act, voxel_low)) > 1.5:
+                    continue
+                '''
+                if (gd_fa_min+1) > 100:
+                    continue
+                '''
+                '''
+                # 关于高度与gd的限制
+                if (gd_fa_min+1) > 2.5*(z_a-z_low):
                     continue
                 
+                # 关于树木直径的限制
+                #if (((x_a-x_low)**2 + (y_a-y_low)**2)**0.5) > tree_radius:
+                    #continue
+                
+                # 树木直径的限制
+                # radius limit
+                if dist((x_a,y_a), (x_low, y_low))* voxel_size > tree_radius:
+                    continue
+                '''
+
             for c in child:
                 if c not in seen:
                     q_v.append(c)
@@ -119,12 +145,23 @@ def geodesic_distance(voxels, voxel_size):
             #print("child={}, father={}".format(child,father))
         
         # when a set of component is processed
-        cauculate_ier(voxels, (x_low, y_low, z_low), seen, voxel_size, nb_component)
-        print(">> component n°{} : ier calculated".format(nb_component))
-        nb_component = nb_component + 1
+        if nb_in_comp < limit_comp:
+            nb_v_abandon = nb_v_abandon + nb_in_comp
+            nb_p_abandon = nb_p_abandon + nb_p_in_comp
+            for i in seen:
+                del voxels[i]
+        else:
+            nb_v_keep = nb_v_keep + nb_in_comp
+            nb_p_keep = nb_p_keep + nb_p_in_comp
+            cauculate_ier(voxels, (x_low, y_low, z_low), seen, voxel_size, nb_component)
+            print(">> {} voxels in component n°{} : ier calculated".format(nb_in_comp, nb_component))
+            nb_component = nb_component + 1
         
     print(">> All voxels are processed, we have {} component in this zone".format(nb_component))
-    return voxels
+    print(">> {} voxels keeped, {} voxels abondaned because of small component, remove {}% voxels.".format(nb_v_keep, nb_v_abandon, round((100*nb_v_abandon)/(nb_v_abandon+nb_v_keep),2)))
+    print(">> {} points keeped, {} points abondaned because of small component, remove {}% points.".format(nb_p_keep, nb_p_abandon, round((100*nb_p_abandon)/(nb_p_abandon+nb_p_keep),2)))
+
+    return voxels, nb_component
 
 def write_dict_data(voxels, path):
     
@@ -140,7 +177,7 @@ def write_dict_data(voxels, path):
     local_points = np.array(local_points)
     print(">>> local_points.shape={}".format(local_points.shape))
 
-    new_file = laspy.create(point_format=3)
+    new_file = laspy.create(point_format=3, file_version="1.2")
     new_file.add_extra_dim(laspy.ExtraBytesParams(name="ier", type=np.float64))
     new_file.add_extra_dim(laspy.ExtraBytesParams(name="gd", type=np.float64))
     new_file.add_extra_dim(laspy.ExtraBytesParams(name="tree_id", type=np.float64))
@@ -152,18 +189,21 @@ def write_dict_data(voxels, path):
     new_file.tree_id = local_points[:,-1] #tree_id/nb_component
     new_file.write(path)
 
-
 if __name__ == "__main__":
     parser = ap.ArgumentParser(description="-- Yuchen PhD mission, let's figure it out! --")
     parser.add_argument("data_path", help="The path of raw data (train data with labels).", type=str)
     parser.add_argument("--voxel_size", help="The voxel size.", type=float, default=0.2)
     parser.add_argument("--grid_size", help="The grid_size.", type=float, default=10.0)
+    parser.add_argument("--limit_comp", help="Nb of voxels below limit_comp will be removed.", type=float, default=20.0)
+    parser.add_argument("--tree_radius", help="tree_radius.", type=float, default=7.0)
     args = parser.parse_args()
     data_path = args.data_path
     voxel_size = args.voxel_size
     grid_size = args.grid_size
+    limit_comp = args.limit_comp
+    tree_radius = args.tree_radius
     
-    x,y = (10,10)
+    x,y = (0,0)
 
     data, x_min, x_max, y_min, y_max, z_min, z_max = read_data_with_intensity(data_path, "intensity", detail=True)
     local_index = get_region_index(data, x, x+grid_size, y, y+grid_size)
@@ -178,7 +218,7 @@ if __name__ == "__main__":
     key_points_in_voxel, nb_points_per_voxel, voxel = voxel_grid_sample(local_points, voxel_size, 'mc')
 
     initialize_voxels(key_points_in_voxel)
-    geodesic_distance(key_points_in_voxel, voxel_size)
+    geodesic_distance(key_points_in_voxel, voxel_size, tree_radius=tree_radius, limit_comp=limit_comp)
     #plot_voxels(voxels_dict_to_numpy(key_points_in_voxel), grid_size, voxel_size)
 
     output = os.getcwd()+"/test_ier_"+ datetime.now().strftime('%Y-%m-%d_%H-%M-%S') +"_" + str(voxel_size) + ".las"

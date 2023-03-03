@@ -1,11 +1,16 @@
 import argparse as ap
 from model import *
+from unet import *
 from trainer import *
 from build_dataset import *
 from preprocess_data import *
 
 if __name__ == "__main__":
-    print("\n###### start the programme ######\n")
+
+    # start
+    time_start = datetime.now()
+    print("\n###### start the programme : {} ######\n".format(time_start.strftime("%Y-%m-%d %H:%M:%S")))
+    
     # build arguments
     parser = ap.ArgumentParser(description="-- Yuchen PhD mission, let's figure it out! --")
     parser.add_argument("train_data_path", help="The path of raw data (train data with labels).", type=str)
@@ -18,6 +23,9 @@ if __name__ == "__main__":
     parser.add_argument("--predict_threshold", help="The predict threshold.", type=float, default=0.5)
     parser.add_argument("--global_height", help="The global_height.", type=int, default=50)
     parser.add_argument("--nb_window", help="int(nb_window**0.5) is the number of cuboids we want on the training set.", type=int, default=400)
+    parser.add_argument("--augmentation", help="if we do the augmentation or not.", type=bool, default=False)
+    parser.add_argument("--resolution", help="resolution of data", type=int, default=20)
+    
     args = parser.parse_args()
 
     # take arguments
@@ -31,6 +39,7 @@ if __name__ == "__main__":
     batch_size = args.batch_size
     global_height = args.global_height
     nb_window = int(args.nb_window**0.5)
+    augmentation = False
 
     # set by default
     voxel_sample_mode = 'mc'
@@ -42,9 +51,31 @@ if __name__ == "__main__":
         my_device = torch.device('cpu')
     print('> Device : {}'.format(my_device))
 
-    
+    resolution = 25
     # (2) prepare train dataset and validation dataset
-    samples_train, sample_cuboid_index_train, train_voxel_nets = prepare_procedure(
+    samples_train, sample_voxel_net_index_train, train_voxel_nets = prepare_procedure_ier(
+                                                        train_data_path, 
+                                                        resolution,
+                                                        voxel_sample_mode,
+                                                        label_name="WL", 
+                                                        sample_size=sample_size,
+                                                        augmentation=augmentation)
+    train_dataset = TrainDataSet(samples_train, sample_voxel_net_index_train, train_voxel_nets, my_device)
+    train_dataset.show_info()
+
+    
+    samples_val, sample_voxel_net_index_val, val_voxel_nets = prepare_procedure_ier(
+                                                    val_data_path, 
+                                                    resolution,
+                                                    voxel_sample_mode, 
+                                                    label_name="WL",
+                                                    sample_size=sample_size,
+                                                    augmentation=augmentation)
+    val_dataset = TrainDataSet(samples_val, sample_voxel_net_index_val, val_voxel_nets, my_device)
+    val_dataset.show_info()
+    
+    '''
+    samples_train, sample_cuboid_index_train, train_voxel_nets = prepare_procedure_ier(
                                                                     train_data_path, 
                                                                     grid_size, 
                                                                     voxel_size,
@@ -58,7 +89,7 @@ if __name__ == "__main__":
     train_dataset = TrainDataSet(samples_train, sample_cuboid_index_train, my_device)
     train_dataset.show_info()
     
-    samples_val, sample_cuboid_index_val, val_voxel_nets = prepare_procedure(
+    samples_val, sample_cuboid_index_val, val_voxel_nets = prepare_procedure_ier(
                                                                     val_data_path, 
                                                                     grid_size, 
                                                                     voxel_size, 
@@ -70,11 +101,12 @@ if __name__ == "__main__":
                                                                     nb_window=4)
     val_dataset = TrainDataSet(samples_val, sample_cuboid_index_val, my_device)
     val_dataset.show_info()
-
+    '''
     # (3) create model and trainning
     # create a model
     #global_height = z_max - z_min # the absolute height, set to 50 for the moment
     my_model = PointWiseModel(device=my_device)
+    #my_model = UNet(dim=3)
     
     my_trainer = Trainer(
                 my_model, 
@@ -93,6 +125,11 @@ if __name__ == "__main__":
 
     my_trainer.train_model(nb_epoch=nb_epoch)
     
-    print("\n###### End ######")
+    # end 
+    time_end = datetime.now()
+    time_diff = (time_end - time_start).total_seconds()
+    print(time_diff)
+    print("\n###### End {} ######".format(time_end.strftime("%Y-%m-%d %H:%M:%S")))
+    print("### Energy Consumption : {} J - {} kWh ###".format(round(260*time_diff,2), round((260*time_diff/3600000),2)))
 
         

@@ -5,6 +5,10 @@ import numpy as np
 from torch.autograd import Variable
 from pointnet2_utils import PointNetSetAbstraction,PointNetFeaturePropagation
 
+###############
+# version ier #
+###############
+
 # PointNet++
 class Pointnet_plus(nn.Module):
     def __init__(self, num_classes):
@@ -83,11 +87,13 @@ class PointWiseModel(nn.Module):
         self.conv_3_1 = nn.Conv3d(64, 64, 3, padding=1)  # out: [64]
 
         # feature_size was setting 3 times for multi-scale learning/multi receptive field
-        # +3 : intensity added + roughness added + ncr added ... 
+        # + (3 + 32): intensity added + roughness added + ncr added, 32 is output of pointfeatures ... 
         # + 128 : output of fc of the pointwise_features
         # + (128 + 64) : pointnet segmentation output
-        feature_size = 1 + (32 + 64 + 64) + 3 + 128 + (128)
-
+        #feature_size = (1 + 32 + 64 + 64) + (3 + 32) + (128)
+        #feature_size = (1 + 32 + 64 + 64) + (3) + (128)
+        #feature_size = 1 + (32 + 64 + 64) + 3 + 32
+        feature_size = (3 + 32) + (128)
         # conditionnal VAE, co-variabale, regression
         self.fc_0 = nn.Conv1d(feature_size, hidden_dim*2, 1)
         self.fc_1 = nn.Conv1d(hidden_dim*2, hidden_dim, 1)
@@ -101,9 +107,9 @@ class PointWiseModel(nn.Module):
 
         # point_feature_size = 7
         #self.mlp_0 = nn.Conv1d(7, hidden_dim*2, 1)
-        self.mlp_0 = nn.Conv1d(3, hidden_dim*2, 1)
-        self.mlp_1 = nn.Conv1d(hidden_dim*2, hidden_dim, 1)
-        self.mlp_2 = nn.Conv1d(hidden_dim, 128, 1)
+        self.mlp_0 = nn.Conv1d(3, hidden_dim, 1)
+        self.mlp_1 = nn.Conv1d(hidden_dim, hidden_dim, 1)
+        self.mlp_2 = nn.Conv1d(hidden_dim, 32, 1)
 
         # point-based branch: PointNet
         self.point_base_model = Pointnet_plus(num_classes=self.num_classes)
@@ -134,19 +140,17 @@ class PointWiseModel(nn.Module):
 
         # swap x y z to z y x
         p = points[:,:,[2,1,0]]
-        p[:,:] = p[:,:] + 0.5
-        v = v.unsqueeze(1)
+        v = v.unsqueeze(1).to(torch.float32)
         #v = torch.permute(v, dims=[0,1,4,2,3])
         '''
         v = v.permute((0,1,4,2,3))
         '''
-        p = p.unsqueeze(1).unsqueeze(1)
+        p = p.unsqueeze(1).unsqueeze(1).to(torch.float32)
         
         '''
         [*] points, p.shape=torch.Size([4, 1, 1, 20000, 3])
         [*] v_cuboid, v.shape=torch.Size([4, 1, 25, 25, 250])
         '''
-
 
         # grid_sample 
         # align_corner = True, consider the center of pixels/voxels 
@@ -189,22 +193,13 @@ class PointWiseModel(nn.Module):
         feature_3 = F.grid_sample(net, p, align_corners=True)
 
         # pointwise_features = [intensity, roughness, ncr, return_number, number_of_returns, rest_return, ratio_return]
-        '''
-        feature_intensity = pointwise_features[0].unsqueeze(1).unsqueeze(1).unsqueeze(1)
-        feature_roughness = pointwise_features[1].unsqueeze(1).unsqueeze(1).unsqueeze(1)
-        feature_ncr = pointwise_features[2].unsqueeze(1).unsqueeze(1).unsqueeze(1)
-        feature_return_nb = pointwise_features[3].unsqueeze(1).unsqueeze(1).unsqueeze(1)
-        feature_number_of_returns = pointwise_features[4].unsqueeze(1).unsqueeze(1).unsqueeze(1)
-        feature_rest_return = pointwise_features[5].unsqueeze(1).unsqueeze(1).unsqueeze(1)
-        feature_ratio_return = pointwise_features[6].unsqueeze(1).unsqueeze(1).unsqueeze(1)
-        '''
-
         pointwise_features = pointwise_features.permute(0,2,1)
         # mlp
+        
         feature_mlp = self.actvn(self.mlp_0(pointwise_features))
         feature_mlp = self.actvn(self.mlp_1(feature_mlp))
         feature_mlp = self.actvn(self.mlp_2(feature_mlp))
-
+        
         #features = torch.cat((feature_0, feature_1, feature_1_ks5, feature_1_ks7, feature_2, feature_2_ks5, feature_2_ks7, feature_3, feature_3_ks5, feature_3_ks7, feature_intensity), dim=1)  # (B, features, 1,7,sample_num)
         #features = torch.cat((feature_0, feature_1, feature_2, feature_3, feature_intensity, point_features, feature_elevation), dim=1)  # (B, features, 1,7,sample_num)
         
@@ -237,18 +232,11 @@ class PointWiseModel(nn.Module):
 
         shape = features.shape
         features = torch.reshape(features, (shape[0], shape[1] * shape[3], shape[4]))  # (B, featues_per_sample, samples_num)
-        
-        '''
-        #features = torch.cat((features, p_features), dim=1)  # (B, featue_size, samples_num)
-        print("feature_3.shape {}".format(feature_3.shape))
-        print("features.shape {}".format(features.shape))
-        print("features.shape {}".format(features.shape))
-        >> point_features.shape=torch.Size([4, 320, 5000])
-        features.shape=torch.Size([4, 641, 5000]) feature_mlp.shape=torch.Size([4, 256, 5000]) pointwise_features=torch.Size([4, 7, 5000])
-        features.shape torch.Size([4, 904, 5000])
-        '''
-        
-        features = torch.cat((features, feature_mlp, pointwise_features, pointnet_features), dim=1)
+
+        #features = torch.cat((features, pointwise_features, feature_mlp, pointnet_features) , dim=1)
+        #features = torch.cat((features, pointwise_features, pointnet_features) , dim=1)
+        #features = torch.cat((features, feature_mlp, pointwise_features), dim=1)
+        features = torch.cat((pointwise_features, feature_mlp, pointnet_features) , dim=1)
         net_out = self.actvn(self.fc_0(features))
         net_out = self.actvn(self.fc_1(net_out))
         #net_out = self.actvn(self.fc_2(net_out))
@@ -256,20 +244,4 @@ class PointWiseModel(nn.Module):
         out = net_out.squeeze(1)
 
         return out
-
-'''
-feature_0.shape torch.Size([4, 1, 1, 7, 5000])
-after first conv_1, net= torch.Size([4, 32, 100, 10, 10])
-after first conv_1_1, net= torch.Size([4, 64, 100, 10, 10])
-feature_1.shape torch.Size([4, 64, 1, 7, 5000])
-after first conv_2, net= torch.Size([4, 128, 50, 5, 5])
-after first conv_2_1, net= torch.Size([4, 128, 50, 5, 5])
-feature_2.shape torch.Size([4, 128, 1, 7, 5000])
-after first conv_3, net= torch.Size([4, 128, 25, 2, 2])
-after first conv_3_1, net= torch.Size([4, 128, 25, 2, 2])
-feature_3.shape torch.Size([4, 128, 1, 7, 5000])
-features.shape torch.Size([4, 321, 1, 7, 5000])
-features.shape torch.Size([4, 2247, 5000])
-out shape: torch.Size([4, 5000])
-'''
 
