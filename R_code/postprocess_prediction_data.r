@@ -1,51 +1,25 @@
 library("lidR")
-library("dplyr")
 library("lattice")
-library("caret")
-library("lidUrb")
 library("ggplot2")
+library("caret")
+library("dplyr")
+library("lidUrb")
+library("plotly")
+library("rgl")
 
-
-tls <- readLAS("/home/yuchen/Documents/PhD/data_for_project/22-04-05_tls_labelled_data_corrected/res_corrected_only_identified.las")
-predict <- readLAS("/home/yuchen/segmented_retrain_tls.las")
-
-#tls <- readLAS("/home/yuchen/uls_retrain_test.las")
-#predict <- readLAS("/home/yuchen/Documents/segmented.las")
-
-tls@data <- tls@data[order(tls@data$X, tls@data$Y, tls@data$Z)]
-predict@data <- predict@data[order(predict@data$X, predict@data$Y, predict@data$Z)]
-
-head(tls@data[0:10])
-head(predict@data[0:10])
-
-lidR::plot(tls,color="label",size=2,colorPalette = c("chartreuse4","cornsilk2"), legend=TRUE)
-table(tls@data$label)
-# leave=0, wood=1
-tls@data$label <- replace(tls@data$label, tls@data$label==2, 0)
-tls@data$label <- replace(tls@data$label, tls@data$label==4, 1)
-table(tls@data$label)
-
-lidR::plot(predict,color="label",size=2,colorPalette = c("chartreuse4","cornsilk2"), legend=TRUE)
-table(predict@data$label)
-predict@data$label <- replace(predict@data$label, predict@data$label==1, 2)
-predict@data$label <- replace(predict@data$label, predict@data$label==0, 1)
-predict@data$label <- replace(predict@data$label, predict@data$label==2, 0)
-
-lidR::plot(predict,color="label",size=2,colorPalette = c("chartreuse4","cornsilk2"), legend=TRUE)
-
-table(predict@data$label)
-
-truth <- factor(tls@data$label)
-pred <- factor(predict@data$label)
-
-table(pred, truth)
+########################################################
+# functions
+#!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+# be attention!
+# here, is we use the function confusionMatrix of caret
+# the label=1 is the specificity
 
 draw_confusion_matrix <- function(cm, f_name) {
   
   layout(matrix(c(1,1,2)))
   par(mar=c(2,2,2,2))
   plot(c(100, 345), c(300, 450), type = "n", xlab="", ylab="", xaxt='n', yaxt='n')
-  title(paste('FSCT (retrain) on LS - Confusion Matrix :',f_name), cex.main=2)
+  title(paste('Confusion Matrix :',f_name), cex.main=2)
   
   # create the matrix 
   rect(150, 430, 240, 370, col='#3F97D0')
@@ -85,22 +59,43 @@ draw_confusion_matrix <- function(cm, f_name) {
   text(70, 35, names(cm$overall[2]), cex=1.5, font=2)
   text(70, 20, round(as.numeric(cm$overall[2]), 3), cex=1.4)
 }
+
+pred <- readLAS("/home/yuchen/Documents/PhD/data_for_project/23-02-28_predic_result/res_remove_duplicated_points.las")
+pred@data <- pred@data[pred@data$true >=0 ]
+
+lidR::plot(pred, color = "true", size=2, colorPalette = c("#93c555","#007f54"), bg="white", legend=TRUE)
+pred@data$true <- replace(pred@data$true, pred@data$true==1, 2)
+pred@data$true <- replace(pred@data$true, pred@data$true==0, 1)
+pred@data$true <- replace(pred@data$true, pred@data$true==2, 0)
+
+pred@data$predict <- replace(pred@data$predict, pred@data$predict==1, 2)
+pred@data$predict <- replace(pred@data$predict, pred@data$predict==0, 1)
+pred@data$predict <- replace(pred@data$predict, pred@data$predict==2, 0)
+
+hist(pred@data$wood_proba)
+pred@data$wood_proba <- replace(pred@data$wood_proba, pred@data$wood_proba==-1, 0)
+lidR::plot(pred, color = "wood_proba", size=2, colorPalette = c("#93c555","#007f54"), bg="white", legend=TRUE)
+
+hist(-log(pred@data$wood_proba))
+pred@data$wood_proba_new <- (-log(pred@data$wood_proba))
+
+hist(pred@data$wood_proba)
+hist(-log(pred@data$wood_proba), breaks = 100)
+
+pred@data[,new_predict := as.numeric(wood_proba_new < 6)]
+
+hist(pred@data$wood_proba_new)
+hist(pred@data$new_predict)
+
+truth <- factor(pred@data$true)
+predict <- factor(pred@data$new_predict)
+
+hist(pred@data$true)
+hist(pred@data$new_predict)
 table(truth)
+table(predict)
 
-cm <- confusionMatrix(pred, truth)
-draw_confusion_matrix(cm, "label")
+cm <- confusionMatrix(predict, truth)
+cm
+draw_confusion_matrix(cm, "Yuchen model")
 
-
-
-p <- ggplot(data=tls@data, aes(x=WL)) + 
-  geom_bar(aes(y = (after_stat(count)))) + 
-  geom_bar(aes(x=WL),color="red")
-p
-
-p2 <- ggplot(data=predict@data, aes(x=label)) + 
-  geom_bar(aes(y = (after_stat(count)))) + 
-  geom_bar(aes(x=label),color="red")
-p2
-
-summary(tls)
-summary(predict)

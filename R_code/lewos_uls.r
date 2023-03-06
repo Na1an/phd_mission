@@ -6,13 +6,12 @@ library("dplyr")
 library("lidUrb")
 
 # functions
-
 draw_confusion_matrix <- function(cm, f_name) {
   
   layout(matrix(c(1,1,2)))
   par(mar=c(2,2,2,2))
   plot(c(100, 345), c(300, 450), type = "n", xlab="", ylab="", xaxt='n', yaxt='n')
-  title(paste('FSCT on ULS - Confusion Matrix :',f_name), cex.main=2)
+  title(paste('Lewos on ULS - Confusion Matrix :',f_name), cex.main=2)
   
   # create the matrix 
   rect(150, 430, 240, 370, col='#3F97D0')
@@ -57,8 +56,9 @@ draw_confusion_matrix <- function(cm, f_name) {
 uls <- readLAS("/home/yuchen/Documents/PhD/data_for_project/22-04-11_transposed_data/dls_only_sutdy_region.las")
 #summary(uls)
 summary(uls)
-
 uls@data <- uls@data[uls@data[["llabel"]]>1]
+lidR::plot(uls, color = "llabel", size=2, colorPalette = c("#93c555","#007f54"), bg="white", legend=TRUE)
+
 uls@data$llabel <- replace(uls@data$llabel, uls@data$llabel == 2, 1)
 uls@data$llabel <- replace(uls@data$llabel, uls@data$llabel == 3, 0)
 
@@ -68,9 +68,6 @@ uls@data$llabel <- replace(uls@data$llabel, uls@data$llabel == 3, 0)
 #p
 
 uls_lewos <- LW_segmentation_graph(uls)
-summary(uls_lewos)
-summary(uls)
-
 
 # density distribution of p_wood
 p2 <- ggplot(uls_lewos@data, aes(x=p_wood)) + geom_density()
@@ -82,6 +79,9 @@ p
 
 uls_lewos@data[,wood_p := as.numeric(p_wood >= 0.9)]
 uls_lewos@data[,wood_s := as.numeric(SoD >= 0.99)]
+lidR::plot(uls_lewos,color="wood_s",size=2,colorPalette = c("chartreuse4","cornsilk2"), legend=TRUE)
+lidR::plot(uls_lewos,color="wood_p",size=2,colorPalette = c("chartreuse4","cornsilk2"), legend=TRUE)
+lidR::plot(uls_lewos,color="llabel",size=2,colorPalette = c("chartreuse4","cornsilk2"), legend=TRUE)
 
 #lidR::plot(uls_lewos, color="llabel",size=2,colorPalette = c("chartreuse4","cornsilk2"), legend=TRUE)
 
@@ -92,17 +92,18 @@ pred2 <- factor(uls_lewos@data$wood_s)
 table(truth, pred)
 table(truth, pred2)
 
-cm <- confusionMatrix(truth, pred)
+cm <- confusionMatrix(pred, truth)
 draw_confusion_matrix(cm, "wood_p")
 
-cm2 <- confusionMatrix(truth, pred2)
+cm2 <- confusionMatrix(pred2, truth)
 draw_confusion_matrix(cm2, "wood_s")
 
 
 ##################### calculate confusion matrix #################
 
 uls <- readLAS("/home/yuchen/Documents/PhD/data_for_project/22-09-01_new_data_with_new_feature/dls_new_test_with_new_feature.las")
-uls_pred <- readLAS("/home/yuchen/Documents/PhD/data_for_project/22-09-01_new_data_with_new_feature/dls_new_test_with_new_feature_FSCT_output/segmented.las")
+#uls_pred <- readLAS("/home/yuchen/Documents/PhD/data_for_project/22-09-01_new_data_with_new_feature/dls_new_test_with_new_feature_FSCT_output/segmented.las")
+uls_pred <- readLAS("/home/yuchen/Documents/PhD/data_for_project/22-06-20_test_lewos_and_fsct/uls_retrain_test_FSCT_output_raw/segmented.las")
 
 true_data <- uls@data
 pred_data <- uls_pred@data
@@ -120,5 +121,5 @@ table(pred_data$label)
 truth <- factor(true_data$WL)
 pred <- factor(pred_data$label)
 
-cm <- confusionMatrix(truth, pred)
+cm <- confusionMatrix(pred, truth)
 draw_confusion_matrix(cm, "raw weights")

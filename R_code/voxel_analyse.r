@@ -1,3 +1,4 @@
+library("VoxR")
 library("lidR")
 library("dplyr")
 library("lattice")
@@ -64,8 +65,6 @@ draw_confusion_matrix <- function(cm, f_name) {
   text(70, 35, names(cm$overall[2]), cex=1.5, font=2)
   text(70, 20, round(as.numeric(cm$overall[2]), 3), cex=1.4)
   
-  
-  
   return(list_rturn)
 }
 
@@ -77,8 +76,9 @@ draw_confusion_matrix <- function(cm, f_name) {
 # res_corrected_only_identified_treeid_220 vs segmented_retrain_tls
 tls <- readLAS("/home/yuchen/Documents/PhD/data_for_project/22-04-05_tls_labelled_data_corrected/res_corrected_only_identified_treeid_220.las")
 
+
 # 2. fsct vs lewos_graph vs lewos_dbscan 
-tls_fsct <- readLAS("/home/yuchen/Documents/PhD/data_for_project/23-02-23_lewos_fsct_uls_article_data/segmented_retrain_tls.las")
+tls_fsct <- readLAS("/home/yuchen/segmented_retrain_tls.las")
 tls_lewos_graph <- LW_segmentation_graph(tls)
 # assign a class base on p_wood
 tls_lewos_graph@data[,wood_p := as.numeric(p_wood >= 0.9)]
@@ -90,10 +90,6 @@ tls_lewos_dbscan@data[,wood_p := as.numeric(p_wood >= 0.9)]
 tls_lewos_dbscan@data[,wood_s := as.numeric(SoD >= 0.99)]
 lidR::plot(tls_lewos_dbscan,color="wood_p",size=2,colorPalette = c("chartreuse4","cornsilk2"), legend=TRUE)
 
-#wirite las file
-tls_lewos_dbscan <- add_lasattribute(tls_lewos_dbscan, tls_lewos_dbscan@data$wood_s, "wood_s", "Label for lewos dbscan")
-writeLAS(tls_lewos_dbscan, "/home/yuchen/Documents/PhD/data_for_project/22-04-05_tls_labelled_data_corrected/res_corrected_only_identified_treeid_220_lewos_dbscan.las")
-
 # voxR package
 
 # 2. leave=0, wood=1
@@ -102,7 +98,6 @@ writeLAS(tls_lewos_dbscan, "/home/yuchen/Documents/PhD/data_for_project/22-04-05
 tls@data$WL <- replace(tls@data$WL, tls@data$WL==2, 0)
 table(tls@data$WL)
 lidR::plot(tls,color="WL",size=2,colorPalette = c("chartreuse4","cornsilk2"), legend=TRUE)
-rgl.postscript("~/Desktop/test.pdf", fmt = "pdf")
 
 # FSCT
 tls_fsct@data$label <- replace(tls_fsct@data$label, tls_fsct@data$label==1, 0)
@@ -301,28 +296,3 @@ res <- layer_analyse(layer_height = 1)
 res$acc
 res$spe
 res$rec
-
-
-#### assets #######
-# works fine for one line
-p1<- ggplot(df, aes(x = Height, y = Accuracy)) +
-  geom_ribbon(aes(ymin = Accuracy - ci_lewos_accuracy, ymax = Accuracy+ ci_lewos_accuracy), 
-              alpha = .3, fill = "darkseagreen3", color = "transparent") +
-  geom_line(color = "aquamarine4",  lwd=.7) +
-  labs(x = "Heights", y = "Accuracy") +
-  scale_color_manual(name = "Method", values = method) + 
-  coord_flip()
-p1
-
-p_rec<- ggplot(df, aes(x = Height, y = Recall, colour = Method)) +
-  geom_line(lwd=.7) +
-  geom_ribbon(data=df[df$Method=="lewos_dbscan",], aes(ymin = Recall - ci_lewos_rec, ymax = Recall+ ci_lewos_rec), 
-              alpha = .3, fill = "darkseagreen3", color = "transparent") +
-  geom_ribbon(data=df[df$Method=="fsct",], aes(ymin = Recall - ci_fsct_rec, ymax = Recall+ ci_fsct_rec), 
-              alpha = .3, fill = "darkorange1", color = "transparent") +
-  labs(x = "Heights", y = "Recall (95% CI)") +
-  ylim(-0.15,1.15)+
-  scale_color_manual(name = "Method", values =c('lewos_dbscan'='aquamarine4','fsct'='chocolate3'), labels = c('fsct','lewos')) + 
-  coord_flip() +
-  theme(text = element_text(size=15), axis.text=element_text(size=12), legend.title = element_text(size=15), legend.text = element_text(size=14))
-p_rec

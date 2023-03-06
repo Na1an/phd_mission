@@ -5,47 +5,13 @@ library("caret")
 library("lidUrb")
 library("ggplot2")
 
-
-tls <- readLAS("/home/yuchen/Documents/PhD/data_for_project/22-04-05_tls_labelled_data_corrected/res_corrected_only_identified.las")
-predict <- readLAS("/home/yuchen/segmented_retrain_tls.las")
-
-#tls <- readLAS("/home/yuchen/uls_retrain_test.las")
-#predict <- readLAS("/home/yuchen/Documents/segmented.las")
-
-tls@data <- tls@data[order(tls@data$X, tls@data$Y, tls@data$Z)]
-predict@data <- predict@data[order(predict@data$X, predict@data$Y, predict@data$Z)]
-
-head(tls@data[0:10])
-head(predict@data[0:10])
-
-lidR::plot(tls,color="label",size=2,colorPalette = c("chartreuse4","cornsilk2"), legend=TRUE)
-table(tls@data$label)
-# leave=0, wood=1
-tls@data$label <- replace(tls@data$label, tls@data$label==2, 0)
-tls@data$label <- replace(tls@data$label, tls@data$label==4, 1)
-table(tls@data$label)
-
-lidR::plot(predict,color="label",size=2,colorPalette = c("chartreuse4","cornsilk2"), legend=TRUE)
-table(predict@data$label)
-predict@data$label <- replace(predict@data$label, predict@data$label==1, 2)
-predict@data$label <- replace(predict@data$label, predict@data$label==0, 1)
-predict@data$label <- replace(predict@data$label, predict@data$label==2, 0)
-
-lidR::plot(predict,color="label",size=2,colorPalette = c("chartreuse4","cornsilk2"), legend=TRUE)
-
-table(predict@data$label)
-
-truth <- factor(tls@data$label)
-pred <- factor(predict@data$label)
-
-table(pred, truth)
-
+# function
 draw_confusion_matrix <- function(cm, f_name) {
   
   layout(matrix(c(1,1,2)))
   par(mar=c(2,2,2,2))
   plot(c(100, 345), c(300, 450), type = "n", xlab="", ylab="", xaxt='n', yaxt='n')
-  title(paste('FSCT (retrain) on LS - Confusion Matrix :',f_name), cex.main=2)
+  title(paste('Confusion Matrix :',f_name), cex.main=2)
   
   # create the matrix 
   rect(150, 430, 240, 370, col='#3F97D0')
@@ -68,39 +34,40 @@ draw_confusion_matrix <- function(cm, f_name) {
   
   # add in the specifics 
   plot(c(100, 0), c(100, 0), type = "n", xlab="", ylab="", main = "DETAILS", xaxt='n', yaxt='n')
+  
+  # sensitivity
   text(10, 85, names(cm$byClass[1]), cex=1.2, font=2)
   text(10, 70, round(as.numeric(cm$byClass[1]), 3), cex=1.2)
+  
+  # specificity
   text(30, 85, names(cm$byClass[2]), cex=1.2, font=2)
   text(30, 70, round(as.numeric(cm$byClass[2]), 3), cex=1.2)
+  
+  # precision
   text(50, 85, names(cm$byClass[5]), cex=1.2, font=2)
   text(50, 70, round(as.numeric(cm$byClass[5]), 3), cex=1.2)
+  
+  # recall
   text(70, 85, names(cm$byClass[6]), cex=1.2, font=2)
   text(70, 70, round(as.numeric(cm$byClass[6]), 3), cex=1.2)
+  
+  # F1
   text(90, 85, names(cm$byClass[7]), cex=1.2, font=2)
   text(90, 70, round(as.numeric(cm$byClass[7]), 3), cex=1.2)
   
-  # add in the accuracy information 
+  # add in the accuracy information
+  # Accuracy
   text(30, 35, names(cm$overall[1]), cex=1.5, font=2)
   text(30, 20, round(as.numeric(cm$overall[1]), 3), cex=1.4)
+  
+  # Kappa
   text(70, 35, names(cm$overall[2]), cex=1.5, font=2)
   text(70, 20, round(as.numeric(cm$overall[2]), 3), cex=1.4)
+  
+  return(list_rturn)
 }
-table(truth)
 
-cm <- confusionMatrix(pred, truth)
-draw_confusion_matrix(cm, "label")
+# 1. load uls data
+uls <- readLAS("/home/yuchen/Documents/dls_merged_test_features_added.las")
 
-
-
-p <- ggplot(data=tls@data, aes(x=WL)) + 
-  geom_bar(aes(y = (after_stat(count)))) + 
-  geom_bar(aes(x=WL),color="red")
-p
-
-p2 <- ggplot(data=predict@data, aes(x=label)) + 
-  geom_bar(aes(y = (after_stat(count)))) + 
-  geom_bar(aes(x=label),color="red")
-p2
-
-summary(tls)
-summary(predict)
+df <- uls@data[uls@data$`Linearity (0.6)` < ]
