@@ -170,12 +170,6 @@ class PointWiseModel(nn.Module):
         net = self.actvn(self.conv_2_1(net))
         net = self.conv2_1_bn(net)
 
-        '''
-        print("feature_1.shape {}".format(feature_1.shape))
-        print("after first conv_2, net=", net.shape)
-        print("after first conv_2_1, net=", net.shape)
-        '''
-
         # feature_3
         feature_2 = F.grid_sample(net, p, align_corners=True)
         net = self.maxpool(net)
@@ -183,16 +177,13 @@ class PointWiseModel(nn.Module):
         net = self.actvn(self.conv_3_1(net))
         net = self.conv3_1_bn(net)
 
-        '''
-        print("feature_2.shape {}".format(feature_2.shape))
-        print("after first conv_3, net=", net.shape)
-        print("after first conv_3_1, net=", net.shape)
-        '''
-
         # feature_3
         feature_3 = F.grid_sample(net, p, align_corners=True)
 
+<<<<<<< HEAD
         # pointwise_features = [intensity, roughness, ncr, return_number, number_of_returns, rest_return, ratio_return]
+=======
+>>>>>>> 681a2ed (before change new loss function)
         pointwise_features = pointwise_features.permute(0,2,1)
         # mlp
         
@@ -202,27 +193,7 @@ class PointWiseModel(nn.Module):
         
         #features = torch.cat((feature_0, feature_1, feature_1_ks5, feature_1_ks7, feature_2, feature_2_ks5, feature_2_ks7, feature_3, feature_3_ks5, feature_3_ks7, feature_intensity), dim=1)  # (B, features, 1,7,sample_num)
         #features = torch.cat((feature_0, feature_1, feature_2, feature_3, feature_intensity, point_features, feature_elevation), dim=1)  # (B, features, 1,7,sample_num)
-        
-        ############################
-        # pointnet feature removed #
-        ############################
-        #features = torch.cat((feature_0, feature_1, feature_2, feature_3, feature_intensity, point_features), dim=1)
-        '''
-        features = torch.cat((
-            feature_0, 
-            feature_1, 
-            feature_2, 
-            feature_3, 
-            feature_roughness, 
-            feature_intensity, 
-            feature_ncr, 
-            feature_return_nb, 
-            feature_number_of_returns,
-            feature_rest_return,
-            feature_ratio_return,
-            point_features
-        ), dim=1)
-        '''
+
         features = torch.cat((
             feature_0, 
             feature_1, 
@@ -245,3 +216,7 @@ class PointWiseModel(nn.Module):
 
         return out
 
+<<<<<<< HEAD
+=======
+
+>>>>>>> 681a2ed (before change new loss function)
