@@ -45,7 +45,7 @@ if __name__ == "__main__":
                                                     data_path, 
                                                     resolution,
                                                     voxel_sample_mode, 
-                                                    label_name="WL",
+                                                    label_name="intensity",
                                                     sample_size=sample_size,
                                                     augmentation=False,
                                                     for_test=True)
@@ -110,6 +110,8 @@ if __name__ == "__main__":
         new_file_bis.add_extra_dim(laspy.ExtraBytesParams(name="leave_proba", type=np.float64))
         new_file_bis.add_extra_dim(laspy.ExtraBytesParams(name="predict", type=np.float64))
         new_file_bis.add_extra_dim(laspy.ExtraBytesParams(name="true", type=np.float64))
+        
+        '''
         if len(samples_rest_single) ==0:
             continue
         samples_rest_single = samples_rest_single.squeeze(0).cpu().detach().numpy()
@@ -129,7 +131,7 @@ if __name__ == "__main__":
         new_file_bis.predict = np.ones(len(samples_rest_single[:]))
         new_file_bis.true = samples_rest_single[:,3]
         new_file_bis.write(os.getcwd()+"/predict_res/rest_{:04}.las".format(i))
-
+        '''
         i = i+1
         print(">>> cube - N°{} predicted ".format(i))
     
