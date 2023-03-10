@@ -343,7 +343,7 @@ def prepare_dataset_ier(data, voxel_size_ier, voxel_sample_mode, augmentation, r
         sample_voxelized.append(0)
         # normalizeing, data centered to (0,0,0)
         
-        sample_tmp_bis[:,:3] = sample_tmp_bis[:,:3] - 0.5
+        #sample_tmp_bis[:,:3] = sample_tmp_bis[:,:3] - 0.5
 
         sample_res[ic] = np.concatenate((sample_tmp_bis, pos_raw), axis=1)
 

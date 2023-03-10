@@ -51,6 +51,19 @@ class FocalLoss(nn.Module):
             loss = loss.sum()
         return loss
 
+def rebalanced_loss(ce_loss, target):
+    wood_loss = ce_loss[target<0.5]
+    leaf_loss = ce_loss[target>0.5]
+    
+    if len(wood_loss) == 0:
+        wood_loss = torch.tensor([0.0])
+    elif len(wood_loss) < len(leaf_loss):
+        # Maybe more leaf loss can be taken here? 1:2 ratio?
+        indices = torch.randperm(len(leaf_loss))[:len(wood_loss)]
+        leaf_loss = leaf_loss[indices]
+        
+    return (torch.mean(wood_loss) + torch.mean(leaf_loss)) * 0.5
+
 class Trainer():
     def __init__(self, model, device, train_dataset, train_voxel_nets, val_dataset, val_voxel_nets, batch_size, sample_size, predict_threshold, num_workers, grid_size, global_height, alpha=0, gamma=2, shuffle=True, opt="Adam"):
         '''
@@ -166,7 +179,9 @@ class Trainer():
                 
                 logits = logits.to(self.device)
                 label = label.to(self.device)
-                tmp_loss = self.criterion(logits, label)
+                #tmp_loss = self.criterion(logits, label)
+                ce_loss = F.binary_cross_entropy_with_logits(inputs, target, reduction="none")
+                tmp_loss = rebalanced_loss(ce_loss, label)
                 tmp_loss.backward()
                 self.optimizer.step()
                 
@@ -318,7 +333,9 @@ class Trainer():
             label = label.to(self.device)
 
             # loss
-            tmp_loss = self.criterion(logits, label)
+            #tmp_loss = self.criterion(logits, label)
+            ce_loss = F.binary_cross_entropy_with_logits(inputs, target, reduction="none")
+            tmp_loss = rebalanced_loss(ce_loss, label)
             sum_val_loss = sum_val_loss + tmp_loss.item()
 
             # accuracy
