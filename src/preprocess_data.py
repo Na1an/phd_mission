@@ -273,7 +273,7 @@ def prepare_dataset_ier(data, voxel_size_ier, voxel_sample_mode, augmentation, r
         #we have point clouds removed to（0,0,0）
         #replace nan value by mean of 5 nearest points no-nan
         #print(">>>>!!!sample_tmp[ic] is nan shape=", sample_tmp[ic][np.isnan(sample_tmp[ic])].shape)
-        
+        '''
         neigh = NearestNeighbors(n_neighbors=6, radius=10)
         neigh.fit(sample_tmp[ic][:, 0:3])
         dist, ind = neigh.kneighbors(sample_tmp[ic][:, 0:3], return_distance=True)
@@ -283,7 +283,7 @@ def prepare_dataset_ier(data, voxel_size_ier, voxel_sample_mode, augmentation, r
                     knn_f = sample_tmp[ic][ind[ep]][:,3+ef]
                     #print("knn_f ={} mean={}".format(knn_f[~np.isnan(knn_f)], np.mean(knn_f[~np.isnan(knn_f)])))
                     sample_tmp[ic][ep][3+ef] = np.mean(knn_f[~np.isnan(knn_f)])
-        
+        '''
         #print(">>>>!!! after sample_tmp[ic] is nan shape=", sample_tmp[ic][np.isnan(sample_tmp[ic])].shape)
         # value scaled to 0,1
         # plot training dataset
@@ -311,12 +311,15 @@ def prepare_dataset_ier(data, voxel_size_ier, voxel_sample_mode, augmentation, r
             return data_tmp, dim_f, data_tmp_bis
         '''
         #sample_tmp_bis, dim_f, sample_tmp_bis_rest = partition(9, 0.1, bigger=False)
-        dim_f = list(range(0,11))
-        dim_f.remove(9)
-        sample_tmp_bis = sample_tmp[ic][:,dim_f]
+        #dim_f = list(range(0,11))
+        #dim_f.remove(9)
+        nb_p, len_f = sample_tmp[ic].shape
+        print("before remove nan, sample.shape={}".format(sample_tmp[ic].shape))
+        sample_tmp_bis = sample_tmp[ic][np.all(~np.isnan(sample_tmp[ic]), axis=1)]
+        print("after remove nan, sample.shape={}, {}% point removed".format(sample_tmp_bis.shape, 100 - 100*(sample_tmp_bis.shape[0]/nb_p)))
 
         # [7:10] -> features ["PCA1","linearity","sphericity", "verticality"]
-        sample_tmp_bis[:,7:10] = standardization(sample_tmp_bis[:,7:10])
+        sample_tmp_bis[:,7:] = standardization(sample_tmp_bis[:,7:])
         pos_raw = np.copy(sample_tmp_bis[:,:3])
 
         try:
