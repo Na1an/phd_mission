@@ -431,7 +431,7 @@ def geodesic_distance(voxels, voxel_size, tree_radius=7.0, limit_comp=10, limit_
                 if ((gd_fa_min+1)/dist_3d(v_act, voxel_low)) > 1.5:
                     continue
 
-                if (gd_fa_min+1) > 40:
+                if (gd_fa_min+1) > 10:
                     continue
                 '''
                 # 关于高度与gd的限制

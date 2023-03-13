@@ -180,7 +180,7 @@ class Trainer():
                 logits = logits.to(self.device)
                 label = label.to(self.device)
                 #tmp_loss = self.criterion(logits, label)
-                ce_loss = F.binary_cross_entropy_with_logits(inputs, target, reduction="none")
+                ce_loss = F.binary_cross_entropy_with_logits(logits, label, reduction="none")
                 tmp_loss = rebalanced_loss(ce_loss, label)
                 tmp_loss.backward()
                 self.optimizer.step()
@@ -334,7 +334,7 @@ class Trainer():
 
             # loss
             #tmp_loss = self.criterion(logits, label)
-            ce_loss = F.binary_cross_entropy_with_logits(inputs, target, reduction="none")
+            ce_loss = F.binary_cross_entropy_with_logits(logits, label, reduction="none")
             tmp_loss = rebalanced_loss(ce_loss, label)
             sum_val_loss = sum_val_loss + tmp_loss.item()
 
