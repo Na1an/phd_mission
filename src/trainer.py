@@ -300,7 +300,7 @@ class Trainer():
     def compute_val_loss(self):
         self.model.eval()
         sum_val_loss = 0
-        num_batches = self.batch_size
+        num_batches = 5
         predict_correct = 0
         mcc, f1_score_all = 0,0
         rec_all, spe_all, pre_all, acc_all, f1_all, auroc_all = [],[],[],[],[],[]
