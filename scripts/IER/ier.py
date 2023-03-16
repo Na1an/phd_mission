@@ -118,10 +118,9 @@ def geodesic_distance(voxels, voxel_size, tree_radius=7.0, limit_comp=10):
 
                 if ((gd_fa_min+1)/dist_3d(v_act, voxel_low)) > 1.5:
                     continue
-                '''
-                if (gd_fa_min+1) > 100:
+
+                if (gd_fa_min+1) > 10:
                     continue
-                '''
                 '''
                 # 关于高度与gd的限制
                 if (gd_fa_min+1) > 2.5*(z_a-z_low):
@@ -136,6 +135,7 @@ def geodesic_distance(voxels, voxel_size, tree_radius=7.0, limit_comp=10):
                 if dist((x_a,y_a), (x_low, y_low))* voxel_size > tree_radius:
                     continue
                 '''
+
 
             for c in child:
                 if c not in seen:
@@ -181,12 +181,14 @@ def write_dict_data(voxels, path):
     new_file.add_extra_dim(laspy.ExtraBytesParams(name="ier", type=np.float64))
     new_file.add_extra_dim(laspy.ExtraBytesParams(name="gd", type=np.float64))
     new_file.add_extra_dim(laspy.ExtraBytesParams(name="tree_id", type=np.float64))
+    new_file.add_extra_dim(laspy.ExtraBytesParams(name="WL", type=np.float64))
     new_file.x = local_points[:,0]
     new_file.y = local_points[:,1]
     new_file.z = local_points[:,2]
     new_file.ier = local_points[:,-2] #ier
     new_file.gd = local_points[:,-3] #gd
     new_file.tree_id = local_points[:,-1] #tree_id/nb_component
+    new_file.WL = local_points[:,3]
     new_file.write(path)
 
 if __name__ == "__main__":
@@ -205,7 +207,7 @@ if __name__ == "__main__":
     
     x,y = (0,0)
 
-    data, x_min, x_max, y_min, y_max, z_min, z_max = read_data_with_intensity(data_path, "intensity", detail=True)
+    data, x_min, x_max, y_min, y_max, z_min, z_max = read_data_with_intensity(data_path, "WL", detail=True)
     local_index = get_region_index(data, x, x+grid_size, y, y+grid_size)
     local_points = data[local_index]
     local_z = np.min(local_points[:,2])

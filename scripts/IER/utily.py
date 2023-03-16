@@ -30,31 +30,6 @@ def read_data_with_intensity(path, feature, feature2='intensity', detail=False):
     #(data_target['intensity']/65535)*35 - 30 for TLS
     f_intensity = (data_las[feature2]/65535)*40 - 40
     
-    #print(">> f_intensity.shape={}, nan size={}, non nan={}".format(f_intensity.shape, f_intensity[np.isnan(f_intensity)].shape, f_intensity[~np.isnan(f_intensity)].shape))
-
-    f_roughness = data_las["Roughness (0.7)"]
-    f_roughness[np.isnan(f_roughness)] = -0.1
-    f_roughness = f_roughness + 0.1
-    
-    f_ncr = data_las["Normal change rate (0.7)"]
-    f_ncr[np.isnan(f_ncr)] = -0.1
-    f_ncr = f_ncr + 0.1
-
-    max_nb_of_returns = 5
-    # order
-    f_return_nb = data_las["return_number"]
-    f_return_nb[np.isnan(f_return_nb)] = 1
-    f_return_nb = f_return_nb/max_nb_of_returns
-    
-    # total number
-    f_nb_of_returns = data_las["number_of_returns"]
-    f_nb_of_returns[np.isnan(f_nb_of_returns)] = 1
-    f_nb_of_returns = f_nb_of_returns/max_nb_of_returns
-    
-    f_rest_return = (f_nb_of_returns - f_return_nb)/max_nb_of_returns
-    f_ratio_return = f_return_nb/(f_nb_of_returns*max_nb_of_returns)
-    f_ratio_return[np.isnan(f_ratio_return)] = 0
-    
     '''
     print("nan shape = {} {} {} {}".format(
         f_return_nb[np.isnan(f_return_nb)].shape, 
@@ -69,13 +44,6 @@ def read_data_with_intensity(path, feature, feature2='intensity', detail=False):
         data_las.y - y_min, 
         data_las.z - z_min, 
         data_las[feature],
-        normalize_feature(f_intensity),
-        normalize_feature(f_roughness), 
-        normalize_feature(f_ncr)
-        #f_return_nb,
-        #f_nb_of_returns,
-        #f_rest_return,
-        #f_ratio_return
         ))
 
     print(">>>[!data with intensity] data shape =", data.shape, " type =", type(data))
