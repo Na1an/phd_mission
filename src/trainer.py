@@ -159,7 +159,7 @@ class Trainer():
                 self.optimizer.zero_grad()
                 
                 points_for_pointnet = torch.cat([points.transpose(2,1), pointwise_features.transpose(2,1)], dim=1)
-                print(">>> points_for_pointnet.shape = {}, pointwise_features.shape={}".format(points_for_pointnet.shape, pointwise_features.shape))
+                #print(">>> points_for_pointnet.shape = {}, pointwise_features.shape={}".format(points_for_pointnet.shape, pointwise_features.shape))
                 #print(">>> points.shape = {}, pointwise_features.shape={}, labels.shape={}, voxel_net.shape={}".format(points.shape, pointwise_features.shape, label.shape, voxel_net.shape))
                 logits = self.model(points, pointwise_features, voxel_net, points_for_pointnet.float())
                 #print("logits.shape = {}, logits[0:10]={}".format(logits.shape,logits[0:10]))
