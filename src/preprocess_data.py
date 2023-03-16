@@ -314,9 +314,9 @@ def prepare_dataset_ier(data, voxel_size_ier, voxel_sample_mode, augmentation, r
         #dim_f = list(range(0,11))
         #dim_f.remove(9)
         nb_p, len_f = sample_tmp[ic].shape
-        print("before remove nan, sample.shape={}".format(sample_tmp[ic].shape))
+        #print("before remove nan, sample.shape={}".format(sample_tmp[ic].shape))
         sample_tmp_bis = sample_tmp[ic][np.all(~np.isnan(sample_tmp[ic]), axis=1)]
-        print("after remove nan, sample.shape={}, {}% point removed".format(sample_tmp_bis.shape, 100 - 100*(sample_tmp_bis.shape[0]/nb_p)))
+        #print("after remove nan, sample.shape={}, {}% point removed".format(sample_tmp_bis.shape, 100 - 100*(sample_tmp_bis.shape[0]/nb_p)))
 
         # [7:10] -> features ["PCA1","linearity","sphericity", "verticality"]
         sample_tmp_bis[:,7:] = standardization(sample_tmp_bis[:,7:])

@@ -51,6 +51,7 @@ class FocalLoss(nn.Module):
             loss = loss.sum()
         return loss
 
+# greg 
 def rebalanced_loss(ce_loss, target):
     wood_loss = ce_loss[target<0.5]
     leaf_loss = ce_loss[target>0.5]
@@ -58,6 +59,7 @@ def rebalanced_loss(ce_loss, target):
     if len(wood_loss) == 0:
         wood_loss = torch.tensor([0.0])
     elif len(wood_loss) < len(leaf_loss):
+        # resampling many times here
         # Maybe more leaf loss can be taken here? 1:2 ratio?
         indices = torch.randperm(len(leaf_loss))[:len(wood_loss)]
         leaf_loss = leaf_loss[indices]

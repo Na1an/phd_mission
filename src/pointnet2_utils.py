@@ -39,7 +39,6 @@ def square_distance(src, dst):
     dist += torch.sum(dst ** 2, -1).view(B, 1, M)
     return dist
 
-
 def index_points(points, idx):
     """
 
@@ -58,7 +57,6 @@ def index_points(points, idx):
     batch_indices = torch.arange(B, dtype=torch.long).to(device).view(view_shape).repeat(repeat_shape)
     new_points = points[batch_indices, idx, :]
     return new_points
-
 
 def farthest_point_sample(xyz, npoint):
     """
@@ -83,7 +81,6 @@ def farthest_point_sample(xyz, npoint):
         farthest = torch.max(distance, -1)[1]
     return centroids
 
-
 def query_ball_point(radius, nsample, xyz, new_xyz):
     """
     Input:
@@ -105,7 +102,6 @@ def query_ball_point(radius, nsample, xyz, new_xyz):
     mask = group_idx == N
     group_idx[mask] = group_first[mask]
     return group_idx
-
 
 def sample_and_group(npoint, radius, nsample, xyz, points, returnfps=False):
     """
@@ -137,7 +133,6 @@ def sample_and_group(npoint, radius, nsample, xyz, points, returnfps=False):
     else:
         return new_xyz, new_points
 
-
 def sample_and_group_all(xyz, points):
     """
     Input:
@@ -156,7 +151,6 @@ def sample_and_group_all(xyz, points):
     else:
         new_points = grouped_xyz
     return new_xyz, new_points
-
 
 class PointNetSetAbstraction(nn.Module):
     def __init__(self, npoint, radius, nsample, in_channel, mlp, group_all):
