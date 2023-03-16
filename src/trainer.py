@@ -51,20 +51,16 @@ class FocalLoss(nn.Module):
             loss = loss.sum()
         return loss
 
-# greg 
-def rebalanced_loss(ce_loss, target):
-    wood_loss = ce_loss[target<0.5]
-    leaf_loss = ce_loss[target>0.5]
-    
-    if len(wood_loss) == 0:
-        wood_loss = torch.tensor([0.0])
-    elif len(wood_loss) < len(leaf_loss):
-        # resampling many times here
-        # Maybe more leaf loss can be taken here? 1:2 ratio?
-        indices = torch.randperm(len(leaf_loss))[:len(wood_loss)]
-        leaf_loss = leaf_loss[indices]
-        
-    return (torch.mean(wood_loss) + torch.mean(leaf_loss)) * 0.5
+# greg loss
+def make_weights_for_celoss(target):
+    wood_loss = (target < 0.5).nonzero(as_tuple=True)[0]
+    leaf_loss = (target > 0.5).nonzero(as_tuple=True)[0]
+    res = torch.zeros_like(target)
+    index_leaf = torch.randperm(len(leaf_loss))[:len(wood_loss)]
+    leaf_loss = leaf_loss[index_leaf]
+    res[wood_loss] = 0.5 / len(wood_loss)
+    res[leaf_loss] = 0.5 / len(leaf_loss)
+    return res
 
 class Trainer():
     def __init__(self, model, device, train_dataset, train_voxel_nets, val_dataset, val_voxel_nets, batch_size, sample_size, predict_threshold, num_workers, grid_size, global_height, alpha=0, gamma=2, shuffle=True, opt="Adam"):
@@ -124,14 +120,6 @@ class Trainer():
         self.criterion = FocalLoss(gamma=self.gamma,alpha=self.alpha)
         self.writer = SummaryWriter(get_current_direct_path() + "/tensorboard")
 
-    # this is a cute function for calculating the loss
-    '''
-    def compute_loss(points, label, voxel_net):
-        loss = 0 
-        output = self.model(points, self.train_voxel_nets[voxel_net])
-        tmp_loss = nn.functional.binary_cross_entropy_with_logits(output, label)
-        return loss
-    '''
 
     # let's train it!
     def train_model(self, nb_epoch=200):
@@ -183,8 +171,8 @@ class Trainer():
                 label = label.to(self.device)
                 #tmp_loss = self.criterion(logits, label)
                 ce_loss = F.binary_cross_entropy_with_logits(logits, label, reduction="none")
-                tmp_loss = rebalanced_loss(ce_loss, label)
-                tmp_loss.backward()
+                index_loss = make_weights_for_celoss(label)
+                ce_loss.backward(index_loss)
                 self.optimizer.step()
                 
                 #res1, res2 = label.max(1), res = [0.77, 0.78, 0.22, ... proba] res2 = [1,1,0,0... label]
@@ -214,14 +202,15 @@ class Trainer():
                 cf_matrix = confusion_matrix(y_true=label, y_pred=logits, labels=[0,1])
                 tn, fp, fn, tp = cf_matrix.ravel()
                 recall, specificity, precision, acc = calculate_recall_precision(tn, fp, fn, tp)
-
-                epoch_loss = epoch_loss + tmp_loss.item()
+                
+                tmp_loss = ce_loss*index_loss
+                epoch_loss = epoch_loss + tmp_loss.sum().item()
                 epoch_acc = epoch_acc + num_correct/self.sample_size
                 epoch_specificity = epoch_specificity + specificity
                 epoch_recall = epoch_recall + recall
                 #epoch_auroc = epoch_auroc + auroc_score
                 loader_len = loader_len + 1
-                print("[e={}]>>> [Training] - Current test loss: {} - accuracy - {} specificity - {} recall - {}".format(e, tmp_loss.item(), num_correct/(self.sample_size*self.batch_size), specificity, recall))
+                print("[e={}]>>> [Training] - Current test loss: {} - accuracy - {} specificity - {} recall - {}".format(e, tmp_loss.sum().item(), num_correct/(self.sample_size*self.batch_size), specificity, recall))
             
             print("============ Epoch {}/{} is trained - epoch_loss - {} - epoch_acc - {} epoch_specificity - {} epoch_recall - {}===========".format(e, nb_epoch, epoch_loss/loader_len, epoch_acc/(loader_len*self.batch_size), epoch_specificity/loader_len, epoch_recall/loader_len))
             self.writer.add_scalar('training loss - epoch avg', epoch_loss/loader_len, e)
@@ -337,8 +326,9 @@ class Trainer():
             # loss
             #tmp_loss = self.criterion(logits, label)
             ce_loss = F.binary_cross_entropy_with_logits(logits, label, reduction="none")
-            tmp_loss = rebalanced_loss(ce_loss, label)
-            sum_val_loss = sum_val_loss + tmp_loss.item()
+            index_loss = make_weights_for_celoss(label)
+            tmp_loss = ce_loss*index_loss
+            sum_val_loss = sum_val_loss + tmp_loss.sum().item()
 
             # accuracy
             #preds = logits.argmax(dim=1).float()
