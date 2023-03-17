@@ -74,7 +74,7 @@ def make_weights_for_celoss(target):
     return torch.cat((res,res), axis=1)/2
 
 class Trainer():
-    def __init__(self, model, device, train_dataset, train_voxel_nets, val_dataset, val_voxel_nets, batch_size, sample_size, predict_threshold, num_workers, grid_size, global_height, alpha=0, gamma=2, shuffle=True, opt="Adam"):
+    def __init__(self, model, device, train_dataset, train_voxel_nets, val_dataset, val_voxel_nets, batch_size, sample_size, predict_threshold, num_workers, grid_size, global_height, alpha=0.5, gamma=2, shuffle=True, opt="Adam"):
         '''
         Args:
             model: the Deep Learning model.
@@ -97,7 +97,7 @@ class Trainer():
         self.global_height = global_height
 
         # optimizer
-        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=1e-6, weight_decay=0)
+        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=1e-7, weight_decay=0)
         #self.optimizer = torch.optim.SGD(self.model.parameters(), lr=2e-3, momentum=0.9, nesterov=True)
 
         # check_point path
