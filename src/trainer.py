@@ -57,17 +57,23 @@ def make_weights_for_celoss(target):
     
     # flatten the target_tmp
     target_tmp = target[:,1,:].reshape(n*1*p)
-    
+
     wood_loss = (target_tmp < 0.5).nonzero(as_tuple=True)[0]
     leaf_loss = (target_tmp > 0.5).nonzero(as_tuple=True)[0]
     res = torch.zeros_like(target_tmp)
     index_leaf = 0
-    if len(wood_loss) < len(leaf_loss):
+    
+    if len(wood_loss) == 0:
+        res[leaf_loss] = 1.0 / len(leaf_loss)
+    elif len(wood_loss) < len(leaf_loss):
         index_leaf = torch.randperm(len(leaf_loss))[:len(wood_loss)]
         leaf_loss = leaf_loss[index_leaf]
-    #print("index_leaf={} leaf_loss={} wood_loss={}".format(index_leaf, leaf_loss, wood_loss))
-    res[wood_loss] = 0.5 / len(wood_loss)
-    res[leaf_loss] = 0.5 / len(leaf_loss)
+        res[wood_loss] = 0.5 / len(wood_loss)
+        res[leaf_loss] = 0.5 / len(leaf_loss)
+    else:
+        res[wood_loss] = 0.5 / len(wood_loss)
+        res[leaf_loss] = 0.5 / len(leaf_loss)
+
     res = res.reshape(n,1,p)
     torch.cat((res,res), axis=1)
     #print("res.shape=", res.shape)
