@@ -86,7 +86,7 @@ class Trainer():
         self.global_height = global_height
 
         # optimizer
-        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=1e-7, weight_decay=0)
+        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=1e-6, weight_decay=0)
         #self.optimizer = torch.optim.SGD(self.model.parameters(), lr=2e-3, momentum=0.9, nesterov=True)
 
         # check_point path
