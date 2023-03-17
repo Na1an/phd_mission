@@ -183,10 +183,7 @@ class Trainer():
                 #tmp_loss = self.criterion(logits, label)
 
                 ce_loss = F.binary_cross_entropy_with_logits(logits, label, reduction="none")
-                print("label.shape", label.shape)
                 index_loss = make_weights_for_celoss(label)
-                print("index_loss.shape", index_loss.shape)
-                print("index_loss[0,0,:10]=", index_loss[0,0,:10])
                 ce_loss.backward(index_loss)
                 self.optimizer.step()
                 
@@ -218,8 +215,12 @@ class Trainer():
                 tn, fp, fn, tp = cf_matrix.ravel()
                 recall, specificity, precision, acc = calculate_recall_precision(tn, fp, fn, tp)
                 
-                tmp_loss = ce_loss*index_loss
+                if index_loss.sum() == 0:
+                    tmp_loss = ce_loss.mean()
+                else:
+                    tmp_loss = ce_loss*index_loss
                 epoch_loss = epoch_loss + tmp_loss.sum().item()
+
                 epoch_acc = epoch_acc + num_correct/self.sample_size
                 epoch_specificity = epoch_specificity + specificity
                 epoch_recall = epoch_recall + recall
@@ -342,7 +343,10 @@ class Trainer():
             #tmp_loss = self.criterion(logits, label)
             ce_loss = F.binary_cross_entropy_with_logits(logits, label, reduction="none")
             index_loss = make_weights_for_celoss(label)
-            tmp_loss = ce_loss*index_loss
+            if index_loss.sum() == 0:
+                tmp_loss = ce_loss.mean()
+            else:
+                tmp_loss = ce_loss*index_loss
             sum_val_loss = sum_val_loss + tmp_loss.sum().item()
 
             # accuracy
@@ -357,7 +361,7 @@ class Trainer():
             label = label.reshape(self.batch_size*self.sample_size)
             print("bincount y_true.shape={}".format(torch.bincount(label)))
             print("bincount y_predict.shape={}".format(torch.bincount(logits)))
-            
+
             logits = logits.detach().clone().cpu().data.numpy()
             label = label.detach().clone().cpu().data.numpy()
 
