@@ -331,9 +331,9 @@ class Trainer():
             
             points_for_pointnet = torch.cat([points.transpose(2,1), pointwise_features.transpose(2,1)], dim=1)
             logits = self.model(points, pointwise_features, voxel_net, points_for_pointnet.float())
-            logits = logits.permute(0,2,1).reshape(self.batch_size*self.sample_size, 2)
-            logits = F.softmax(logits, dim=1)
-            label = label.permute(0,2,1).reshape(self.batch_size*self.sample_size, 2)
+            #logits = logits.permute(0,2,1).reshape(self.batch_size*self.sample_size, 2)
+            #logits = F.softmax(logits, dim=1)
+            #label = label.permute(0,2,1).reshape(self.batch_size*self.sample_size, 2)
 
             logits = logits.to(self.device)
             label = label.to(self.device)
@@ -349,13 +349,18 @@ class Trainer():
             #preds = logits.argmax(dim=1).float()
             _,logits = logits.max(1)
             _,label = label.max(1)
-            print("bincount y_true.shape={}".format(torch.bincount(label)))
-            print("bincount y_predict.shape={}".format(torch.bincount(logits)))
+
             num_correct = torch.eq(logits,label).sum().item()/self.batch_size
             predict_correct = predict_correct + num_correct
             
-            label = label.detach().clone().cpu().data.numpy()
+            logits = logits.reshape(self.batch_size*self.sample_size)
+            label = label.reshape(self.batch_size*self.sample_size)
+            print("bincount y_true.shape={}".format(torch.bincount(label)))
+            print("bincount y_predict.shape={}".format(torch.bincount(logits)))
+            
             logits = logits.detach().clone().cpu().data.numpy()
+            label = label.detach().clone().cpu().data.numpy()
+
             # tn tp fn tp
             tn, fp, fn, tp = confusion_matrix(label, logits, labels=[0,1]).ravel()
             print("tn-{} fp-{} fn-{} tp-{}".format(tn, fp, fn, tp))
