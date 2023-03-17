@@ -53,14 +53,25 @@ class FocalLoss(nn.Module):
 
 # greg loss
 def make_weights_for_celoss(target):
-    wood_loss = (target < 0.5).nonzero(as_tuple=True)[0]
-    leaf_loss = (target > 0.5).nonzero(as_tuple=True)[0]
-    res = torch.zeros_like(target)
-    index_leaf = torch.randperm(len(leaf_loss))[:len(wood_loss)]
-    leaf_loss = leaf_loss[index_leaf]
+    n,l,p = target.shape
+    
+    # flatten the target_tmp
+    target_tmp = target[:,1,:].reshape(n*1*p)
+    
+    wood_loss = (target_tmp < 0.5).nonzero(as_tuple=True)[0]
+    leaf_loss = (target_tmp > 0.5).nonzero(as_tuple=True)[0]
+    res = torch.zeros_like(target_tmp)
+    index_leaf = 0
+    if len(wood_loss) < len(leaf_loss):
+        index_leaf = torch.randperm(len(leaf_loss))[:len(wood_loss)]
+        leaf_loss = leaf_loss[index_leaf]
+    #print("index_leaf={} leaf_loss={} wood_loss={}".format(index_leaf, leaf_loss, wood_loss))
     res[wood_loss] = 0.5 / len(wood_loss)
     res[leaf_loss] = 0.5 / len(leaf_loss)
-    return res
+    res = res.reshape(n,1,p)
+    torch.cat((res,res), axis=1)
+    #print("res.shape=", res.shape)
+    return torch.cat((res,res), axis=1)/2
 
 class Trainer():
     def __init__(self, model, device, train_dataset, train_voxel_nets, val_dataset, val_voxel_nets, batch_size, sample_size, predict_threshold, num_workers, grid_size, global_height, alpha=0, gamma=2, shuffle=True, opt="Adam"):
@@ -170,8 +181,12 @@ class Trainer():
                 logits = logits.to(self.device)
                 label = label.to(self.device)
                 #tmp_loss = self.criterion(logits, label)
+
                 ce_loss = F.binary_cross_entropy_with_logits(logits, label, reduction="none")
+                print("label.shape", label.shape)
                 index_loss = make_weights_for_celoss(label)
+                print("index_loss.shape", index_loss.shape)
+                print("index_loss[0,0,:10]=", index_loss[0,0,:10])
                 ce_loss.backward(index_loss)
                 self.optimizer.step()
                 
@@ -316,9 +331,9 @@ class Trainer():
             
             points_for_pointnet = torch.cat([points.transpose(2,1), pointwise_features.transpose(2,1)], dim=1)
             logits = self.model(points, pointwise_features, voxel_net, points_for_pointnet.float())
-            logits = logits.permute(0,2,1).reshape(self.batch_size*self.sample_size, 2)
-            logits = F.softmax(logits, dim=1)
-            label = label.permute(0,2,1).reshape(self.batch_size*self.sample_size, 2)
+            #logits = logits.permute(0,2,1).reshape(self.batch_size*self.sample_size, 2)
+            #logits = F.softmax(logits, dim=1)
+            #label = label.permute(0,2,1).reshape(self.batch_size*self.sample_size, 2)
 
             logits = logits.to(self.device)
             label = label.to(self.device)
@@ -334,13 +349,18 @@ class Trainer():
             #preds = logits.argmax(dim=1).float()
             _,logits = logits.max(1)
             _,label = label.max(1)
-            print("bincount y_true.shape={}".format(torch.bincount(label)))
-            print("bincount y_predict.shape={}".format(torch.bincount(logits)))
+
             num_correct = torch.eq(logits,label).sum().item()/self.batch_size
             predict_correct = predict_correct + num_correct
             
-            label = label.detach().clone().cpu().data.numpy()
+            logits = logits.reshape(self.batch_size*self.sample_size)
+            label = label.reshape(self.batch_size*self.sample_size)
+            print("bincount y_true.shape={}".format(torch.bincount(label)))
+            print("bincount y_predict.shape={}".format(torch.bincount(logits)))
+            
             logits = logits.detach().clone().cpu().data.numpy()
+            label = label.detach().clone().cpu().data.numpy()
+
             # tn tp fn tp
             tn, fp, fn, tp = confusion_matrix(label, logits, labels=[0,1]).ravel()
             print("tn-{} fp-{} fn-{} tp-{}".format(tn, fp, fn, tp))
