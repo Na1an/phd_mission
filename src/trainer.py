@@ -97,7 +97,7 @@ class Trainer():
         self.train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers, drop_last=True)
         #self.train_voxel_nets = torch.from_numpy(train_voxel_nets.copy()).type(torch.float).to(self.device)
 
-        self.val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers)
+        self.val_loader = DataLoader(val_dataset, batch_size=int(batch_size/2), shuffle=True, num_workers=num_workers)
         #self.val_voxel_nets = torch.from_numpy(val_voxel_nets.copy()).type(torch.float).to(self.device)
         self.grid_size = grid_size
         self.global_height = global_height
@@ -360,11 +360,11 @@ class Trainer():
             _,logits = logits.max(1)
             _,label = label.max(1)
 
-            num_correct = torch.eq(logits,label).sum().item()/self.batch_size
+            num_correct = torch.eq(logits,label).sum().item()/int(self.batch_size/2)
             predict_correct = predict_correct + num_correct
             
-            logits = logits.reshape(self.batch_size*self.sample_size)
-            label = label.reshape(self.batch_size*self.sample_size)
+            logits = logits.reshape(int(self.batch_size/2)*self.sample_size)
+            label = label.reshape(int(self.batch_size/2)*self.sample_size)
             print("bincount y_true.shape={}".format(torch.bincount(label)))
             print("bincount y_predict.shape={}".format(torch.bincount(logits)))
 

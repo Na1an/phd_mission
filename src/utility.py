@@ -294,7 +294,10 @@ def calculate_recall_precision(tn, fp, fn, tp):
     # Sensitivity, hit rate, recall, or true positive rate
     recall = tp/(tp+fn)
     # Specificity or true negative rate
-    specificity = tn/(tn+fp)
+    if tn==0:
+        specificity = 0
+    else:
+        specificity = tn/(tn+fp)
     # Precision or positive predictive value
     precision = tp/(tp+fp)
 
