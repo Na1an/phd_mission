@@ -347,13 +347,15 @@ class Trainer():
 
             # loss
             #tmp_loss = self.criterion(logits, label)
-            ce_loss = F.binary_cross_entropy_with_logits(logits, label, reduction="none")
+            tmp_loss = F.binary_cross_entropy_with_logits(logits, label, reduction="none")
+            '''
             index_loss = make_weights_for_celoss(label)
             if index_loss.sum() == 0:
                 tmp_loss = ce_loss.mean()
             else:
                 tmp_loss = ce_loss*index_loss
-            sum_val_loss = sum_val_loss + tmp_loss.sum().item()
+            '''
+            sum_val_loss = sum_val_loss + tmp_loss.mean().item()
 
             # accuracy
             #preds = logits.argmax(dim=1).float()
