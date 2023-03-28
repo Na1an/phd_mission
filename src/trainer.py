@@ -51,8 +51,36 @@ class FocalLoss(nn.Module):
             loss = loss.sum()
         return loss
 
+# greg loss
+def make_weights_for_celoss(target):
+    n,l,p = target.shape
+    
+    # flatten the target_tmp
+    target_tmp = target[:,1,:].reshape(n*1*p)
+
+    wood_loss = (target_tmp < 0.5).nonzero(as_tuple=True)[0]
+    leaf_loss = (target_tmp > 0.5).nonzero(as_tuple=True)[0]
+    res = torch.zeros_like(target_tmp)
+    index_leaf = 0
+    
+    if len(wood_loss) == 0:
+        res[leaf_loss] = 1.0 / len(leaf_loss)
+    elif len(wood_loss) < len(leaf_loss):
+        index_leaf = torch.randperm(len(leaf_loss))[:len(wood_loss)]
+        leaf_loss = leaf_loss[index_leaf]
+        res[wood_loss] = 0.5 / len(wood_loss)
+        res[leaf_loss] = 0.5 / len(leaf_loss)
+    else:
+        res[wood_loss] = 0.5 / len(wood_loss)
+        res[leaf_loss] = 0.5 / len(leaf_loss)
+
+    res = res.reshape(n,1,p)
+    torch.cat((res,res), axis=1)
+    #print("res.shape=", res.shape)
+    return torch.cat((res,res), axis=1)/2
+
 class Trainer():
-    def __init__(self, model, device, train_dataset, train_voxel_nets, val_dataset, val_voxel_nets, batch_size, sample_size, predict_threshold, num_workers, grid_size, global_height, alpha=0, gamma=2, shuffle=True, opt="Adam"):
+    def __init__(self, model, device, train_dataset, train_voxel_nets, val_dataset, val_voxel_nets, batch_size, sample_size, predict_threshold, num_workers, grid_size, global_height, alpha=0.5, gamma=2, shuffle=True, opt="Adam"):
         '''
         Args:
             model: the Deep Learning model.
@@ -69,7 +97,7 @@ class Trainer():
         self.train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers, drop_last=True)
         #self.train_voxel_nets = torch.from_numpy(train_voxel_nets.copy()).type(torch.float).to(self.device)
 
-        self.val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers)
+        self.val_loader = DataLoader(val_dataset, batch_size=int(batch_size/2), shuffle=True, num_workers=num_workers)
         #self.val_voxel_nets = torch.from_numpy(val_voxel_nets.copy()).type(torch.float).to(self.device)
         self.grid_size = grid_size
         self.global_height = global_height
@@ -109,14 +137,6 @@ class Trainer():
         self.criterion = FocalLoss(gamma=self.gamma,alpha=self.alpha)
         self.writer = SummaryWriter(get_current_direct_path() + "/tensorboard")
 
-    # this is a cute function for calculating the loss
-    '''
-    def compute_loss(points, label, voxel_net):
-        loss = 0 
-        output = self.model(points, self.train_voxel_nets[voxel_net])
-        tmp_loss = nn.functional.binary_cross_entropy_with_logits(output, label)
-        return loss
-    '''
 
     # let's train it!
     def train_model(self, nb_epoch=200):
@@ -145,7 +165,8 @@ class Trainer():
                 self.model.train() # tell torch we are traning
                 self.optimizer.zero_grad()
                 
-                points_for_pointnet = torch.cat([points.transpose(2,1), pointwise_features.transpose(2,1), points_raw.transpose(2,1)], dim=1)
+                points_for_pointnet = torch.cat([points.transpose(2,1), pointwise_features.transpose(2,1)], dim=1)
+                #print(">>> points_for_pointnet.shape = {}, pointwise_features.shape={}".format(points_for_pointnet.shape, pointwise_features.shape))
                 #print(">>> points.shape = {}, pointwise_features.shape={}, labels.shape={}, voxel_net.shape={}".format(points.shape, pointwise_features.shape, label.shape, voxel_net.shape))
                 logits = self.model(points, pointwise_features, voxel_net, points_for_pointnet.float())
                 #print("logits.shape = {}, logits[0:10]={}".format(logits.shape,logits[0:10]))
@@ -165,8 +186,11 @@ class Trainer():
                 
                 logits = logits.to(self.device)
                 label = label.to(self.device)
-                tmp_loss = self.criterion(logits, label)
-                tmp_loss.backward()
+                #tmp_loss = self.criterion(logits, label)
+
+                ce_loss = F.binary_cross_entropy_with_logits(logits, label, reduction="none")
+                index_loss = make_weights_for_celoss(label)
+                ce_loss.backward(index_loss)
                 self.optimizer.step()
                 
                 #res1, res2 = label.max(1), res = [0.77, 0.78, 0.22, ... proba] res2 = [1,1,0,0... label]
@@ -196,14 +220,19 @@ class Trainer():
                 cf_matrix = confusion_matrix(y_true=label, y_pred=logits, labels=[0,1])
                 tn, fp, fn, tp = cf_matrix.ravel()
                 recall, specificity, precision, acc = calculate_recall_precision(tn, fp, fn, tp)
+                
+                if index_loss.sum() == 0:
+                    tmp_loss = ce_loss.mean()
+                else:
+                    tmp_loss = ce_loss*index_loss
+                epoch_loss = epoch_loss + tmp_loss.sum().item()
 
-                epoch_loss = epoch_loss + tmp_loss.item()
                 epoch_acc = epoch_acc + num_correct/self.sample_size
                 epoch_specificity = epoch_specificity + specificity
                 epoch_recall = epoch_recall + recall
                 #epoch_auroc = epoch_auroc + auroc_score
                 loader_len = loader_len + 1
-                print("[e={}]>>> [Training] - Current test loss: {} - accuracy - {} specificity - {} recall - {}".format(e, tmp_loss.item(), num_correct/(self.sample_size*self.batch_size), specificity, recall))
+                print("[e={}]>>> [Training] - Current test loss: {} - accuracy - {} specificity - {} recall - {}".format(e, tmp_loss.sum().item(), num_correct/(self.sample_size*self.batch_size), specificity, recall))
             
             print("============ Epoch {}/{} is trained - epoch_loss - {} - epoch_acc - {} epoch_specificity - {} epoch_recall - {}===========".format(e, nb_epoch, epoch_loss/loader_len, epoch_acc/(loader_len*self.batch_size), epoch_specificity/loader_len, epoch_recall/loader_len))
             self.writer.add_scalar('training loss - epoch avg', epoch_loss/loader_len, e)
@@ -264,7 +293,7 @@ class Trainer():
         return None
     
     def save_checkpoint(self, epoch):
-        path = self.checkpoint_path + '/checkpoint_epoch_{:04}.pth'.format(epoch)
+        path = self.checkpoint_path + '/checkpoint_epoch_{:06}.pth'.format(epoch)
         if not os.path.exists(path):
             torch.save({'epoch':epoch,
                         'model_state_dict': self.model.state_dict(),
@@ -280,7 +309,7 @@ class Trainer():
         checkpoints = [os.path.splitext(os.path.basename(path))[0][17:] for path in checkpoints]
         checkpoints = np.array(checkpoints, dtype=int)
         checkpoints = np.sort(checkpoints)
-        path = self.checkpoint_path + '/checkpoint_epoch_{:04}.pth'.format(checkpoints[-1])
+        path = self.checkpoint_path + '/checkpoint_epoch_{:06}.pth'.format(checkpoints[-1])
 
         print('Loaded checkpoint from: {}'.format(path))
         checkpoint = torch.load(path, map_location=torch.device(self.device))
@@ -293,7 +322,7 @@ class Trainer():
     def compute_val_loss(self):
         self.model.eval()
         sum_val_loss = 0
-        num_batches = self.batch_size
+        num_batches = 5
         predict_correct = 0
         mcc, f1_score_all = 0,0
         rec_all, spe_all, pre_all, acc_all, f1_all, auroc_all = [],[],[],[],[],[]
@@ -307,27 +336,42 @@ class Trainer():
                 self.val_data_iterator = self.val_loader.__iter__()
                 points, pointwise_features, label, voxel_net, points_raw = self.val_data_iterator.next()
             
-            points_for_pointnet = torch.cat([points.transpose(2,1), pointwise_features.transpose(2,1), points_raw.transpose(2,1)], dim=1)
+            points_for_pointnet = torch.cat([points.transpose(2,1), pointwise_features.transpose(2,1)], dim=1)
             logits = self.model(points, pointwise_features, voxel_net, points_for_pointnet.float())
-            logits = logits.permute(0,2,1).reshape(self.batch_size*self.sample_size, 2)
-            logits = F.softmax(logits, dim=1)
-            label = label.permute(0,2,1).reshape(self.batch_size*self.sample_size, 2)
+            #logits = logits.permute(0,2,1).reshape(self.batch_size*self.sample_size, 2)
+            #logits = F.softmax(logits, dim=1)
+            #label = label.permute(0,2,1).reshape(self.batch_size*self.sample_size, 2)
 
             logits = logits.to(self.device)
             label = label.to(self.device)
 
             # loss
-            tmp_loss = self.criterion(logits, label)
-            sum_val_loss = sum_val_loss + tmp_loss.item()
+            #tmp_loss = self.criterion(logits, label)
+            tmp_loss = F.binary_cross_entropy_with_logits(logits, label, reduction="none")
+            '''
+            index_loss = make_weights_for_celoss(label)
+            if index_loss.sum() == 0:
+                tmp_loss = ce_loss.mean()
+            else:
+                tmp_loss = ce_loss*index_loss
+            '''
+            sum_val_loss = sum_val_loss + tmp_loss.mean().item()
 
             # accuracy
             #preds = logits.argmax(dim=1).float()
             _,logits = logits.max(1)
             _,label = label.max(1)
+
+            num_correct = torch.eq(logits,label).sum().item()/int(self.batch_size/2)
+            predict_correct = predict_correct + num_correct
+            
+            logits = logits.reshape(int(self.batch_size/2)*self.sample_size)
+            label = label.reshape(int(self.batch_size/2)*self.sample_size)
             print("bincount y_true.shape={}".format(torch.bincount(label)))
             print("bincount y_predict.shape={}".format(torch.bincount(logits)))
-            num_correct = torch.eq(logits,label).sum().item()/self.batch_size
-            predict_correct = predict_correct + num_correct
+
+            logits = logits.detach().clone().cpu().data.numpy()
+            label = label.detach().clone().cpu().data.numpy()
 
             # tn tp fn tp
             tn, fp, fn, tp = confusion_matrix(label, logits, labels=[0,1]).ravel()

@@ -45,7 +45,7 @@ if __name__ == "__main__":
                                                     data_path, 
                                                     resolution,
                                                     voxel_sample_mode, 
-                                                    label_name="WL",
+                                                    label_name="intensity",
                                                     sample_size=sample_size,
                                                     augmentation=False,
                                                     for_test=True)
@@ -61,18 +61,18 @@ if __name__ == "__main__":
     print("dataset len =", test_dataset.__len__())
     # batch_size must be 1!!!
     test_loader = DataLoader(test_dataset, batch_size=1, shuffle=False)
-    test_voxel_nets = torch.from_numpy(test_voxel_nets.copy()).type(torch.float).to(my_device)
+    #test_voxel_nets = torch.from_numpy(test_voxel_nets.copy()).type(torch.float).to(my_device)
     
     i = 0
     #predict label possibilty
     
     for points, pointwise_features, labels, voxel_net, sp, samples_rest_single, points_raw in test_loader:
-        points_for_pointnet = torch.cat([points.transpose(2,1), pointwise_features.transpose(2,1), points.transpose(2,1)], dim=1)
+        points_for_pointnet = torch.cat([points.transpose(2,1), pointwise_features.transpose(2,1)], dim=1)
         #points_for_pointnet[:,0:2,:] = points_for_pointnet[:,0:2,:] * self.grid_size
         #points_for_pointnet[:,2,:] = points_for_pointnet[:,2,:] * self.global_height + (self.global_height/2)
-        points_for_pointnet[:,6:,:] = points_for_pointnet[:,6:,:] + 0.5
+        #points_for_pointnet[:,6:,:] = points_for_pointnet[:,6:,:] + 0.5
         #print("pointsfor_pointnet.shape={}".format(points_for_pointnet.shape))
-        logits = my_model(points, pointwise_features, voxel_net, points_for_pointnet)
+        logits = my_model(points, pointwise_features, voxel_net, points_for_pointnet.float())
         logits = F.softmax(logits, dim=1)
         predict = logits.squeeze(0).float()
         predict_label = logits.argmax(dim=1).float()
@@ -104,12 +104,15 @@ if __name__ == "__main__":
         new_file.true = labels
         new_file.write(os.getcwd()+"/predict_res/res_{:04}.las".format(i))
 
+        '''
         # sample rest
         new_file_bis = laspy.create(point_format=3)
         new_file_bis.add_extra_dim(laspy.ExtraBytesParams(name="wood_proba", type=np.float64))
         new_file_bis.add_extra_dim(laspy.ExtraBytesParams(name="leave_proba", type=np.float64))
         new_file_bis.add_extra_dim(laspy.ExtraBytesParams(name="predict", type=np.float64))
         new_file_bis.add_extra_dim(laspy.ExtraBytesParams(name="true", type=np.float64))
+        
+        
         if len(samples_rest_single) ==0:
             continue
         samples_rest_single = samples_rest_single.squeeze(0).cpu().detach().numpy()
@@ -129,7 +132,7 @@ if __name__ == "__main__":
         new_file_bis.predict = np.ones(len(samples_rest_single[:]))
         new_file_bis.true = samples_rest_single[:,3]
         new_file_bis.write(os.getcwd()+"/predict_res/rest_{:04}.las".format(i))
-
+        '''
         i = i+1
         print(">>> cube - N°{} predicted ".format(i))
     

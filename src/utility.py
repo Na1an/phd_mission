@@ -294,7 +294,10 @@ def calculate_recall_precision(tn, fp, fn, tp):
     # Sensitivity, hit rate, recall, or true positive rate
     recall = tp/(tp+fn)
     # Specificity or true negative rate
-    specificity = tn/(tn+fp)
+    if tn==0:
+        specificity = 0
+    else:
+        specificity = tn/(tn+fp)
     # Precision or positive predictive value
     precision = tp/(tp+fp)
 
@@ -431,7 +434,7 @@ def geodesic_distance(voxels, voxel_size, tree_radius=7.0, limit_comp=10, limit_
                 if ((gd_fa_min+1)/dist_3d(v_act, voxel_low)) > 1.5:
                     continue
 
-                if (gd_fa_min+1) > 40:
+                if (gd_fa_min+1) > 10:
                     continue
                 '''
                 # 关于高度与gd的限制
