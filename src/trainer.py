@@ -12,45 +12,6 @@ from sklearn.utils import class_weight
 from sklearn.metrics import precision_recall_fscore_support
 from captum.attr import LayerGradCam, Saliency, LayerActivation
 
-class FocalLoss(nn.Module):
-
-    def __init__(self,
-                 alpha=0.25,
-                 gamma=2,
-                 reduction='mean',):
-        super(FocalLoss, self).__init__()
-        self.alpha = alpha
-        self.gamma = gamma
-        self.reduction = reduction
-        self.crit = nn.BCEWithLogitsLoss(reduction='none')
-
-    def forward(self, logits, label):
-        '''
-        Usage is same as nn.BCEWithLogits:
-            >>> criteria = FocalLossV1()
-            >>> logits = torch.randn(8, 19, 384, 384)
-            >>> lbs = torch.randint(0, 2, (8, 19, 384, 384)).float()
-            >>> loss = criteria(logits, lbs)
-        '''
-        probs = torch.sigmoid(logits)
-        coeff = torch.abs(label - probs).pow(self.gamma).neg()
-        log_probs = torch.where(logits >= 0,
-                F.softplus(logits, -1, 50),
-                logits - F.softplus(logits, 1, 50))
-        log_1_probs = torch.where(logits >= 0,
-                -logits + F.softplus(logits, -1, 50),
-                -F.softplus(logits, 1, 50))
-        # leave label=1, wood label=0
-        # 提高
-        loss = label * self.alpha * log_probs + (1. - label) * (1. - self.alpha) * log_1_probs
-        loss = loss * coeff
-
-        if self.reduction == 'mean':    
-            loss = loss.mean()
-        if self.reduction == 'sum':
-            loss = loss.sum()
-        return loss
-
 # greg loss
 def make_weights_for_celoss(target):
     n,l,p = target.shape
@@ -80,7 +41,7 @@ def make_weights_for_celoss(target):
     return torch.cat((res,res), axis=1)/2
 
 class Trainer():
-    def __init__(self, model, device, train_dataset, train_voxel_nets, val_dataset, val_voxel_nets, batch_size, sample_size, predict_threshold, num_workers, grid_size, global_height, alpha=0.5, gamma=2, shuffle=True, opt="Adam"):
+    def __init__(self, model, device, train_dataset, val_dataset, batch_size, sample_size, predict_threshold, num_workers, grid_size, global_height, alpha=0.5, gamma=2, shuffle=True, opt="Adam"):
         '''
         Args:
             model: the Deep Learning model.
@@ -95,10 +56,8 @@ class Trainer():
         self.device = device
         self.model = model.to(device)
         self.train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers, drop_last=True)
-        #self.train_voxel_nets = torch.from_numpy(train_voxel_nets.copy()).type(torch.float).to(self.device)
 
         self.val_loader = DataLoader(val_dataset, batch_size=int(batch_size/2), shuffle=True, num_workers=num_workers)
-        #self.val_voxel_nets = torch.from_numpy(val_voxel_nets.copy()).type(torch.float).to(self.device)
         self.grid_size = grid_size
         self.global_height = global_height
 
