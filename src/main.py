@@ -24,7 +24,7 @@ if __name__ == "__main__":
     parser.add_argument("--global_height", help="The global_height.", type=int, default=50)
     parser.add_argument("--nb_window", help="int(nb_window**0.5) is the number of cuboids we want on the training set.", type=int, default=400)
     parser.add_argument("--augmentation", help="if we do the augmentation or not.", type=bool, default=False)
-    parser.add_argument("--resolution", help="resolution of data", type=int, default=20)
+    parser.add_argument("--resolution", help="resolution of data", type=int, default=25)
     
     args = parser.parse_args()
 
@@ -38,7 +38,7 @@ if __name__ == "__main__":
     predict_threshold = args.predict_threshold
     batch_size = args.batch_size
     global_height = args.global_height
-    nb_window = int(args.nb_window**0.5)
+    resolution = args.resolution
     augmentation = False
 
     # set by default
@@ -51,57 +51,29 @@ if __name__ == "__main__":
         my_device = torch.device('cpu')
     print('> Device : {}'.format(my_device))
 
-    resolution = 25
     # (2) prepare train dataset and validation dataset
-    samples_train, sample_voxel_net_index_train, train_voxel_nets = prepare_procedure_ier(
-                                                        train_data_path, 
-                                                        resolution,
-                                                        voxel_sample_mode,
-                                                        label_name="WL", 
-                                                        sample_size=sample_size,
-                                                        augmentation=augmentation)
-    train_dataset = TrainDataSet(samples_train, sample_voxel_net_index_train, train_voxel_nets, my_device)
-    train_dataset.show_info()
-
-    
-    samples_val, sample_voxel_net_index_val, val_voxel_nets = prepare_procedure_ier(
-                                                    val_data_path, 
-                                                    resolution,
-                                                    voxel_sample_mode, 
-                                                    label_name="WL",
-                                                    sample_size=sample_size,
-                                                    augmentation=augmentation)
-    val_dataset = TrainDataSet(samples_val, sample_voxel_net_index_val, val_voxel_nets, my_device)
-    val_dataset.show_info()
-    
-    '''
-    samples_train, sample_cuboid_index_train, train_voxel_nets = prepare_procedure_ier(
-                                                                    train_data_path, 
-                                                                    grid_size, 
-                                                                    voxel_size,
-                                                                    voxel_sample_mode, 
-                                                                    sample_size, 
-                                                                    global_height=global_height, 
-                                                                    label_name="WL", 
-                                                                    detail=True, 
-                                                                    nb_window=nb_window)
-
-    train_dataset = TrainDataSet(samples_train, sample_cuboid_index_train, my_device)
+    # traindataset
+    samples_train = read_data_from_directory(
+                                train_data_path, 
+                                resolution, 
+                                voxel_sample_mode, 
+                                label_name="WL", 
+                                sample_size=sample_size, 
+                                augmentation=augmentation)
+    train_dataset = TrainDataSet(samples_train, 0, 0, my_device)
     train_dataset.show_info()
     
-    samples_val, sample_cuboid_index_val, val_voxel_nets = prepare_procedure_ier(
-                                                                    val_data_path, 
-                                                                    grid_size, 
-                                                                    voxel_size, 
-                                                                    voxel_sample_mode, 
-                                                                    sample_size, 
-                                                                    global_height=global_height, 
-                                                                    label_name="WL", 
-                                                                    detail=True, 
-                                                                    nb_window=4)
-    val_dataset = TrainDataSet(samples_val, sample_cuboid_index_val, my_device)
+    # validation dataset
+    samples_val = read_data_from_directory(
+                                val_data_path, 
+                                resolution, 
+                                voxel_sample_mode, 
+                                label_name="WL", 
+                                sample_size=sample_size, 
+                                augmentation=augmentation)
+    val_dataset = TrainDataSet(samples_val, 0, 0, my_device)
     val_dataset.show_info()
-    '''
+
     # (3) create model and trainning
     # create a model
     #global_height = z_max - z_min # the absolute height, set to 50 for the moment

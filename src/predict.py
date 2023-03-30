@@ -45,7 +45,7 @@ if __name__ == "__main__":
                                                     data_path, 
                                                     resolution,
                                                     voxel_sample_mode, 
-                                                    label_name="intensity",
+                                                    label_name="WL",
                                                     sample_size=sample_size,
                                                     augmentation=False,
                                                     for_test=True)
