@@ -93,7 +93,7 @@ class Trainer():
         # also, alpha is used to adjust the big loss value bring by gamma
         self.alpha = alpha
         self.gamma = gamma
-        self.criterion = FocalLoss(gamma=self.gamma,alpha=self.alpha)
+        self.criterion = 0
         self.writer = SummaryWriter(get_current_direct_path() + "/tensorboard")
 
 
