@@ -16,7 +16,8 @@ if __name__ == "__main__":
     parser.add_argument("--voxel_size", help="The voxel size.", type=float, default=0.2)
     parser.add_argument("--sample_size", help="The sample size : number of points in one-time training.", type=int, default=5000)
     parser.add_argument("--global_height", help="The global height.", type=int, default=50)
-    parser.add_argument("--resolution", help="resolution of data", type=int, default=20)
+    parser.add_argument("--resolution", help="resolution of data", type=int, default=25)
+    parser.add_argument("--label_name", help="WL if the test dataset has label, intensity or something else if not", type=str, default="intensity")
 
     args = parser.parse_args()
 
@@ -28,7 +29,8 @@ if __name__ == "__main__":
     sample_size = args.sample_size
     global_height = args.global_height
     resolution = args.resolution
-    
+    label_name = args.label_name
+
     # set by default
     voxel_sample_mode = 'mc'
 
@@ -45,7 +47,7 @@ if __name__ == "__main__":
                                                     data_path, 
                                                     resolution,
                                                     voxel_sample_mode, 
-                                                    label_name="WL",
+                                                    label_name=label_name,
                                                     sample_size=sample_size,
                                                     augmentation=False,
                                                     for_test=True)
@@ -66,12 +68,8 @@ if __name__ == "__main__":
     i = 0
     #predict label possibilty
     
-    for points, pointwise_features, labels, voxel_net, sp, samples_rest_single, points_raw in test_loader:
+    for points, pointwise_features, labels, voxel_net, sp, samples_rest_single, points_raw, gd in test_loader:
         points_for_pointnet = torch.cat([points.transpose(2,1), pointwise_features.transpose(2,1)], dim=1)
-        #points_for_pointnet[:,0:2,:] = points_for_pointnet[:,0:2,:] * self.grid_size
-        #points_for_pointnet[:,2,:] = points_for_pointnet[:,2,:] * self.global_height + (self.global_height/2)
-        #points_for_pointnet[:,6:,:] = points_for_pointnet[:,6:,:] + 0.5
-        #print("pointsfor_pointnet.shape={}".format(points_for_pointnet.shape))
         logits = my_model(points, pointwise_features, voxel_net, points_for_pointnet.float())
         logits = F.softmax(logits, dim=1)
         predict = logits.squeeze(0).float()
@@ -86,10 +84,12 @@ if __name__ == "__main__":
         new_file.add_extra_dim(laspy.ExtraBytesParams(name="leave_proba", type=np.float64))
         new_file.add_extra_dim(laspy.ExtraBytesParams(name="predict", type=np.float64))
         new_file.add_extra_dim(laspy.ExtraBytesParams(name="true", type=np.float64))
+        new_file.add_extra_dim(laspy.ExtraBytesParams(name="gd", type=np.float64))
+
         points = points.squeeze(0).cpu().detach().numpy()
         labels = labels.squeeze(0).cpu().detach().numpy()
         points_raw = points_raw.squeeze(0).cpu().detach().numpy()
-        
+        gd = gd.squeeze(0).cpu().detach().numpy()
         # + 0.5 : react to centered to (0,0,0)
         # - (1 - np.max(points[:,0])) : react to cube centering
         # * max_axe : react to scaling
@@ -102,6 +102,7 @@ if __name__ == "__main__":
         new_file.leave_proba = predict[1,:].cpu().detach().numpy()
         new_file.predict = predict_label.cpu().detach().numpy()
         new_file.true = labels
+        new_file.gd = gd
         new_file.write(os.getcwd()+"/predict_res/res_{:04}.las".format(i))
 
         '''
