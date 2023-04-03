@@ -43,7 +43,7 @@ if __name__ == "__main__":
     
     # (2) prepare train dataset and validation dataset
     
-    samples_test, sample_voxel_net_index_test, test_voxel_nets, sample_position, x_min_all, y_min_all, z_min_all, samples_rest = prepare_procedure_ier(
+    test_dataset, sample_voxel_net_index_test, test_voxel_nets, sample_position, x_min_all, y_min_all, z_min_all, samples_rest = prepare_procedure_ier(
                                                     data_path, 
                                                     resolution,
                                                     voxel_sample_mode, 
@@ -51,8 +51,8 @@ if __name__ == "__main__":
                                                     sample_size=sample_size,
                                                     augmentation=False,
                                                     for_test=True)
-    test_dataset = TestDataSet(samples_test, sample_voxel_net_index_test, test_voxel_nets, my_device, sample_position, samples_rest)
-    #test_dataset.show_info()
+    test_dataset = TestDataSet(test_dataset, sample_voxel_net_index_test, test_voxel_nets, my_device, sample_position, samples_rest)
+    test_dataset.show_info()
 
     # (3) predict
     my_model = PointWiseModel(device=my_device)

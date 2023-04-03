@@ -53,25 +53,25 @@ if __name__ == "__main__":
 
     # (2) prepare train dataset and validation dataset
     # traindataset
-    samples_train = read_data_from_directory(
+    train_dataset = read_data_from_directory(
                                 train_data_path, 
                                 resolution, 
                                 voxel_sample_mode, 
                                 label_name="WL", 
                                 sample_size=sample_size, 
                                 augmentation=augmentation)
-    train_dataset = TrainDataSet(samples_train, 0, 0, my_device)
+    train_dataset = TrainDataSet(train_dataset, 0, 0, my_device)
     train_dataset.show_info()
     
     # validation dataset
-    samples_val = read_data_from_directory(
+    val_dataset = read_data_from_directory(
                                 val_data_path, 
                                 resolution, 
                                 voxel_sample_mode, 
                                 label_name="WL", 
                                 sample_size=sample_size, 
                                 augmentation=augmentation)
-    val_dataset = TrainDataSet(samples_val, 0, 0, my_device)
+    val_dataset = TrainDataSet(val_dataset, 0, 0, my_device)
     val_dataset.show_info()
 
     # (3) create model and trainning

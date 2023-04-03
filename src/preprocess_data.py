@@ -425,9 +425,11 @@ def prepare_procedure_ier(path, resolution, voxel_sample_mode, label_name, augme
     #voxel_nets = analyse_voxel_in_cuboid_ier(samples_voxelized, resolution)
     samples_res = []
     sample_voxel_net_index = []
-    for i in range(len(samples)):
+    len_samples = len(samples)
+    for i in range(len_samples):
         new_sample_tmp = split_reminder(samples[i], sample_size, axis=0)
         # p_size, the last one 
+        print("new_sample_tmp.shape={}".format(new_sample_tmp.shape))
         p_size, f_size = new_sample_tmp[-1].shape
         #print("p_size={}, f_size={} (10)".format(p_size, f_size))
 
@@ -442,9 +444,12 @@ def prepare_procedure_ier(path, resolution, voxel_sample_mode, label_name, augme
         print("\n########")
         '''
         samples_res = samples_res + new_sample_tmp
+        '''
         for c in range(len(new_sample_tmp)):
             sample_voxel_net_index.append(i)
-    
+        '''
+        print(">>> processing samples {}/{} - ok".format(i, len_samples))
+
     samples_res = np.array(samples_res)
     #print("sample_voxel_net_index.shape={},samples_res.shape={}, voxel_nets.shape ={}".format(len(sample_voxel_net_index),samples_res.shape,voxel_nets.shape))
     #print(sample_voxel_net_index)
