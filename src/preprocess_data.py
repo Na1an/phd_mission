@@ -275,7 +275,6 @@ def prepare_dataset_ier(data, voxel_size_ier, voxel_sample_mode, augmentation, r
     for ic in range(len(sample_tmp)):
         # sample_tmp[ic] : [[x,y,z,label,reflectance,gd,ier], ...]
         sample_tmp[ic] = np.vstack(sample_tmp[ic])
-        #print(">>>>!!! after sample_tmp[ic] is nan shape=", sample_tmp[ic][np.isnan(sample_tmp[ic])].shape)
         #sample_tmp[ic][np.isnan(sample_tmp[ic])] = 1
         sample_tmp[ic] = sample_tmp[ic][sample_tmp[ic][:, 5].argsort()]
         # normalize ier
@@ -284,7 +283,7 @@ def prepare_dataset_ier(data, voxel_size_ier, voxel_sample_mode, augmentation, r
         sample_tmp[ic][:,0] = sample_tmp[ic][:,0] - x_min
         sample_tmp[ic][:,1] = sample_tmp[ic][:,1] - y_min
         sample_tmp[ic][:,2] = sample_tmp[ic][:,2] - z_min
-
+        
         features = compute_features(sample_tmp[ic][:,:3], search_radius=voxel_size_ier, feature_names=["PCA1","linearity","sphericity", "verticality"])
         
         sample_tmp[ic] = np.concatenate((sample_tmp[ic], features), axis=1) # sod : significan of diference , normal_change_rate: acb pour tous les variables
@@ -304,38 +303,18 @@ def prepare_dataset_ier(data, voxel_size_ier, voxel_sample_mode, augmentation, r
                     #print("knn_f ={} mean={}".format(knn_f[~np.isnan(knn_f)], np.mean(knn_f[~np.isnan(knn_f)])))
                     sample_tmp[ic][ep][3+ef] = np.mean(knn_f[~np.isnan(knn_f)])
         '''
-        #print(">>>>!!! after sample_tmp[ic] is nan shape=", sample_tmp[ic][np.isnan(sample_tmp[ic])].shape)
+        #print(">>>>!!! after sample_tmp[ic] nan shape=", sample_tmp[ic][np.isnan(sample_tmp[ic])].shape)
         # value scaled to 0,1
         # plot training dataset
         #plot_pc(sample_tmp[ic][:,:3], c=sample_tmp[ic][:,7]) 
         #plot_pc(sample_tmp[ic][:,:3], c=sample_tmp[ic][:,8])
         #plot_pc(sample_tmp[ic][:,:3], c=sample_tmp[ic][:,6])
         
-        # here we start prior partition
-        # ind_f>=7, ["PCA1","linearity","sphericity", "verticality"]
-        # linerity : keep >0.7
-        # sphericity : keep <0.1
-        # PCA1 : keep >0.7
-        # normal_change_rate : < 0.05
-        # panerity : < 0.05
-        '''
-        def partition(ind_f, th_exp, bigger):
-            dim_f = list(range(0,11))
-            if bigger:
-                data_tmp = sample_tmp[ic][sample_tmp[ic][:,ind_f] >= th_exp]
-                data_tmp_bis = sample_tmp[ic][sample_tmp[ic][:,ind_f] < th_exp]
-            else:
-                data_tmp = sample_tmp[ic][sample_tmp[ic][:,ind_f] <= th_exp]
-                data_tmp_bis = sample_tmp[ic][sample_tmp[ic][:,ind_f] > th_exp]
-            dim_f.remove(ind_f)
-            return data_tmp, dim_f, data_tmp_bis
-        '''
-        #sample_tmp_bis, dim_f, sample_tmp_bis_rest = partition(9, 0.1, bigger=False)
         #dim_f = list(range(0,11))
         #dim_f.remove(9)
         nb_p, len_f = sample_tmp[ic].shape
         #print("before remove nan, sample.shape={}".format(sample_tmp[ic].shape))
-        sample_tmp_bis = sample_tmp[ic][np.all(~np.isnan(sample_tmp[ic]), axis=1)]
+        sample_tmp_bis = sample_tmp[ic][np.all(~np.isnan(sample_tmp[ic][:,-4:]), axis=1)]
         #print("after remove nan, sample.shape={}, {}% point removed".format(sample_tmp_bis.shape, 100 - 100*(sample_tmp_bis.shape[0]/nb_p)))
 
         # [7:10] -> features ["PCA1","linearity","sphericity", "verticality"]
@@ -343,6 +322,7 @@ def prepare_dataset_ier(data, voxel_size_ier, voxel_sample_mode, augmentation, r
         pos_raw = np.copy(sample_tmp_bis[:,:3])
 
         try:
+            print("sample_tmp_bis[:,:3].shape={}".format(sample_tmp_bis[:,:3].shape))
             sample_tmp_bis[:,:3], max_axe, max_x_axe, max_y_axe, max_z_axe = normalize_long_axe(sample_tmp_bis[:,:3])
         except ValueError as e:
             print(">>>> [ERROR] we have a error:", e)
@@ -400,7 +380,7 @@ def prepare_dataset_ier(data, voxel_size_ier, voxel_sample_mode, augmentation, r
     samples = np.array(sample_res, dtype='object')
     samples_rest = 0
     sample_voxelized = np.array(sample_voxelized, dtype='object')
-    print(">> prepare_dataset_ier finesehd samples.shape={} sample_voxelized.shape={} samples_rest.shape={} len(sample_position)={}".format(samples.shape, sample_voxelized.shape, 0 , len(sample_position)))
+    print(">> prepare_dataset_ier finesehd samples.shape={} sample_voxelized.shape={} len(sample_position)={}".format(samples.shape, sample_voxelized.shape, len(sample_position)))
     return samples, sample_voxelized, sample_position, samples_rest
 
 def prepare_procedure_ier(path, resolution, voxel_sample_mode, label_name, augmentation, sample_size=5000, for_test=False, voxel_size_ier=0.6):
@@ -418,18 +398,16 @@ def prepare_procedure_ier(path, resolution, voxel_sample_mode, label_name, augme
     samples, samples_voxelized, sample_position, samples_rest = prepare_dataset_ier(data_preprocessed, voxel_size_ier, voxel_sample_mode, resolution=resolution, augmentation=augmentation, for_test=for_test)
     #samples : [[x,y,z,label,reflectance,gd,ier,PCA1,linearity,verticality,...], ...]
     #samples_voxelized : [[x,y,z,point_density], ...]
-    #print("samples[0].shape = {} samples_voxelized[0].shape = {}".format(samples[0].shape, samples_voxelized[0].shape))
-    #print("samples[1].shape = {} samples_voxelized[1].shape = {}".format(samples[1].shape, samples_voxelized[1].shape))
-    #print("type(samples)={} type(samples[0])={} samples[0].shape={}".format(type(samples),type(samples[0]),samples[0].shape))
     
     #voxel_nets = analyse_voxel_in_cuboid_ier(samples_voxelized, resolution)
     samples_res = []
     sample_voxel_net_index = []
     len_samples = len(samples)
     for i in range(len_samples):
+        print("samples[i].shape={}".format(samples[i].shape))
         new_sample_tmp = split_reminder(samples[i], sample_size, axis=0)
         # p_size, the last one 
-        print("new_sample_tmp.shape={}".format(new_sample_tmp.shape))
+        print("new_sample_tmp[-1].shape={}".format(new_sample_tmp[-1].shape))
         p_size, f_size = new_sample_tmp[-1].shape
         #print("p_size={}, f_size={} (10)".format(p_size, f_size))
 
@@ -438,16 +416,11 @@ def prepare_procedure_ier(path, resolution, voxel_sample_mode, label_name, augme
         else:
             new_sample_tmp[-1] = np.concatenate((new_sample_tmp[-1], samples[i][np.random.choice([c for c in range(sample_size*(len(new_sample_tmp)-1))], sample_size - p_size)]))
         #print("new_sample_tmp[-1].shape=",new_sample_tmp[-1].shape)
-        '''
-        for eee in new_sample_tmp:
-            print(eee.shape, end = "\t")
-        print("\n########")
-        '''
         samples_res = samples_res + new_sample_tmp
-        '''
+        
         for c in range(len(new_sample_tmp)):
             sample_voxel_net_index.append(i)
-        '''
+        
         print(">>> processing samples {}/{} - ok".format(i, len_samples))
 
     samples_res = np.array(samples_res)

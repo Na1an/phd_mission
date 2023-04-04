@@ -50,7 +50,8 @@ if __name__ == "__main__":
                                                     label_name=label_name,
                                                     sample_size=sample_size,
                                                     augmentation=False,
-                                                    for_test=True)
+                                                    for_test=True,
+                                                    voxel_size_ier=0.3)
     test_dataset = TestDataSet(test_dataset, sample_voxel_net_index_test, test_voxel_nets, my_device, sample_position, samples_rest)
     test_dataset.show_info()
 
