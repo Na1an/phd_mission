@@ -322,7 +322,6 @@ def prepare_dataset_ier(data, voxel_size_ier, voxel_sample_mode, augmentation, r
         pos_raw = np.copy(sample_tmp_bis[:,:3])
 
         try:
-            print("sample_tmp_bis[:,:3].shape={}".format(sample_tmp_bis[:,:3].shape))
             sample_tmp_bis[:,:3], max_axe, max_x_axe, max_y_axe, max_z_axe = normalize_long_axe(sample_tmp_bis[:,:3])
         except ValueError as e:
             print(">>>> [ERROR] we have a error:", e)
