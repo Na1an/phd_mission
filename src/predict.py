@@ -71,6 +71,8 @@ if __name__ == "__main__":
     
     for points, pointwise_features, labels, voxel_net, sp, samples_rest_single, points_raw, gd in test_loader:
         points_for_pointnet = torch.cat([points.transpose(2,1), pointwise_features.transpose(2,1)], dim=1)
+        points_for_pointnet = points_for_pointnet.float()
+        points, pointwise_features, voxel_net, points_for_pointnet = points.to(my_device), pointwise_features.to(my_device), 0, points_for_pointnet.to(my_device)
         logits = my_model(points, pointwise_features, voxel_net, points_for_pointnet.float())
         logits = F.softmax(logits, dim=1)
         predict = logits.squeeze(0).float()
