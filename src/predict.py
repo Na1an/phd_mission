@@ -59,6 +59,7 @@ if __name__ == "__main__":
     my_model = PointWiseModel(device=my_device)
     checkpoint = torch.load(cp_path, map_location=torch.device('cpu'))
     my_model.load_state_dict(checkpoint['model_state_dict'])
+    my_model.to(my_device)
     my_model.eval()
 
     print("dataset len =", test_dataset.__len__())
