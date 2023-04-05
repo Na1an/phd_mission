@@ -68,8 +68,7 @@ if __name__ == "__main__":
     #test_voxel_nets = torch.from_numpy(test_voxel_nets.copy()).type(torch.float).to(my_device)
     
     i = 0
-    #predict label possibilty
-    
+    #predict label possibilty    
     for points, pointwise_features, labels, voxel_net, sp, samples_rest_single, points_raw, gd in test_loader:
         points_for_pointnet = torch.cat([points.transpose(2,1), pointwise_features.transpose(2,1)], dim=1)
         points_for_pointnet = points_for_pointnet.float()
