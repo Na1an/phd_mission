@@ -106,11 +106,10 @@ class TestDataSet(Dataset):
         points = torch.from_numpy(points.copy()).type(torch.float).to(self.device)
         
         #pointwise_features = [reflectance,gd,ier,PCA1,linearity,verticality]
-        #pointwise_features = torch.from_numpy(self.samples[index][:,4:].copy()).type(torch.float).to(self.device)
         pointwise_features = torch.from_numpy(self.samples[index][:,[7,8,9,10]].copy()).type(torch.float).to(self.device)
         #voxel_net = torch.from_numpy(self.samples_voxelized[self.sample_voxel_net_index[index]]).type(torch.float).to(self.device)
         gd = torch.from_numpy(self.samples[index][:,5].copy()).type(torch.float).to(self.device)
-
+        gd = torch.from_numpy(self.samples[index][:,5].copy()).type(torch.float).to(self.device)
         return points, pointwise_features, labels, 0, sp, 0, points_raw, gd
 
     # print the info

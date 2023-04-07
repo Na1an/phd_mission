@@ -14,7 +14,7 @@ if __name__ == "__main__":
     parser.add_argument("checkpoint_path", help="The path of checkpoint (train data with labels).", type=str)
     parser.add_argument("--grid_size", help="The sliding window size.", type=float, default=5.0)
     parser.add_argument("--voxel_size", help="The voxel size.", type=float, default=0.2)
-    parser.add_argument("--sample_size", help="The sample size : number of points in one-time training.", type=int, default=5000)
+    parser.add_argument("--sample_size", help="The sample size : number of points in one-time training.", type=int, default=3000)
     parser.add_argument("--global_height", help="The global height.", type=int, default=50)
     parser.add_argument("--resolution", help="resolution of data", type=int, default=25)
     parser.add_argument("--label_name", help="WL if the test dataset has label, intensity or something else if not", type=str, default="intensity")
@@ -51,7 +51,8 @@ if __name__ == "__main__":
                                                     sample_size=sample_size,
                                                     augmentation=False,
                                                     for_test=True,
-                                                    voxel_size_ier=0.3)
+                                                    voxel_size_ier=0.6)
+
     test_dataset = TestDataSet(test_dataset, sample_voxel_net_index_test, test_voxel_nets, my_device, sample_position, samples_rest)
     test_dataset.show_info()
 
@@ -65,7 +66,6 @@ if __name__ == "__main__":
     print("dataset len =", test_dataset.__len__())
     # batch_size must be 1!!!
     test_loader = DataLoader(test_dataset, batch_size=1, shuffle=False)
-    #test_voxel_nets = torch.from_numpy(test_voxel_nets.copy()).type(torch.float).to(my_device)
     
     i = 0
     #predict label possibilty    
@@ -88,11 +88,19 @@ if __name__ == "__main__":
         new_file.add_extra_dim(laspy.ExtraBytesParams(name="predict", type=np.float64))
         new_file.add_extra_dim(laspy.ExtraBytesParams(name="true", type=np.float64))
         new_file.add_extra_dim(laspy.ExtraBytesParams(name="gd", type=np.float64))
+        new_file.add_extra_dim(laspy.ExtraBytesParams(name="PCA1", type=np.float64))
+        new_file.add_extra_dim(laspy.ExtraBytesParams(name="linearity", type=np.float64))
+        new_file.add_extra_dim(laspy.ExtraBytesParams(name="sphericity", type=np.float64))
+        new_file.add_extra_dim(laspy.ExtraBytesParams(name="verticality", type=np.float64))
 
         points = points.squeeze(0).cpu().detach().numpy()
         labels = labels.squeeze(0).cpu().detach().numpy()
         points_raw = points_raw.squeeze(0).cpu().detach().numpy()
         gd = gd.squeeze(0).cpu().detach().numpy()
+
+        #[7:10] -> features ["PCA1","linearity","sphericity", "verticality"]
+        pointwise_features = pointwise_features.squeeze(0).cpu().detach().numpy()
+
         # + 0.5 : react to centered to (0,0,0)
         # - (1 - np.max(points[:,0])) : react to cube centering
         # * max_axe : react to scaling
@@ -106,6 +114,10 @@ if __name__ == "__main__":
         new_file.predict = predict_label.cpu().detach().numpy()
         new_file.true = labels
         new_file.gd = gd
+        new_file.PCA1 = pointwise_features[:,0]
+        new_file.linearity = pointwise_features[:,1]
+        new_file.sphericity = pointwise_features[:,2]
+        new_file.verticality = pointwise_features[:,3]
         new_file.write(os.getcwd()+"/predict_res/res_{:04}.las".format(i))
 
         '''

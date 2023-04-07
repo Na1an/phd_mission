@@ -314,6 +314,7 @@ def prepare_dataset_ier(data, voxel_size_ier, voxel_sample_mode, augmentation, r
         #dim_f.remove(9)
         nb_p, len_f = sample_tmp[ic].shape
         #print("before remove nan, sample.shape={}".format(sample_tmp[ic].shape))
+        # np.all(~np.isnan(sample_tmp[ic][:,-4:]), axis=1) : here, we only remove points which have nan value for feature
         sample_tmp_bis = sample_tmp[ic][np.all(~np.isnan(sample_tmp[ic][:,-4:]), axis=1)]
         #print("after remove nan, sample.shape={}, {}% point removed".format(sample_tmp_bis.shape, 100 - 100*(sample_tmp_bis.shape[0]/nb_p)))
 
@@ -382,7 +383,7 @@ def prepare_dataset_ier(data, voxel_size_ier, voxel_sample_mode, augmentation, r
     print(">> prepare_dataset_ier finesehd samples.shape={} sample_voxelized.shape={} len(sample_position)={}".format(samples.shape, sample_voxelized.shape, len(sample_position)))
     return samples, sample_voxelized, sample_position, samples_rest
 
-def prepare_procedure_ier(path, resolution, voxel_sample_mode, label_name, augmentation, sample_size=5000, for_test=False, voxel_size_ier=0.6):
+def prepare_procedure_ier(path, resolution, voxel_sample_mode, label_name, augmentation, sample_size=3000, for_test=False, voxel_size_ier=0.6):
     '''
     Args:
     Returns:
@@ -403,10 +404,10 @@ def prepare_procedure_ier(path, resolution, voxel_sample_mode, label_name, augme
     sample_voxel_net_index = []
     len_samples = len(samples)
     for i in range(len_samples):
-        print("samples[i].shape={}".format(samples[i].shape))
+        #print("samples[i].shape={}".format(samples[i].shape))
         new_sample_tmp = split_reminder(samples[i], sample_size, axis=0)
         # p_size, the last one 
-        print("new_sample_tmp[-1].shape={}".format(new_sample_tmp[-1].shape))
+        #print("new_sample_tmp[-1].shape={}".format(new_sample_tmp[-1].shape))
         p_size, f_size = new_sample_tmp[-1].shape
         #print("p_size={}, f_size={} (10)".format(p_size, f_size))
 
@@ -420,7 +421,7 @@ def prepare_procedure_ier(path, resolution, voxel_sample_mode, label_name, augme
         for c in range(len(new_sample_tmp)):
             sample_voxel_net_index.append(i)
         
-        print(">>> processing samples {}/{} - ok".format(i, len_samples))
+        print(">>> processing samples {}/{} - ok".format(i+1, len_samples))
 
     samples_res = np.array(samples_res)
     #print("sample_voxel_net_index.shape={},samples_res.shape={}, voxel_nets.shape ={}".format(len(sample_voxel_net_index),samples_res.shape,voxel_nets.shape))
