@@ -235,7 +235,7 @@ def analyse_voxel_in_cuboid_bak(voxel_skeleton_cuboid, h, side):
 ##########################
 # training - ier version #
 ##########################
-def prepare_dataset_ier(data, voxel_size_ier, voxel_sample_mode, augmentation, resolution=20, for_test=False):
+def prepare_dataset_ier(data, voxel_size_ier, voxel_sample_mode, augmentation, resolution=20, for_test=False, limit_comp=10, limit_p_in_comp=100):
     '''
     Args:
         data: a np.ndarray. (x,y,z,label,reflectance)
@@ -251,7 +251,7 @@ def prepare_dataset_ier(data, voxel_size_ier, voxel_sample_mode, augmentation, r
     dict_points_in_voxel, nb_points_per_voxel, voxel = voxel_grid_sample(data, voxel_size_ier, voxel_sample_mode)
     # dict_points_in_voxel is a dict, key is voxel coord, value is a list of (points, label, reflectance) 
     initialize_voxels(dict_points_in_voxel)
-    _, max_comp_id = geodesic_distance(dict_points_in_voxel, voxel_size_ier, tree_radius=7, limit_comp=10)
+    _, max_comp_id = geodesic_distance(dict_points_in_voxel, voxel_size_ier, tree_radius=7, limit_comp=limit_comp, limit_p_in_comp=limit_p_in_comp)
     # dict_points_in_voxel: k is coord of voxel, value is a list of points
     # dict_points_in_voxel[k=(0,0,0)] = [point1, ...], point1 = [x,y,z,label,reflectance,gd,ier,nb_comp is id of comp]
 
@@ -383,7 +383,7 @@ def prepare_dataset_ier(data, voxel_size_ier, voxel_sample_mode, augmentation, r
     print(">> prepare_dataset_ier finesehd samples.shape={} sample_voxelized.shape={} len(sample_position)={}".format(samples.shape, sample_voxelized.shape, len(sample_position)))
     return samples, sample_voxelized, sample_position, samples_rest
 
-def prepare_procedure_ier(path, resolution, voxel_sample_mode, label_name, augmentation, sample_size=3000, for_test=False, voxel_size_ier=0.6):
+def prepare_procedure_ier(path, resolution, voxel_sample_mode, label_name, augmentation, sample_size=3000, for_test=False, voxel_size_ier=0.6, limit_comp=10, limit_p_in_comp=100):
     '''
     Args:
     Returns:
@@ -395,7 +395,7 @@ def prepare_procedure_ier(path, resolution, voxel_sample_mode, label_name, augme
 
     # (2) build samples
     # data_preprocessed : (x,y,z,label,intensity)
-    samples, samples_voxelized, sample_position, samples_rest = prepare_dataset_ier(data_preprocessed, voxel_size_ier, voxel_sample_mode, resolution=resolution, augmentation=augmentation, for_test=for_test)
+    samples, samples_voxelized, sample_position, samples_rest = prepare_dataset_ier(data_preprocessed, voxel_size_ier, voxel_sample_mode, resolution=resolution, augmentation=augmentation, for_test=for_test, limit_comp=limit_comp, limit_p_in_comp=limit_p_in_comp)
     #samples : [[x,y,z,label,reflectance,gd,ier,PCA1,linearity,verticality,...], ...]
     #samples_voxelized : [[x,y,z,point_density], ...]
     
@@ -421,7 +421,7 @@ def prepare_procedure_ier(path, resolution, voxel_sample_mode, label_name, augme
         for c in range(len(new_sample_tmp)):
             sample_voxel_net_index.append(i)
         
-        print(">>> processing samples {}/{} - ok".format(i+1, len_samples))
+        print(">>> processing samples {}/{} - ok \t".format(i+1, len_samples) , end="\r")
 
     samples_res = np.array(samples_res)
     #print("sample_voxel_net_index.shape={},samples_res.shape={}, voxel_nets.shape ={}".format(len(sample_voxel_net_index),samples_res.shape,voxel_nets.shape))

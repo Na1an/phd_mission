@@ -114,7 +114,7 @@ class TestDataSet(Dataset):
 
     # print the info
     def show_info(self):
-        print(">> TestDataSet is prepared:")
+        print("\n>> TestDataSet is prepared:")
         print(">>> device={}".format(self.device))
         print(">>> samples.shape={}".format(self.samples.shape))
         print(">>> self.sample_position.shape={}".format(len(self.sample_position)))

@@ -468,10 +468,10 @@ def geodesic_distance(voxels, voxel_size, tree_radius=7.0, limit_comp=10, limit_
             nb_v_keep = nb_v_keep + nb_in_comp
             nb_p_keep = nb_p_keep + nb_p_in_comp
             cauculate_ier(voxels, (x_low, y_low, z_low), seen, voxel_size, nb_component)
-            print(">> {} voxels in component n°{} : ier calculated".format(nb_in_comp, nb_component))
+            print(">> {} voxels in component n°{} : ier calculated \t".format(nb_in_comp, nb_component), end="\r")
             nb_component = nb_component + 1
         
-    print(">> All voxels are processed, we have {} component in this zone".format(nb_component))
+    print("\n>> All voxels are processed, we have {} component in this zone".format(nb_component))
     print(">> {} voxels keeped, {} voxels abondaned because of small component, remove {}% voxels.".format(nb_v_keep, nb_v_abandon, round((100*nb_v_abandon)/(nb_v_abandon+nb_v_keep),2)))
     print(">> {} points keeped, {} points abondaned because of small component, remove {}% points.".format(nb_p_keep, nb_p_abandon, round((100*nb_p_abandon)/(nb_p_abandon+nb_p_keep),2)))
 

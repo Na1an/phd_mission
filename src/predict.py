@@ -18,6 +18,9 @@ if __name__ == "__main__":
     parser.add_argument("--global_height", help="The global height.", type=int, default=50)
     parser.add_argument("--resolution", help="resolution of data", type=int, default=25)
     parser.add_argument("--label_name", help="WL if the test dataset has label, intensity or something else if not", type=str, default="intensity")
+    parser.add_argument("--limit_comp", help="Component number", type=int, default=10)
+    parser.add_argument("--limit_p_in_comp", help="Points inside a geodesic-voxelization group", type=int, default=100)
+
 
     args = parser.parse_args()
 
@@ -30,6 +33,8 @@ if __name__ == "__main__":
     global_height = args.global_height
     resolution = args.resolution
     label_name = args.label_name
+    limit_comp = args.limit_comp
+    limit_p_in_comp = args.limit_p_in_comp
 
     # set by default
     voxel_sample_mode = 'mc'
@@ -51,7 +56,9 @@ if __name__ == "__main__":
                                                     sample_size=sample_size,
                                                     augmentation=False,
                                                     for_test=True,
-                                                    voxel_size_ier=0.6)
+                                                    voxel_size_ier=0.6,
+                                                    limit_comp=limit_comp, 
+                                                    limit_p_in_comp=limit_p_in_comp)
 
     test_dataset = TestDataSet(test_dataset, sample_voxel_net_index_test, test_voxel_nets, my_device, sample_position, samples_rest)
     test_dataset.show_info()
@@ -150,7 +157,7 @@ if __name__ == "__main__":
         new_file_bis.write(os.getcwd()+"/predict_res/rest_{:04}.las".format(i))
         '''
         i = i+1
-        print(">>> cube - N°{} predicted ".format(i))
+        print(">>> cube - N°{} predicted \t".format(i), end="\r")
     
     print("\n###### End ######")
 
