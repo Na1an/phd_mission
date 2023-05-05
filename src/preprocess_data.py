@@ -276,7 +276,8 @@ def prepare_dataset_ier(data, voxel_size_ier, voxel_sample_mode, augmentation, r
         # sample_tmp[ic] : [[x,y,z,label,reflectance,gd,ier], ...]
         sample_tmp[ic] = np.vstack(sample_tmp[ic])
         #sample_tmp[ic][np.isnan(sample_tmp[ic])] = 1
-        sample_tmp[ic] = sample_tmp[ic][sample_tmp[ic][:, 5].argsort()]
+        #sample_tmp[ic] = sample_tmp[ic][sample_tmp[ic][:, 5].argsort()]
+        np.random.shuffle(sample_tmp[ic])
         # normalize ier
         #sample_tmp[ic][:,-1] = sample_tmp[ic][:,-1] - 1
         x_min, y_min, z_min = np.min(sample_tmp[ic][:,0]), np.min(sample_tmp[ic][:,1]), np.min(sample_tmp[ic][:,2])
