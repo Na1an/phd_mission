@@ -391,7 +391,7 @@ def dist_3d(a,b):
     return (((x_a-x_b)**2 + (y_a-y_b)**2 + (z_a - z_b**2))**0.5)
 
 # calculate the geodesic diatance of a voxelized space (cuboid)
-def geodesic_distance(voxels, voxel_size, tree_radius=7.0, limit_comp=10, limit_p_in_comp=100):
+def geodesic_distance(voxels, voxel_size, tree_radius=7.0, limit_comp=10, limit_p_in_comp=100, tls_mode=False):
     '''
     Args:
         voxles: a dict. Key is the coordinates of the occupied voxel and value is the points inside the voxel and geodesic distance initialised to 0.
@@ -491,13 +491,14 @@ def geodesic_distance(voxels, voxel_size, tree_radius=7.0, limit_comp=10, limit_
     
     # this will not give us the mosaic holes
     # the numpy shuffler will resolve the mosaic color problem
-    for k,v in rest.items():
-        voxels[k] = v
-
+    if tls_mode:
+        for k,v in rest.items():
+            voxels[k] = v
+        nb_component = nb_component+1
     print("\n>> All voxels are processed, we have {} component in this zone".format(nb_component))
     print(">> {} voxels keeped, {} voxels abondaned because of small component, remove {}% voxels.".format(nb_v_keep, nb_v_abandon, round((100*nb_v_abandon)/(nb_v_abandon+nb_v_keep),2)))
     print(">> {} points keeped, {} points abondaned because of small component, remove {}% points.".format(nb_p_keep, nb_p_abandon, round((100*nb_p_abandon)/(nb_p_abandon+nb_p_keep),2)))
 
-    return voxels, nb_component+1
-    #return voxels, nb_component
+    #return voxels, nb_component+1
+    return voxels, nb_component
 
