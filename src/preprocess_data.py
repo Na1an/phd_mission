@@ -272,9 +272,18 @@ def prepare_dataset_ier(data, voxel_size_ier, voxel_sample_mode, augmentation, r
 
     sample_res = [[] for i in range(max_comp_id)]
     #sample_res_rest = [[] for i in range(max_comp_id)]
+    ic_empty = []
     for ic in range(len(sample_tmp)):
         # sample_tmp[ic] : [[x,y,z,label,reflectance,gd,ier], ...]
-        sample_tmp[ic] = np.vstack(sample_tmp[ic])
+        try:
+            sample_tmp[ic] = np.vstack(sample_tmp[ic])
+        except ValueError:
+            sample_tmp[ic] = []
+            sample_position.append([(0, 0, 0, 0, 0, 0, 0)])
+            ic_empty.append(ic)
+            print(">> Value Error, sample_tmp[ic].shape = {}, ic={}".format(len(sample_tmp[ic]), ic))
+            continue
+
         #sample_tmp[ic][np.isnan(sample_tmp[ic])] = 1
         #sample_tmp[ic] = sample_tmp[ic][sample_tmp[ic][:, 5].argsort()]
         np.random.shuffle(sample_tmp[ic])
@@ -378,10 +387,14 @@ def prepare_dataset_ier(data, voxel_size_ier, voxel_sample_mode, augmentation, r
         sample_tmp = sample_tmp + sample_tmp_aug[0] + sample_tmp_aug[1] + sample_tmp_aug[2] + sample_tmp_aug[3]
         sample_voxelized = sample_voxelized + sample_voxelized_aug[0] + sample_voxelized_aug[1] + sample_voxelized_aug[2] + sample_voxelized_aug[3]
 
+    for ic_del in ic_empty:
+        del sample_res[ic_del]
+        del sample_position[ic_del]
     samples = np.array(sample_res, dtype='object')
     samples_rest = 0
     sample_voxelized = np.array(sample_voxelized, dtype='object')
     print(">> prepare_dataset_ier finesehd samples.shape={} sample_voxelized.shape={} len(sample_position)={}".format(samples.shape, sample_voxelized.shape, len(sample_position)))
+    print(">> ic_empy=", ic_empty)
     return samples, sample_voxelized, sample_position, samples_rest
 
 def prepare_procedure_ier(path, resolution, voxel_sample_mode, label_name, augmentation, sample_size=3000, for_test=False, voxel_size_ier=0.6, limit_comp=10, limit_p_in_comp=100):
