@@ -495,10 +495,10 @@ def geodesic_distance(voxels, voxel_size, tree_radius=7.0, limit_comp=10, limit_
         for k,v in rest.items():
             voxels[k] = v
         nb_component = nb_component+1
+        
     print("\n>> All voxels are processed, we have {} component in this zone".format(nb_component))
     print(">> {} voxels keeped, {} voxels abondaned because of small component, remove {}% voxels.".format(nb_v_keep, nb_v_abandon, round((100*nb_v_abandon)/(nb_v_abandon+nb_v_keep),2)))
     print(">> {} points keeped, {} points abondaned because of small component, remove {}% points.".format(nb_p_keep, nb_p_abandon, round((100*nb_p_abandon)/(nb_p_abandon+nb_p_keep),2)))
 
-    #return voxels, nb_component+1
     return voxels, nb_component
 

@@ -244,14 +244,15 @@ def prepare_dataset_ier(data, voxel_size_ier, voxel_sample_mode, augmentation, r
         sample_cuboid_index: (nb_sample/sample_id, index of nb_cuboid).
         voxel_skeleton_cuboid: (nb_voxel/voxel_id, 4:x+y+z+[1 or 0]).
     '''
-    sample_skipped = False
+    # tls_mode is a temporary parameter
+    tls_mode = True
     show_sample = False
     sample_position = []
     # (1) calculate gd and ier. group trees is also splited in the same time.
     dict_points_in_voxel, nb_points_per_voxel, voxel = voxel_grid_sample(data, voxel_size_ier, voxel_sample_mode)
     # dict_points_in_voxel is a dict, key is voxel coord, value is a list of (points, label, reflectance) 
     initialize_voxels(dict_points_in_voxel)
-    _, max_comp_id = geodesic_distance(dict_points_in_voxel, voxel_size_ier, tree_radius=7, limit_comp=limit_comp, limit_p_in_comp=limit_p_in_comp)
+    _, max_comp_id = geodesic_distance(dict_points_in_voxel, voxel_size_ier, tree_radius=7, limit_comp=limit_comp, limit_p_in_comp=limit_p_in_comp, tls_mode=tls_mode)
     # dict_points_in_voxel: k is coord of voxel, value is a list of points
     # dict_points_in_voxel[k=(0,0,0)] = [point1, ...], point1 = [x,y,z,label,reflectance,gd,ier,nb_comp is id of comp]
 
@@ -285,8 +286,11 @@ def prepare_dataset_ier(data, voxel_size_ier, voxel_sample_mode, augmentation, r
             continue
 
         #sample_tmp[ic][np.isnan(sample_tmp[ic])] = 1
-        sample_tmp[ic] = sample_tmp[ic][sample_tmp[ic][:, 5].argsort()]
-        #np.random.shuffle(sample_tmp[ic])
+        if tls_mode:
+            np.random.shuffle(sample_tmp[ic])
+        else:
+            sample_tmp[ic] = sample_tmp[ic][sample_tmp[ic][:, 5].argsort()]
+            
         # normalize ier
         #sample_tmp[ic][:,-1] = sample_tmp[ic][:,-1] - 1
         x_min, y_min, z_min = np.min(sample_tmp[ic][:,0]), np.min(sample_tmp[ic][:,1]), np.min(sample_tmp[ic][:,2])
@@ -357,7 +361,6 @@ def prepare_dataset_ier(data, voxel_size_ier, voxel_sample_mode, augmentation, r
         # normalizeing, data centered to (0,0,0)
         
         #sample_tmp_bis[:,:3] = sample_tmp_bis[:,:3] - 0.5
-
         sample_res[ic] = np.concatenate((sample_tmp_bis, pos_raw), axis=1)
 
         #sample_res_rest[ic] = sample_tmp_bis_rest
