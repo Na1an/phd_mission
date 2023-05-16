@@ -29,7 +29,7 @@ class TrainDataSet(Dataset):
     
     # return sample_points, sample_label, voxel_skeleton
     def __getitem__(self, index):
-        #samples : [[x,y,z,label,reflectance,gd,ier,PCA1,linearity,verticality], ...]
+        #samples : [[x,y,z,label,reflectance, 12*features, (17) gd, (18) ier, x_raw, y_raw, z_raw], ...]
         #samples_voxelized : [[x,y,z,point_density], ...]
         # (x,y,z,label), label index is 3
         points = self.samples[index][:,:3]
@@ -45,11 +45,7 @@ class TrainDataSet(Dataset):
 
         # put them into self.device
         points = torch.from_numpy(points.copy()).type(torch.float).to(self.device)
-
-        #pointwise_features = [reflectance,gd,ier,PCA1,linearity,verticality]
-        #pointwise_features = torch.from_numpy(self.samples[index][:,4:].copy()).type(torch.float).to(self.device)
-        pointwise_features = torch.from_numpy(self.samples[index][:,[7,8,9,10]].copy()).type(torch.float).to(self.device)
-        #voxel_net = torch.from_numpy(self.samples_voxelized[self.sample_voxel_net_index[index]]).type(torch.float).to(self.device)
+        pointwise_features = torch.from_numpy(self.samples[index][:,5:17].copy()).type(torch.float).to(self.device)
         
         return points, pointwise_features, labels, 0, points_raw
         
@@ -87,7 +83,7 @@ class TestDataSet(Dataset):
     
     # return sample_points, sample_label, voxel_skeleton
     def __getitem__(self, index):
-        #samples : [[x,y,z,label,reflectance,gd,ier,PCA1,linearity,verticality], ...]
+        #samples : [[x,y,z,label,reflectance, 12*features, (17) gd, (18) ier, x_raw, y_raw, z_raw], ...]
         #samples_voxelized : [[x,y,z,point_density], ...]
         # (x,y,z,label), label index is 3
         points = self.samples[index][:,:3]
@@ -106,15 +102,15 @@ class TestDataSet(Dataset):
         points = torch.from_numpy(points.copy()).type(torch.float).to(self.device)
         
         #pointwise_features = [reflectance,gd,ier,PCA1,linearity,verticality]
-        pointwise_features = torch.from_numpy(self.samples[index][:,[7,8,9,10]].copy()).type(torch.float).to(self.device)
+        pointwise_features = torch.from_numpy(self.samples[index][:,5:17].copy()).type(torch.float).to(self.device)
         #voxel_net = torch.from_numpy(self.samples_voxelized[self.sample_voxel_net_index[index]]).type(torch.float).to(self.device)
-        gd = torch.from_numpy(self.samples[index][:,5].copy()).type(torch.float).to(self.device)
-        gd = torch.from_numpy(self.samples[index][:,5].copy()).type(torch.float).to(self.device)
-        return points, pointwise_features, labels, 0, sp, 0, points_raw, gd
+        gd = torch.from_numpy(self.samples[index][:,17].copy()).type(torch.float).to(self.device)
+        id_comp = torch.from_numpy(self.samples[index][:,18].copy()).type(torch.float).to(self.device)
+        return points, pointwise_features, labels, sp, points_raw, gd, id_comp
 
     # print the info
     def show_info(self):
-        print("\n>> TestDataSet is prepared:")
+        print(">> TestDataSet is prepared:")
         print(">>> device={}".format(self.device))
         print(">>> samples.shape={}".format(self.samples.shape))
         print(">>> self.sample_position.shape={}".format(len(self.sample_position)))

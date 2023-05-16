@@ -235,7 +235,7 @@ def analyse_voxel_in_cuboid_bak(voxel_skeleton_cuboid, h, side):
 ##########################
 # training - ier version #
 ##########################
-def prepare_dataset_ier(data, voxel_size_ier, voxel_sample_mode, augmentation, resolution=20, for_test=False, limit_comp=10, limit_p_in_comp=100):
+def prepare_dataset_ier(data, voxel_size_ier, voxel_sample_mode, augmentation, resolution=25, for_test=False, limit_comp=1, limit_p_in_comp=20):
     '''
     Args:
         data: a np.ndarray. (x,y,z,label,reflectance)
@@ -249,6 +249,19 @@ def prepare_dataset_ier(data, voxel_size_ier, voxel_sample_mode, augmentation, r
     show_sample = False
     sample_position = []
     # (1) calculate gd and ier. group trees is also splited in the same time.
+
+    features_30 = compute_features(data[:,:3], search_radius=0.3, feature_names=["PCA1","linearity","sphericity", "verticality"])
+    features_60 = compute_features(data[:,:3], search_radius=0.6, feature_names=["PCA1","linearity","sphericity", "verticality"])
+    features_90 = compute_features(data[:,:3], search_radius=0.9, feature_names=["PCA1","linearity","sphericity", "verticality"])
+    data = np.concatenate((data, features_30, features_60, features_90), axis=1)
+    
+    nb_p, len_f = data.shape
+    print(">> before remove nan, data.shape={}".format(data.shape))
+    data = data[np.all(~np.isnan(data[:,-12:]), axis=1)]
+    print(">> after remove nan, data.shape={}, {}% point removed".format(data.shape, 100 - 100*(data.shape[0]/nb_p)))
+    data[:,-12:] = standardization(data[:,-12:])
+    print(">> norlization - down")
+
     dict_points_in_voxel, nb_points_per_voxel, voxel = voxel_grid_sample(data, voxel_size_ier, voxel_sample_mode)
     # dict_points_in_voxel is a dict, key is voxel coord, value is a list of (points, label, reflectance) 
     initialize_voxels(dict_points_in_voxel)
@@ -272,10 +285,11 @@ def prepare_dataset_ier(data, voxel_size_ier, voxel_sample_mode, augmentation, r
         [sample_tmp[id_comp].append(ps) for ps in points[:,:-1]]
 
     sample_res = [[] for i in range(max_comp_id)]
+
     #sample_res_rest = [[] for i in range(max_comp_id)]
     ic_empty = []
     for ic in range(len(sample_tmp)):
-        # sample_tmp[ic] : [[x,y,z,label,reflectance,gd,ier], ...]
+        # sample_tmp[ic] : [[x,y,z,label,reflectance, 12*features, (17) gd, (18) ier], ...]
         try:
             sample_tmp[ic] = np.vstack(sample_tmp[ic])
         except ValueError:
@@ -284,13 +298,12 @@ def prepare_dataset_ier(data, voxel_size_ier, voxel_sample_mode, augmentation, r
             ic_empty.append(ic)
             print(">> Value Error, sample_tmp[ic].shape = {}, ic={}".format(len(sample_tmp[ic]), ic))
             continue
-
         #sample_tmp[ic][np.isnan(sample_tmp[ic])] = 1
         if tls_mode:
             np.random.shuffle(sample_tmp[ic])
         else:
-            sample_tmp[ic] = sample_tmp[ic][sample_tmp[ic][:, 5].argsort()]
-            
+            sample_tmp[ic] = sample_tmp[ic][sample_tmp[ic][:, -2].argsort()]
+        sample_tmp[ic][:,-1] = ic
         # normalize ier
         #sample_tmp[ic][:,-1] = sample_tmp[ic][:,-1] - 1
         x_min, y_min, z_min = np.min(sample_tmp[ic][:,0]), np.min(sample_tmp[ic][:,1]), np.min(sample_tmp[ic][:,2])
@@ -298,9 +311,9 @@ def prepare_dataset_ier(data, voxel_size_ier, voxel_sample_mode, augmentation, r
         sample_tmp[ic][:,1] = sample_tmp[ic][:,1] - y_min
         sample_tmp[ic][:,2] = sample_tmp[ic][:,2] - z_min
         
-        features = compute_features(sample_tmp[ic][:,:3], search_radius=voxel_size_ier, feature_names=["PCA1","linearity","sphericity", "verticality"])
+        #>> features = compute_features(sample_tmp[ic][:,:3], search_radius=voxel_size_ier, feature_names=["PCA1","linearity","sphericity", "verticality"])
         
-        sample_tmp[ic] = np.concatenate((sample_tmp[ic], features), axis=1) # sod : significan of diference , normal_change_rate: acb pour tous les variables
+        #>> sample_tmp[ic] = np.concatenate((sample_tmp[ic], features), axis=1) # sod : significan of diference , normal_change_rate: acb pour tous les variables
         #print("sample_tmp[ic].shape={} type={}".format(sample_tmp[ic].shape, type(sample_tmp[ic].shape)))
         
         #we have point clouds removed to（0,0,0）
@@ -321,23 +334,19 @@ def prepare_dataset_ier(data, voxel_size_ier, voxel_sample_mode, augmentation, r
         # value scaled to 0,1
         # plot training dataset
         #plot_pc(sample_tmp[ic][:,:3], c=sample_tmp[ic][:,7]) 
-        #plot_pc(sample_tmp[ic][:,:3], c=sample_tmp[ic][:,8])
-        #plot_pc(sample_tmp[ic][:,:3], c=sample_tmp[ic][:,6])
         
-        #dim_f = list(range(0,11))
-        #dim_f.remove(9)
-        nb_p, len_f = sample_tmp[ic].shape
+        # >> nb_p, len_f = sample_tmp[ic].shape
         #print("before remove nan, sample.shape={}".format(sample_tmp[ic].shape))
         # np.all(~np.isnan(sample_tmp[ic][:,-4:]), axis=1) : here, we only remove points which have nan value for feature
-        sample_tmp_bis = sample_tmp[ic][np.all(~np.isnan(sample_tmp[ic][:,-4:]), axis=1)]
+        #>> sample_tmp_bis = sample_tmp[ic][np.all(~np.isnan(sample_tmp[ic][:,-4:]), axis=1)]
         #print("after remove nan, sample.shape={}, {}% point removed".format(sample_tmp_bis.shape, 100 - 100*(sample_tmp_bis.shape[0]/nb_p)))
 
         # [7:10] -> features ["PCA1","linearity","sphericity", "verticality"]
-        sample_tmp_bis[:,7:] = standardization(sample_tmp_bis[:,7:])
-        pos_raw = np.copy(sample_tmp_bis[:,:3])
+        #>> sample_tmp_bis[:,7:] = standardization(sample_tmp_bis[:,7:])
+        pos_raw = np.copy(sample_tmp[ic][:,:3])
 
         try:
-            sample_tmp_bis[:,:3], max_axe, max_x_axe, max_y_axe, max_z_axe = normalize_long_axe(sample_tmp_bis[:,:3])
+            sample_tmp[ic][:,:3], max_axe, max_x_axe, max_y_axe, max_z_axe = normalize_long_axe(sample_tmp[ic][:,:3])
         except ValueError as e:
             print(">>>> [ERROR] we have a error:", e)
             print(">>>> [ERROR] this sample will be skipped.")
@@ -347,13 +356,8 @@ def prepare_dataset_ier(data, voxel_size_ier, voxel_sample_mode, augmentation, r
         new_voxel_size = 1/resolution
         #print("new_voxel_size={} 1//new_voxel_size={}".format(new_voxel_size, 1//new_voxel_size))
         sample_position.append([(x_min, y_min, z_min, max_axe, max_x_axe, max_y_axe, max_z_axe)])
-        '''
-        if 1//new_voxel_size != resolution:
-            new_voxel_size = 1/resolution - 0.000001
-            print("Erreur: prepare_dataset_ier - new_voxel_size not ok")
-        '''
-        #
-        key_points_in_voxel, nb_points_per_voxel, voxel = voxel_grid_sample(sample_tmp_bis, (new_voxel_size), voxel_sample_mode)
+
+        #key_points_in_voxel, nb_points_per_voxel, voxel = voxel_grid_sample(sample_tmp[ic], (new_voxel_size), voxel_sample_mode)
         #print("voxel.shape={} voxel[0].shape={}".format(voxel.shape, voxel[0].shape))
 
         #sample_voxelized.append(voxel)
@@ -361,7 +365,8 @@ def prepare_dataset_ier(data, voxel_size_ier, voxel_sample_mode, augmentation, r
         # normalizeing, data centered to (0,0,0)
         
         #sample_tmp_bis[:,:3] = sample_tmp_bis[:,:3] - 0.5
-        sample_res[ic] = np.concatenate((sample_tmp_bis, pos_raw), axis=1)
+
+        sample_res[ic] = np.concatenate((sample_tmp[ic], pos_raw), axis=1)
 
         #sample_res_rest[ic] = sample_tmp_bis_rest
         if show_sample:
@@ -415,7 +420,7 @@ def prepare_procedure_ier(path, resolution, voxel_sample_mode, label_name, augme
     samples, samples_voxelized, sample_position, samples_rest = prepare_dataset_ier(data_preprocessed, voxel_size_ier, voxel_sample_mode, resolution=resolution, augmentation=augmentation, for_test=for_test, limit_comp=limit_comp, limit_p_in_comp=limit_p_in_comp)
     #samples : [[x,y,z,label,reflectance,gd,ier,PCA1,linearity,verticality,...], ...]
     #samples_voxelized : [[x,y,z,point_density], ...]
-    
+
     #voxel_nets = analyse_voxel_in_cuboid_ier(samples_voxelized, resolution)
     samples_res = []
     sample_voxel_net_index = []

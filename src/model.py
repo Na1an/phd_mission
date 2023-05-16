@@ -14,8 +14,8 @@ class Pointnet_plus(nn.Module):
     def __init__(self, num_classes):
         super(Pointnet_plus, self).__init__()
 
-        # 7+3 : 7 = (x,y,z) + 4 features (verticality, specificity, pca1, linearity)
-        self.sa1 = PointNetSetAbstraction(1024, 0.1, 32, 7 + 3, [32, 32, 64], False)
+        # 3+12 : (x,y,z) + (verticality, specificity, pca1, linearity) * 3
+        self.sa1 = PointNetSetAbstraction(1024, 0.1, 32, 15 + 3, [32, 32, 64], False)
         self.sa2 = PointNetSetAbstraction(256, 0.2, 32, 64 + 3, [64, 64, 128], False)
         self.sa3 = PointNetSetAbstraction(64, 0.4, 32, 128 + 3, [128, 128, 256], False)
         self.sa4 = PointNetSetAbstraction(16, 0.8, 32, 256 + 3, [256, 256, 512], False)
@@ -78,6 +78,7 @@ class PointWiseModel(nn.Module):
         bias(bool, optional) - 如果bias=True，添加偏置；没用到，没细看 
         """
 
+        '''
         # voxel-based branch: if-net
         # kernel_size = 3
         self.conv_1 = nn.Conv3d(1, 16, 3, padding=1)  # out: 32
@@ -86,7 +87,7 @@ class PointWiseModel(nn.Module):
         self.conv_2_1 = nn.Conv3d(64, 64, 3, padding=1)  # out: [64]
         self.conv_3 = nn.Conv3d(64, 64, 3, padding=1)  # out: 32
         self.conv_3_1 = nn.Conv3d(64, 64, 3, padding=1)  # out: [64]
-
+        '''
         # feature_size was setting 3 times for multi-scale learning/multi receptive field
         # + (3 + 32): intensity added + roughness added + ncr added, 32 is output of pointfeatures ... 
         # + 128 : output of fc of the pointwise_features
@@ -96,6 +97,7 @@ class PointWiseModel(nn.Module):
         #feature_size = 1 + (32 + 64 + 64) + 3 + 32
         #feature_size = (3 + 32) + (128)
         feature_size = 128
+
         # conditionnal VAE, co-variabale, regression
         self.fc_0 = nn.Conv1d(feature_size, hidden_dim*2, 1)
         self.fc_1 = nn.Conv1d(hidden_dim*2, hidden_dim, 1)
@@ -103,6 +105,7 @@ class PointWiseModel(nn.Module):
         #self.fc_out = nn.Conv1d(hidden_dim, 1, 1) chang  1 to self.num_classes
         self.fc_out = nn.Conv1d(hidden_dim, self.num_classes, 1)
 
+        '''
         self.conv1_1_bn = nn.BatchNorm3d(32)
         self.conv2_1_bn = nn.BatchNorm3d(64)
         self.conv3_1_bn = nn.BatchNorm3d(64)
@@ -112,6 +115,7 @@ class PointWiseModel(nn.Module):
         self.mlp_0 = nn.Conv1d(4, hidden_dim, 1)
         self.mlp_1 = nn.Conv1d(hidden_dim, hidden_dim, 1)
         self.mlp_2 = nn.Conv1d(hidden_dim, 32, 1)
+        '''
 
         # point-based branch: PointNet
         self.point_base_model = Pointnet_plus(num_classes=self.num_classes)
@@ -127,85 +131,8 @@ class PointWiseModel(nn.Module):
         Returns: 
             None.
         '''
-        
-        '''
-        [*] points, p.shape=torch.Size([4, 20000, 3])
-        [*] pointwise_features.shape=torch.Size([4, 20000, nb_of_features])
-        [*] v_cuboid, v.shape=torch.Size([4, 25, 25, 250])
-        print("[*] points, p.shape={}".format(p.shape))
-        print("[*] intensity.shape", intensity.shape)
-        print("[*] v_cuboid, v.shape={}".format(v.shape))
-        '''
-        
-        pointnet_features = self.point_base_model(points_for_pointnet)
-        #print("[*] point_features={}".format(point_features.shape))
 
-        # swap x y z to z y x
-        p = points[:,:,[2,1,0]]
-        #v = v.unsqueeze(1).to(torch.float32)
-        #v = torch.permute(v, dims=[0,1,4,2,3])
-        '''
-        v = v.permute((0,1,4,2,3))
-        '''
-        p = p.unsqueeze(1).unsqueeze(1).to(torch.float32)
-        
-        '''
-        [*] points, p.shape=torch.Size([4, 1, 1, 20000, 3])
-        [*] v_cuboid, v.shape=torch.Size([4, 1, 25, 25, 250])
-        '''
-
-        # grid_sample 
-        # align_corner = True, consider the center of pixels/voxels 
-        # align_corner = False, consider the corner of pixels/voxels
-        # 
-        # feature_0
-        #feature_0 = F.grid_sample(v, p, align_corners=True)
-        
-        #net = self.actvn(self.conv_1(v))
-        #net = self.actvn(self.conv_1_1(net))
-        #net = self.conv1_1_bn(net)
-
-        # feature_1
-        #feature_1 = F.grid_sample(net, p, align_corners=True)  # out : (B,C (of x), 1,1,sample_num)
-        #net = self.maxpool(net)
-        #net = self.actvn(self.conv_2(net))
-        #net = self.actvn(self.conv_2_1(net))
-        #net = self.conv2_1_bn(net)
-
-        # feature_3
-        #feature_2 = F.grid_sample(net, p, align_corners=True)
-        #net = self.maxpool(net)
-        #net = self.actvn(self.conv_3(net))
-        #net = self.actvn(self.conv_3_1(net))
-        #net = self.conv3_1_bn(net)
-
-        # feature_3
-        #feature_3 = F.grid_sample(net, p, align_corners=True)
-        pointwise_features = pointwise_features.permute(0,2,1)
-        # mlp
-        
-        feature_mlp = self.actvn(self.mlp_0(pointwise_features))
-        feature_mlp = self.actvn(self.mlp_1(feature_mlp))
-        feature_mlp = self.actvn(self.mlp_2(feature_mlp))
-        
-        #features = torch.cat((feature_0, feature_1, feature_1_ks5, feature_1_ks7, feature_2, feature_2_ks5, feature_2_ks7, feature_3, feature_3_ks5, feature_3_ks7, feature_intensity), dim=1)  # (B, features, 1,7,sample_num)
-        #features = torch.cat((feature_0, feature_1, feature_2, feature_3, feature_intensity, point_features, feature_elevation), dim=1)  # (B, features, 1,7,sample_num)
-        '''
-        features = torch.cat((
-            feature_0, 
-            feature_1, 
-            feature_2, 
-            feature_3
-        ), dim=1)
-        
-        shape = features.shape
-        features = torch.reshape(features, (shape[0], shape[1] * shape[3], shape[4]))  # (B, featues_per_sample, samples_num)
-        '''
-        #features = torch.cat((features, pointwise_features, feature_mlp, pointnet_features) , dim=1)
-        #features = torch.cat((features, pointwise_features, pointnet_features) , dim=1)
-        #features = torch.cat((features, feature_mlp, pointwise_features), dim=1)
-        #features = torch.cat((pointwise_features, feature_mlp, pointnet_features) , dim=1)
-        features = pointnet_features
+        features = self.point_base_model(points_for_pointnet)
         net_out = self.actvn(self.fc_0(features))
         net_out = self.actvn(self.fc_1(net_out))
         #net_out = self.actvn(self.fc_2(net_out))
