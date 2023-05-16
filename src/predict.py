@@ -166,5 +166,4 @@ if __name__ == "__main__":
     new_file.write(os.getcwd()+"/predict_res/res_{}.las".format(time_end.strftime("%Y-%m-%d %H:%M:%S")))
     
     print("\n###### End ######")
-
         

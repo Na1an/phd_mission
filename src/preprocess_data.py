@@ -2,10 +2,8 @@ import copy
 from scipy.spatial.transform import Rotation
 from utility import *
 from datetime import datetime, timedelta
-#from jakteristics import compute_features
-import sys
-sys.path.append('../scripts/jakteristics/')
-from jakteristics.main import compute_features
+from jakteristics import compute_features
+
 # This function works for the preprocessing the data
 def read_data(path, feature, detail=False):
     '''
@@ -255,78 +253,8 @@ def prepare_dataset_ier(data, voxel_size_ier, voxel_sample_mode, augmentation, r
     features_30 = compute_features(data[:,:3], search_radius=0.3, feature_names=["PCA1","linearity","sphericity", "verticality"])
     features_60 = compute_features(data[:,:3], search_radius=0.6, feature_names=["PCA1","linearity","sphericity", "verticality"])
     features_90 = compute_features(data[:,:3], search_radius=0.9, feature_names=["PCA1","linearity","sphericity", "verticality"])
-    
-    def ignore_check_multiple_scale_features():
-        features_300 = compute_features(data[:,:3], search_radius=1.0, max_k_neighbors=100, feature_names=["PCA1","linearity","sphericity", "verticality"])
-        features_500 = compute_features(data[:,:3], search_radius=1.0, max_k_neighbors=300, feature_names=["PCA1","linearity","sphericity", "verticality"])
-        features_700 = compute_features(data[:,:3], search_radius=1.0, max_k_neighbors=500, feature_names=["PCA1","linearity","sphericity", "verticality"])
-
-        new_file = laspy.create(point_format=3)
-        new_file.add_extra_dim(laspy.ExtraBytesParams(name="30cm_PCA1", type=np.float64))
-        new_file.add_extra_dim(laspy.ExtraBytesParams(name="30cm_linearity", type=np.float64))
-        new_file.add_extra_dim(laspy.ExtraBytesParams(name="30cm_sphericity", type=np.float64))
-        new_file.add_extra_dim(laspy.ExtraBytesParams(name="30cm_verticality", type=np.float64))
-        new_file.add_extra_dim(laspy.ExtraBytesParams(name="60cm_PCA1", type=np.float64))
-        new_file.add_extra_dim(laspy.ExtraBytesParams(name="60cm_linearity", type=np.float64))
-        new_file.add_extra_dim(laspy.ExtraBytesParams(name="60cm_sphericity", type=np.float64))
-        new_file.add_extra_dim(laspy.ExtraBytesParams(name="60cm_verticality", type=np.float64))
-        new_file.add_extra_dim(laspy.ExtraBytesParams(name="90cm_PCA1", type=np.float64))
-        new_file.add_extra_dim(laspy.ExtraBytesParams(name="90cm_linearity", type=np.float64))
-        new_file.add_extra_dim(laspy.ExtraBytesParams(name="90cm_sphericity", type=np.float64))
-        new_file.add_extra_dim(laspy.ExtraBytesParams(name="90cm_verticality", type=np.float64))
-        new_file.add_extra_dim(laspy.ExtraBytesParams(name="300p_PCA1", type=np.float64))
-        new_file.add_extra_dim(laspy.ExtraBytesParams(name="300p_linearity", type=np.float64))
-        new_file.add_extra_dim(laspy.ExtraBytesParams(name="300p_sphericity", type=np.float64))
-        new_file.add_extra_dim(laspy.ExtraBytesParams(name="300p_verticality", type=np.float64))
-        new_file.add_extra_dim(laspy.ExtraBytesParams(name="500p_PCA1", type=np.float64))
-        new_file.add_extra_dim(laspy.ExtraBytesParams(name="500p_linearity", type=np.float64))
-        new_file.add_extra_dim(laspy.ExtraBytesParams(name="500p_sphericity", type=np.float64))
-        new_file.add_extra_dim(laspy.ExtraBytesParams(name="500p_verticality", type=np.float64))
-        new_file.add_extra_dim(laspy.ExtraBytesParams(name="700p_PCA1", type=np.float64))
-        new_file.add_extra_dim(laspy.ExtraBytesParams(name="700p_linearity", type=np.float64))
-        new_file.add_extra_dim(laspy.ExtraBytesParams(name="700p_sphericity", type=np.float64))
-        new_file.add_extra_dim(laspy.ExtraBytesParams(name="700p_verticality", type=np.float64))
-
-        new_file.x = data[:,0]
-        new_file.y = data[:,1]
-        new_file.z = data[:,2]
-        
-        # radius=30cm
-        new_file["30cm_PCA1"] = features_30[:,0]
-        new_file["30cm_linearity"] = features_30[:,1]
-        new_file["30cm_sphericity"] = features_30[:,2]
-        new_file["30cm_verticality"] = features_30[:,3]
-        # raduis=60cm
-        new_file["60cm_PCA1"] = features_60[:,0]
-        new_file["60cm_linearity"] = features_60[:,1]
-        new_file["60cm_sphericity"] = features_60[:,2]
-        new_file["60cm_verticality"] = features_60[:,3]
-        # raduis=90cm
-        new_file["90cm_PCA1"] = features_90[:,0]
-        new_file["90cm_linearity"] = features_90[:,1]
-        new_file["90cm_sphericity"] = features_90[:,2]
-        new_file["90cm_verticality"] = features_90[:,3]
-        # np=300
-        new_file["300p_PCA1"] = features_300[:,0]
-        new_file["300p_linearity"] = features_300[:,1]
-        new_file["300p_sphericity"] = features_300[:,2]
-        new_file["300p_verticality"] = features_300[:,3]
-        # np=500
-        new_file["500p_PCA1"] = features_500[:,0]
-        new_file["500p_linearity"] = features_500[:,1]
-        new_file["500p_sphericity"] = features_500[:,2]
-        new_file["500p_verticality"] = features_500[:,3]
-        # np=700
-        new_file["700p_PCA1"] = features_700[:,0]
-        new_file["700p_linearity"] = features_700[:,1]
-        new_file["700p_sphericity"] = features_700[:,2]
-        new_file["700p_verticality"] = features_700[:,3]
-        new_file.write(os.getcwd()+"/predict_res/res_multiple_features_{:04}.las".format(2000))  
-
-        print("@@@@@@@@@@@@@@@@ end @@@@@@@@@@@@@@@@@@@@@@@@@@@@@")
-        exit()
-
     data = np.concatenate((data, features_30, features_60, features_90), axis=1)
+    
     nb_p, len_f = data.shape
     print(">> before remove nan, data.shape={}".format(data.shape))
     data = data[np.all(~np.isnan(data[:,-12:]), axis=1)]
@@ -371,15 +299,11 @@ def prepare_dataset_ier(data, voxel_size_ier, voxel_sample_mode, augmentation, r
             print(">> Value Error, sample_tmp[ic].shape = {}, ic={}".format(len(sample_tmp[ic]), ic))
             continue
         #sample_tmp[ic][np.isnan(sample_tmp[ic])] = 1
-<<<<<<< HEAD
         if tls_mode:
             np.random.shuffle(sample_tmp[ic])
         else:
             sample_tmp[ic] = sample_tmp[ic][sample_tmp[ic][:, -2].argsort()]
         sample_tmp[ic][:,-1] = ic
-=======
-        sample_tmp[ic] = sample_tmp[ic][sample_tmp[ic][:, -2].argsort()]
->>>>>>> 609d9f7 (correcte argsort erruer)
         # normalize ier
         #sample_tmp[ic][:,-1] = sample_tmp[ic][:,-1] - 1
         x_min, y_min, z_min = np.min(sample_tmp[ic][:,0]), np.min(sample_tmp[ic][:,1]), np.min(sample_tmp[ic][:,2])
