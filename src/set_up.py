@@ -1,12 +1,12 @@
 from distutils.core import setup
 
 setup(
-        name='None yet',
-        version='0.1',
+        name='SOUL',
+        version='1.0',
         packages=[''],
         url='',
         license='',
         author='Yuchen BAI',
         author_email='yuchen.bai@inria.fr',
-        description=''
+        description='SOUL(Semantic segmentation On ULs) for the paper Semantic segmentation of sparse irregular point clouds for leaf/wood discrimination'
 )

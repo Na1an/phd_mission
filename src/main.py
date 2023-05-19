@@ -20,7 +20,6 @@ if __name__ == "__main__":
     parser.add_argument("--nb_epoch", help="The epoch number.", type=int, default=300)
     parser.add_argument("--batch_size", help="The batch size.", type=int, default=4)
     parser.add_argument("--predict_threshold", help="The predict threshold.", type=float, default=0.5)
-    parser.add_argument("--global_height", help="The global_height.", type=int, default=50)
     parser.add_argument("--nb_window", help="int(nb_window**0.5) is the number of cuboids we want on the training set.", type=int, default=400)
     parser.add_argument("--augmentation", help="if we do the augmentation or not.", type=bool, default=False)
     parser.add_argument("--resolution", help="resolution of data", type=int, default=25)
@@ -36,7 +35,6 @@ if __name__ == "__main__":
     nb_epoch = args.nb_epoch
     predict_threshold = args.predict_threshold
     batch_size = args.batch_size
-    global_height = args.global_height
     resolution = args.resolution
     augmentation = False
 
@@ -59,7 +57,7 @@ if __name__ == "__main__":
                                 label_name="WL", 
                                 sample_size=sample_size, 
                                 augmentation=augmentation)
-    train_dataset = TrainDataSet(train_dataset, 0, 0, my_device)
+    train_dataset = TrainDataSet(train_dataset, 0, my_device)
     train_dataset.show_info()
     
     # validation dataset
@@ -70,14 +68,12 @@ if __name__ == "__main__":
                                 label_name="WL", 
                                 sample_size=sample_size, 
                                 augmentation=augmentation)
-    val_dataset = TrainDataSet(val_dataset, 0, 0, my_device)
+    val_dataset = TrainDataSet(val_dataset, 0, my_device)
     val_dataset.show_info()
 
     # (3) create model and trainning
     # create a model
-    #global_height = z_max - z_min # the absolute height, set to 50 for the moment
     my_model = PointWiseModel(device=my_device)
-    #my_model = UNet(dim=3)
     
     my_trainer = Trainer(
                 my_model, 
@@ -89,7 +85,6 @@ if __name__ == "__main__":
                 predict_threshold=predict_threshold,
                 num_workers=0,
                 grid_size=grid_size,
-                global_height=global_height,
                 )
 
     my_trainer.train_model(nb_epoch=nb_epoch)

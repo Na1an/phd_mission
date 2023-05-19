@@ -5,18 +5,18 @@ from datetime import datetime, timedelta
 from jakteristics import compute_features
 
 # This function works for the preprocessing the data
-def read_data(path, feature, detail=False):
+def read_data(path, label_name, detail=False):
     '''
     Args:
         path : a string. The path of the data file.
-        feature : a string. Which feature we want to keep in the output.
+        label_name : a string. Label_name.
         detail : a bool. False by default.
     Returns:
         res : a 4-D numpy array type tensor.
     '''
     data_las = laspy.read(path)
     x_min, x_max, y_min, y_max, z_min, z_max = get_info(data_las)
-    data = np.vstack((data_las.x - x_min, data_las.y - y_min, data_las.z, data_las[feature])).transpose()
+    data = np.vstack((data_las.x - x_min, data_las.y - y_min, data_las.z, data_las[label_name])).transpose()
     print(">>> data shape =", data.shape, " type =", type(data))
 
     return data, x_min, x_max, y_min, y_max, z_min, z_max
@@ -57,16 +57,12 @@ def read_data_with_intensity(path, label_name, feature='intensity', detail=False
     print(">> bincount label_name={} : {}".format(label_name, np.bincount(data_las[label_name].astype(int))))
     print(">> data_las.z min={} max={} diff={}".format(z_min, z_max, z_max - z_min))
 
-    # (data_target['intensity']/65535)*35 - 30 for TLS
-    # this for uls
-    f_reflectance = (data_las[feature]/65535)*40 - 40
-
     data = np.vstack((
         data_las.x - x_min, 
         data_las.y - y_min, 
         data_las.z - z_min,
         data_las[label_name],
-        normalize_feature(f_reflectance)
+        data_las[label_name] # here is placeholder here
         ))
 
     return data.transpose(), x_min, x_max, y_min, y_max, z_min, z_max
@@ -123,7 +119,6 @@ def get_region_indice(data, x_min, x_max, y_min, y_max, blank):
     '''
     return np.where((((x_min)<data[:,0]) & (data[:,0]<(x_max))) & (((y_min)<data[:,1]) & (data[:,1]<(y_max))))
 
-# to do : decide which kind of key point in each voxel we need. 
 # [mean center, closest point to mean center, voxel center]
 # voxelization
 #def voxel_grid_sample(cuboid, grid_size, height, voxel_size, mode):
@@ -133,8 +128,6 @@ def voxel_grid_sample(cuboid, voxel_size, mode):
         cuboid : a (n,4) numpy.darray. The data to process.
         voxel_size : a float. The resolution of the voxel. 
         mode : a string. How to select points in voxel. ('mc': mean_center, 'cmc' : closest point to mean center)
-        #grid_size : a interger/float. The side length of a grid.
-        #height : a float. The max height of the raw data. Not local height!
     Returns:
         voxel_grid : a dict. key is (x,y,z) coordinate of voxel, value is a list of points in the voxel
         nb_points_per_voxel : a list integer. The total voxel number.
@@ -142,8 +135,6 @@ def voxel_grid_sample(cuboid, voxel_size, mode):
     '''
 
     res = []
-    #points = cuboid[:,:3]
-    
     # non_empy_voxel : no empty voxel :)
     # index : the positions of [new elements in old array]
     # index_inversed : the positions of [old elements in new array]
@@ -170,18 +161,12 @@ def voxel_grid_sample(cuboid, voxel_size, mode):
     for i,v in enumerate(no_empty_voxel):
         nb_points = nb_points_per_voxel[i]
         voxel_grid[tuple(v)] = cuboid[index_points_on_voxel_sorted[loc_select:loc_select+nb_points]]
-        #intensity_std.append(np.mean(cuboid[index_points_on_voxel_sorted[loc_select:loc_select+nb_points]][:,3]))
-        #res.append(key_point_in_voxel(v))
         loc_select = loc_select + nb_points
 
     nb_p_max = np.max(nb_points_per_voxel)
     nb_p_min = np.min(nb_points_per_voxel)
     
-    #voxel_and_points = np.concatenate((no_empty_voxel, np.array([(nb_points_per_voxel - nb_p_min)/(nb_p_max - nb_p_min)]).T), axis=1)
     voxel_and_points = np.concatenate((no_empty_voxel, np.array([(nb_points_per_voxel/nb_p_max)]).T), axis=1)
-    #voxel_and_points = np.append(no_empty_voxel, np.array(intensity_std).reshape(-1, 1), axis=1)
-
-    #return np.array(res), np.array(nb_points_per_voxel), voxel_and_points
     return voxel_grid, np.array(nb_points_per_voxel), voxel_and_points
 
 def analyse_voxel_in_cuboid_bak(voxel_skeleton_cuboid, h, side):
@@ -211,11 +196,9 @@ def analyse_voxel_in_cuboid_bak(voxel_skeleton_cuboid, h, side):
 def prepare_dataset_ier(data, voxel_size_ier, voxel_sample_mode, augmentation, limit_comp, limit_p_in_comp, tls_mode, resolution=25, for_test=False):
     '''
     Args:
-        data: a np.ndarray. (x,y,z,label,reflectance)
+        data: a np.ndarray. (x,y,z,label, placeholder)
     Returns:
-        samples: (sample_id, points number, n+ :x + y + z + label + reflectance + gd + ier).
-        sample_cuboid_index: (nb_sample/sample_id, index of nb_cuboid).
-        voxel_skeleton_cuboid: (nb_voxel/voxel_id, 4:x+y+z+[1 or 0]).
+        ..
     '''
     # tls_mode is a temporary parameter
     show_sample = False
@@ -235,33 +218,29 @@ def prepare_dataset_ier(data, voxel_size_ier, voxel_sample_mode, augmentation, l
     print(">> norlization - down")
 
     dict_points_in_voxel, nb_points_per_voxel, voxel = voxel_grid_sample(data, voxel_size_ier, voxel_sample_mode)
-    # dict_points_in_voxel is a dict, key is voxel coord, value is a list of (points, label, reflectance) 
+    # dict_points_in_voxel is a dict, key is voxel coord, value is a list of (points, label, ..) 
     initialize_voxels(dict_points_in_voxel)
     _, max_comp_id = geodesic_distance(dict_points_in_voxel, voxel_size_ier, tree_radius=7, limit_comp=limit_comp, limit_p_in_comp=limit_p_in_comp, tls_mode=tls_mode)
     # dict_points_in_voxel: k is coord of voxel, value is a list of points
-    # dict_points_in_voxel[k=(0,0,0)] = [point1, ...], point1 = [x,y,z,label,reflectance,gd,ier,nb_comp is id of comp]
+    # dict_points_in_voxel[k=(0,0,0)] = [point1, ...], point1 = [x,y,z,label,_,gd,ier,nb_comp is id of comp]
 
     # dict_voxels to samples
     sample_tmp = [[] for i in range(max_comp_id)]
-    sample_voxelized = []
 
     if augmentation:
         # -90, -45, 45, 90
         sample_tmp_aug = [[[] for i in range(max_comp_id)] for j in range(4)]
-        sample_voxelized_aug = [[] for j in range(4)]
-        print(">>> Augmentation is true, sample_tmp_aug and sample_voxelized_aug created. (rotation: -90, -45, 45, 90)")
+        print(">>> Augmentation is true, sample_tmp_aug created. (rotation: -90, -45, 45, 90)")
 
     for _,v in dict_points_in_voxel.items():
         points, _ = v
         id_comp = int(points[0][-1])
         [sample_tmp[id_comp].append(ps) for ps in points[:,:-1]]
 
-    sample_res = [[] for i in range(max_comp_id)]
-
-    #sample_res_rest = [[] for i in range(max_comp_id)]
     ic_empty = []
+    sample_res = [[] for i in range(max_comp_id)]
     for ic in range(len(sample_tmp)):
-        # sample_tmp[ic] : [[x,y,z,label,reflectance, 12*features, (17) gd, (18) ier], ...]
+        # sample_tmp[ic] : [[x,y,z,label,_, 12*features, (17) gd, (18) ier], ...]
         try:
             sample_tmp[ic] = np.vstack(sample_tmp[ic])
         except ValueError:
@@ -270,6 +249,7 @@ def prepare_dataset_ier(data, voxel_size_ier, voxel_sample_mode, augmentation, l
             ic_empty.append(ic)
             print(">> Value Error, sample_tmp[ic].shape = {}, ic={}".format(len(sample_tmp[ic]), ic))
             continue
+
         #sample_tmp[ic][np.isnan(sample_tmp[ic])] = 1
         if tls_mode:
             np.random.shuffle(sample_tmp[ic])
@@ -277,44 +257,11 @@ def prepare_dataset_ier(data, voxel_size_ier, voxel_sample_mode, augmentation, l
             sample_tmp[ic] = sample_tmp[ic][sample_tmp[ic][:, -2].argsort()]
         sample_tmp[ic][:,-1] = ic
         # normalize ier
-        #sample_tmp[ic][:,-1] = sample_tmp[ic][:,-1] - 1
         x_min, y_min, z_min = np.min(sample_tmp[ic][:,0]), np.min(sample_tmp[ic][:,1]), np.min(sample_tmp[ic][:,2])
         sample_tmp[ic][:,0] = sample_tmp[ic][:,0] - x_min
         sample_tmp[ic][:,1] = sample_tmp[ic][:,1] - y_min
         sample_tmp[ic][:,2] = sample_tmp[ic][:,2] - z_min
-        
-        #>> features = compute_features(sample_tmp[ic][:,:3], search_radius=voxel_size_ier, feature_names=["PCA1","linearity","sphericity", "verticality"])
-        
-        #>> sample_tmp[ic] = np.concatenate((sample_tmp[ic], features), axis=1) # sod : significan of diference , normal_change_rate: acb pour tous les variables
-        #print("sample_tmp[ic].shape={} type={}".format(sample_tmp[ic].shape, type(sample_tmp[ic].shape)))
-        
-        #we have point clouds removed to（0,0,0）
-        #replace nan value by mean of 5 nearest points no-nan
-        #print(">>>>!!!sample_tmp[ic] is nan shape=", sample_tmp[ic][np.isnan(sample_tmp[ic])].shape)
-        '''
-        neigh = NearestNeighbors(n_neighbors=6, radius=10)
-        neigh.fit(sample_tmp[ic][:, 0:3])
-        dist, ind = neigh.kneighbors(sample_tmp[ic][:, 0:3], return_distance=True)
-        for ep in range(len(sample_tmp[ic])):
-            for ef in range(len(sample_tmp[ic][ep][3:])):
-                if np.isnan(sample_tmp[ic][ep, 3+ef]):
-                    knn_f = sample_tmp[ic][ind[ep]][:,3+ef]
-                    #print("knn_f ={} mean={}".format(knn_f[~np.isnan(knn_f)], np.mean(knn_f[~np.isnan(knn_f)])))
-                    sample_tmp[ic][ep][3+ef] = np.mean(knn_f[~np.isnan(knn_f)])
-        '''
-        #print(">>>>!!! after sample_tmp[ic] nan shape=", sample_tmp[ic][np.isnan(sample_tmp[ic])].shape)
-        # value scaled to 0,1
-        # plot training dataset
-        #plot_pc(sample_tmp[ic][:,:3], c=sample_tmp[ic][:,7]) 
-        
-        # >> nb_p, len_f = sample_tmp[ic].shape
-        #print("before remove nan, sample.shape={}".format(sample_tmp[ic].shape))
-        # np.all(~np.isnan(sample_tmp[ic][:,-4:]), axis=1) : here, we only remove points which have nan value for feature
-        #>> sample_tmp_bis = sample_tmp[ic][np.all(~np.isnan(sample_tmp[ic][:,-4:]), axis=1)]
-        #print("after remove nan, sample.shape={}, {}% point removed".format(sample_tmp_bis.shape, 100 - 100*(sample_tmp_bis.shape[0]/nb_p)))
 
-        # [7:10] -> features ["PCA1","linearity","sphericity", "verticality"]
-        #>> sample_tmp_bis[:,7:] = standardization(sample_tmp_bis[:,7:])
         pos_raw = np.copy(sample_tmp[ic][:,:3])
 
         try:
@@ -326,18 +273,9 @@ def prepare_dataset_ier(data, voxel_size_ier, voxel_sample_mode, augmentation, l
             continue
 
         new_voxel_size = 1/resolution
-        #print("new_voxel_size={} 1//new_voxel_size={}".format(new_voxel_size, 1//new_voxel_size))
         sample_position.append([(x_min, y_min, z_min, max_axe, max_x_axe, max_y_axe, max_z_axe)])
-
-        #key_points_in_voxel, nb_points_per_voxel, voxel = voxel_grid_sample(sample_tmp[ic], (new_voxel_size), voxel_sample_mode)
-        #print("voxel.shape={} voxel[0].shape={}".format(voxel.shape, voxel[0].shape))
-
-        #sample_voxelized.append(voxel)
-        sample_voxelized.append(0)
-        # normalizeing, data centered to (0,0,0)
         
         #sample_tmp_bis[:,:3] = sample_tmp_bis[:,:3] - 0.5
-
         sample_res[ic] = np.concatenate((sample_tmp[ic], pos_raw), axis=1)
 
         #sample_res_rest[ic] = sample_tmp_bis_rest
@@ -361,21 +299,17 @@ def prepare_dataset_ier(data, voxel_size_ier, voxel_sample_mode, augmentation, l
                     plot_pc(s_tmp)
                     plot_pc(voxel)
                 sample_tmp_aug[angle][ic] = s_tmp
-                sample_voxelized_aug[angle].append(voxel)
         
     if augmentation:
         sample_tmp = sample_tmp + sample_tmp_aug[0] + sample_tmp_aug[1] + sample_tmp_aug[2] + sample_tmp_aug[3]
-        sample_voxelized = sample_voxelized + sample_voxelized_aug[0] + sample_voxelized_aug[1] + sample_voxelized_aug[2] + sample_voxelized_aug[3]
 
     for ic_del in ic_empty:
         del sample_res[ic_del]
         del sample_position[ic_del]
     samples = np.array(sample_res, dtype='object')
-    samples_rest = 0
-    sample_voxelized = np.array(sample_voxelized, dtype='object')
-    print(">> prepare_dataset_ier finesehd samples.shape={} sample_voxelized.shape={} len(sample_position)={}".format(samples.shape, sample_voxelized.shape, len(sample_position)))
+    print(">> prepare_dataset_ier finesehd samples.shape={} len(sample_position)={}".format(samples.shape, len(sample_position)))
     print(">> ic_empy=", ic_empty)
-    return samples, sample_voxelized, sample_position, samples_rest
+    return samples, 0, sample_position
 
 def prepare_procedure_ier(path, resolution, voxel_sample_mode, label_name, augmentation, sample_size=3000, for_test=False, voxel_size_ier=0.6, limit_comp=10, limit_p_in_comp=100, tls_mode=False):
     '''
@@ -389,27 +323,24 @@ def prepare_procedure_ier(path, resolution, voxel_sample_mode, label_name, augme
 
     # (2) build samples
     # data_preprocessed : (x,y,z,label,intensity)
-    samples, samples_voxelized, sample_position, samples_rest = prepare_dataset_ier(
-                                                                    data_preprocessed, 
-                                                                    voxel_size_ier, 
-                                                                    voxel_sample_mode, 
-                                                                    resolution=resolution, 
-                                                                    augmentation=augmentation, 
-                                                                    for_test=for_test, 
-                                                                    limit_comp=limit_comp, 
-                                                                    limit_p_in_comp=limit_p_in_comp,
-                                                                    tls_mode=tls_mode)
+    samples, _, sample_position = prepare_dataset_ier(
+                                                    data_preprocessed, 
+                                                    voxel_size_ier, 
+                                                    voxel_sample_mode, 
+                                                    resolution=resolution, 
+                                                    augmentation=augmentation, 
+                                                    for_test=for_test, 
+                                                    limit_comp=limit_comp, 
+                                                    limit_p_in_comp=limit_p_in_comp,
+                                                    tls_mode=tls_mode)
 
     samples_res = []
     sample_voxel_net_index = []
     len_samples = len(samples)
     for i in range(len_samples):
-        #print("samples[i].shape={}".format(samples[i].shape))
         new_sample_tmp = split_reminder(samples[i], sample_size, axis=0)
         # p_size, the last one 
-        #print("new_sample_tmp[-1].shape={}".format(new_sample_tmp[-1].shape))
         p_size, f_size = new_sample_tmp[-1].shape
-        #print("p_size={}, f_size={} (10)".format(p_size, f_size))
 
         if len(new_sample_tmp) == 1:
             new_sample_tmp[-1] = np.concatenate((new_sample_tmp[-1], samples[i][np.random.choice([c for c in range(p_size)], sample_size - p_size)]))
@@ -424,14 +355,10 @@ def prepare_procedure_ier(path, resolution, voxel_sample_mode, label_name, augme
         print(">>> processing samples {}/{} - ok \t".format(i+1, len_samples) , end="\r")
 
     samples_res = np.array(samples_res)
-    #print("sample_voxel_net_index.shape={},samples_res.shape={}, voxel_nets.shape ={}".format(len(sample_voxel_net_index),samples_res.shape,voxel_nets.shape))
-    #print(sample_voxel_net_index)
     
     if for_test:
-        #return samples_res, sample_voxel_net_index, voxel_nets, sample_position, x_min, y_min, z_min, samples_rest
-        return samples_res, sample_voxel_net_index, 0, sample_position, x_min, y_min, z_min, samples_rest
+        return samples_res, sample_voxel_net_index, 0, sample_position, x_min, y_min, z_min
     else:
-        #return samples_res, sample_voxel_net_index, voxel_nets
         return samples_res, sample_voxel_net_index, 0
 
 ############################## for prediction ###############################
@@ -482,22 +409,5 @@ def sliding_window_old(x_min, x_max, y_min, y_max, grid_size):
 
     return np.stack((mesh_x,mesh_y), 2)
 
-# laspy read and write incorrectly
-# this explain why the scale is different
-# point format error, change [point_format=las.point_format, file_version="1.2"] to [point_format=3], all is ok
-def error_not_urgent():
-    las = read_header(data_path)
-    get_info(las)
-    data,_,_,_,_,_,_ = read_data(data_path, "llabel")
-    local_index = get_region_index(data, 286624.0, 286699, 583755, 583799)
-    # see here [!!!] new_file = laspy.create(point_format=las.point_format, file_version="1.2")
-    new_file = laspy.create(point_format=3)
-    new_file.x = data[local_index][:,0]
-    new_file.y = data[local_index][:,1]
-    new_file.z = data[local_index][:,2]
-    las.points = new_file.points
-    #las['llabel'] = predict.cpu().detach().numpy()
-    las.write(os.getcwd()+"/predict_res/res_{:04}.las".format(110))
-    exit()
 
 

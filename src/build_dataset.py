@@ -16,10 +16,9 @@ class TrainDataSet(Dataset):
         sample_cuboid_index: (nb_sample, index of nb_cuboid).
         voxelized_cuboids: (nb_voxel, 4:x+y+z+[1 or 0]).
     '''
-    def __init__(self, samples, sample_voxel_net_index, samples_voxelized, device, num_classes=2):
+    def __init__(self, samples, sample_voxel_net_index, device, num_classes=2):
         self.samples = samples
         self.sample_voxel_net_index = sample_voxel_net_index
-        self.samples_voxelized = samples_voxelized
         self.device = device
         self.adjust_label = 1
         self.num_classes = num_classes
@@ -30,7 +29,6 @@ class TrainDataSet(Dataset):
     # return sample_points, sample_label, voxel_skeleton
     def __getitem__(self, index):
         #samples : [[x,y,z,label,reflectance, 12*features, (17) gd, (18) ier, x_raw, y_raw, z_raw], ...]
-        #samples_voxelized : [[x,y,z,point_density], ...]
         # (x,y,z,label), label index is 3
         points = self.samples[index][:,:3]
         points_raw = self.samples[index][:,-3:]
@@ -55,8 +53,6 @@ class TrainDataSet(Dataset):
         print(">> [Train/Val] DataSet is prepared:")
         print(">>> device={}".format(self.device))
         print(">>> samples.shape={}".format(self.samples.shape))
-        #print(">>> samples_voxelized.shape={}".format(self.samples_voxelized.shape))
-        #print(">>> points.shape = {}, pointwise_features.shape={}, labels.shape={}, voxel_net.shape={}".format(points.shape, pointwise_features.shape, labels.shape, voxel_net.shape))
 
 # dataset for testing
 class TestDataSet(Dataset):
@@ -68,15 +64,12 @@ class TestDataSet(Dataset):
         sample_cuboid_index: (nb_sample, index of nb_cuboid).
         voxelized_cuboids: (nb_voxel, 4:x+y+z+[1 or 0]).
     '''
-    def __init__(self, samples, sample_voxel_net_index, samples_voxelized, device, sample_position, samples_rest, num_classes=2):
+    def __init__(self, samples, sample_voxel_net_index, device, sample_position, num_classes=2):
         self.samples = samples
         self.sample_voxel_net_index = sample_voxel_net_index
-        self.samples_voxelized = samples_voxelized
         self.device = device
-        self.adjust_label = 1
         self.num_classes = num_classes
         self.sample_position = sample_position
-        #self.samples_rest = samples_rest
 
     def __len__(self):
         return len(self.samples)
@@ -84,7 +77,6 @@ class TestDataSet(Dataset):
     # return sample_points, sample_label, voxel_skeleton
     def __getitem__(self, index):
         #samples : [[x,y,z,label,reflectance, 12*features, (17) gd, (18) ier, x_raw, y_raw, z_raw], ...]
-        #samples_voxelized : [[x,y,z,point_density], ...]
         # (x,y,z,label), label index is 3
         points = self.samples[index][:,:3]
         points_raw = self.samples[index][:,-3:]
@@ -100,10 +92,7 @@ class TestDataSet(Dataset):
 
         # put them into self.device
         points = torch.from_numpy(points.copy()).type(torch.float).to(self.device)
-        
-        #pointwise_features = [reflectance,gd,ier,PCA1,linearity,verticality]
         pointwise_features = torch.from_numpy(self.samples[index][:,5:17].copy()).type(torch.float).to(self.device)
-        #voxel_net = torch.from_numpy(self.samples_voxelized[self.sample_voxel_net_index[index]]).type(torch.float).to(self.device)
         gd = torch.from_numpy(self.samples[index][:,17].copy()).type(torch.float).to(self.device)
         id_comp = torch.from_numpy(self.samples[index][:,18].copy()).type(torch.float).to(self.device)
         return points, pointwise_features, labels, sp, points_raw, gd, id_comp

@@ -1,7 +1,6 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import numpy as np
 from torch.autograd import Variable
 from pointnet2_utils import PointNetSetAbstraction,PointNetFeaturePropagation
 
@@ -63,6 +62,7 @@ class PointWiseModel(nn.Module):
         feature_size = 128
         self.fc_0 = nn.Conv1d(feature_size, hidden_dim*2, 1)
         self.fc_1 = nn.Conv1d(hidden_dim*2, hidden_dim, 1)
+        
         # self.num_classes : the number of class, e.g. 2 for leaf&wood.
         self.fc_out = nn.Conv1d(hidden_dim, self.num_classes, 1)
 
@@ -70,7 +70,7 @@ class PointWiseModel(nn.Module):
         self.point_base_model = Pointnet_plus(num_classes=self.num_classes)
 
     # forward propagation
-    def forward(self, points, pointwise_features, v, points_for_pointnet):
+    def forward(self, points_for_pointnet):
         '''
         Args:
             Args.

@@ -1,8 +1,8 @@
 import torch
 import numpy as np
+from utility import *
 import torch.nn as nn
 import torch.nn.functional as F
-from utility import *
 from glob import glob
 from torch.utils.data import DataLoader
 #from torchviz import make_dot
@@ -12,7 +12,7 @@ from sklearn.utils import class_weight
 from sklearn.metrics import precision_recall_fscore_support
 from captum.attr import LayerGradCam, Saliency, LayerActivation
 
-# greg loss
+# rebalanced loss
 def make_weights_for_celoss(target):
     n,l,p = target.shape
     
@@ -37,16 +37,14 @@ def make_weights_for_celoss(target):
 
     res = res.reshape(n,1,p)
     torch.cat((res,res), axis=1)
-    #print("res.shape=", res.shape)
     return torch.cat((res,res), axis=1)/2
 
 class Trainer():
-    def __init__(self, model, device, train_dataset, val_dataset, batch_size, sample_size, predict_threshold, num_workers, grid_size, global_height, alpha=0.5, gamma=2, shuffle=True, opt="Adam"):
+    def __init__(self, model, device, train_dataset, val_dataset, batch_size, sample_size, predict_threshold, num_workers, grid_size, shuffle=True, opt="Adam"):
         '''
         Args:
             model: the Deep Learning model.
             train_dataset: the dataset we need.
-            voxel_skeleton: 
             batch_size: a integer.
             num_workers: a integer.
             shuffle: shuffler or not.
@@ -59,11 +57,9 @@ class Trainer():
 
         self.val_loader = DataLoader(val_dataset, batch_size=int(batch_size/2), shuffle=True, num_workers=num_workers)
         self.grid_size = grid_size
-        self.global_height = global_height
 
         # optimizer
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=1e-7, weight_decay=0)
-        #self.optimizer = torch.optim.SGD(self.model.parameters(), lr=2e-3, momentum=0.9, nesterov=True)
 
         # check_point path
         self.checkpoint_path = get_current_direct_path() + "/checkpoints"
@@ -85,17 +81,7 @@ class Trainer():
         self.threshold = predict_threshold
         self.sample_size = sample_size
         self.batch_size = batch_size
-
-        # alpha is for label=1, (1-alpha) if for label=0
-        # so in our case, if wood label=0, we should make alpha=0.2 (leaf label=1) for example -> make leave points less important
-        # but above is only true for gamma=0
-        # if gamma>0, alpha is not only a weight for adjusting the diff weights for both calsses
-        # also, alpha is used to adjust the big loss value bring by gamma
-        self.alpha = alpha
-        self.gamma = gamma
-        self.criterion = 0
         self.writer = SummaryWriter(get_current_direct_path() + "/tensorboard")
-
 
     # let's train it!
     def train_model(self, nb_epoch=200):
@@ -119,63 +105,29 @@ class Trainer():
             epoch_auroc = 0.0
             loader_len = 1
             # points, labels, v_cuboid
-            for points, pointwise_features, label, voxel_net, points_raw in self.train_loader:
+            for points, pointwise_features, label, _, points_raw in self.train_loader:
                 
                 self.model.train() # tell torch we are traning
                 self.optimizer.zero_grad()
                 
                 points_for_pointnet = torch.cat([points.transpose(2,1), pointwise_features.transpose(2,1)], dim=1)
-                #print(">>> points_for_pointnet.shape = {}, pointwise_features.shape={}".format(points_for_pointnet.shape, pointwise_features.shape))
-                #print(">>> points.shape = {}, pointwise_features.shape={}, labels.shape={}, voxel_net.shape={}".format(points.shape, pointwise_features.shape, label.shape, voxel_net.shape))
-                logits = self.model(points, pointwise_features, voxel_net, points_for_pointnet.float())
-                #print("logits.shape = {}, logits[0:10]={}".format(logits.shape,logits[0:10]))
-
-                '''
-                Visualization model
-                ll = make_dot(logits.mean(), params=dict(self.model.named_parameters()))
-                ll.view()
-                '''
-                
-                #criterion
-                # version laptop
-                #y_true = label.detach().numpy().transpose(0,2,1).reshape(self.batch_size*self.sample_size, 2).astype('int64')
-                
-                # version cluster
-                #print("label.shape={}".format(label.shape))
-                
+                logits = self.model(points_for_pointnet.float())
                 logits = logits.to(self.device)
                 label = label.to(self.device)
-                #tmp_loss = self.criterion(logits, label)
-
                 ce_loss = F.binary_cross_entropy_with_logits(logits, label, reduction="none")
                 index_loss = make_weights_for_celoss(label)
                 ce_loss.backward(index_loss)
-                self.optimizer.step()
-                
-                #res1, res2 = label.max(1), res = [0.77, 0.78, 0.22, ... proba] res2 = [1,1,0,0... label]
+                self.optimizer.step()                
                 _, label = label.max(1)
                 _, logits = logits.max(1)
-
-                #logits = torch.where(logits>0.99, 1, 0)
-                #print("logits.shape={}, label.shape={}".format(logits.shape, label.shape))
-                #print("logits[:,0:5]={}, label[:,0:5].shape={}".format(logits[:5], label[:,0:5]))
-                num_correct = torch.eq(logits.to(self.device), label.to(self.device)).sum().item()
                 
-                #print(" logits.argmax(dim=1).float() shape = {} label.argmax(dim=1).float() shape = {} num_correct = {}".format(logits.float().shape, label.float().shape,num_correct))
+                num_correct = torch.eq(logits.to(self.device), label.to(self.device)).sum().item()
                 logits = logits.reshape(self.batch_size*self.sample_size)
                 label = label.reshape(self.batch_size*self.sample_size)
-                #print("logits.shape = {} logits = {}\n, label.shape = {} label = {}\n".format(logits.shape, logits, label.shape, label))
-                
-                print("bincount logits.shape={}".format(torch.bincount(logits)))
-                print("bincount label.shape={}".format(torch.bincount(label)))
-                
-                # [metric bloc] precision, recall, f1-score
-                #auroc = calculate_auroc(y_score=logits[:,1], y_true=label)
-                
+
                 label = label.detach().clone().cpu().data.numpy()
                 logits = logits.detach().clone().cpu().data.numpy()
 
-                #auroc_score = roc_auc_score(y_score=logits_wood, y_true=label)
                 cf_matrix = confusion_matrix(y_true=label, y_pred=logits, labels=[0,1])
                 tn, fp, fn, tp = cf_matrix.ravel()
                 recall, specificity, precision, acc = calculate_recall_precision(tn, fp, fn, tp)
@@ -189,7 +141,6 @@ class Trainer():
                 epoch_acc = epoch_acc + num_correct/self.sample_size
                 epoch_specificity = epoch_specificity + specificity
                 epoch_recall = epoch_recall + recall
-                #epoch_auroc = epoch_auroc + auroc_score
                 loader_len = loader_len + 1
                 print("[e={}]>>> [Training] - Current test loss: {} - accuracy - {} specificity - {} recall - {}".format(e, tmp_loss.sum().item(), num_correct/(self.sample_size*self.batch_size), specificity, recall))
             
@@ -212,13 +163,10 @@ class Trainer():
                     for path in glob(self.gradient_clipping_path + '/val_min=*'):
                         os.remove(path)
                     np.save(self.gradient_clipping_path + '/val_min={}'.format(e),[e,val_loss])
-                    #print(">> val_min saved here :",self.gradient_clipping_path,"val_min=".format(e))
                 
                 print("<<Epoch {}>> - val loss average {} - val accuracy average {}".format(e, val_loss, val_acc))
                 self.writer.add_scalar('validation loss - avg', val_loss, e)
                 self.writer.add_scalar('validation accuracy - avg', val_acc, e)
-                # add matthew correlation coefficient
-                #list_stat_res = [recall, specificity, precision, acc, f1_score, auroc, mcc]
                 self.writer.add_scalar('recall - avg', list_stat_res[0], e)
                 self.writer.add_scalar('specificity - avg', list_stat_res[1], e)
                 self.writer.add_scalar('precision - avg', list_stat_res[2], e)
@@ -287,37 +235,23 @@ class Trainer():
         rec_all, spe_all, pre_all, acc_all, f1_all, auroc_all = [],[],[],[],[],[]
         
         for nb in range(num_batches):
-            #output = self.model(points, self.train_voxel_nets[voxel_net])
-            #tmp_loss = nn.functional.binary_cross_entropy_with_logits(output, label)
             try:
-                points, label, voxel_net = self.val_data_iterator.next()
+                points, label, _ = self.val_data_iterator.next()
             except:
                 self.val_data_iterator = self.val_loader.__iter__()
-                points, pointwise_features, label, voxel_net, points_raw = self.val_data_iterator.next()
+                points, pointwise_features, label, _, points_raw = self.val_data_iterator.next()
             
             points_for_pointnet = torch.cat([points.transpose(2,1), pointwise_features.transpose(2,1)], dim=1)
-            logits = self.model(points, pointwise_features, voxel_net, points_for_pointnet.float())
-            #logits = logits.permute(0,2,1).reshape(self.batch_size*self.sample_size, 2)
-            #logits = F.softmax(logits, dim=1)
-            #label = label.permute(0,2,1).reshape(self.batch_size*self.sample_size, 2)
+            logits = self.model(points_for_pointnet.float())
 
             logits = logits.to(self.device)
             label = label.to(self.device)
 
             # loss
-            #tmp_loss = self.criterion(logits, label)
             tmp_loss = F.binary_cross_entropy_with_logits(logits, label, reduction="none")
-            '''
-            index_loss = make_weights_for_celoss(label)
-            if index_loss.sum() == 0:
-                tmp_loss = ce_loss.mean()
-            else:
-                tmp_loss = ce_loss*index_loss
-            '''
             sum_val_loss = sum_val_loss + tmp_loss.mean().item()
 
             # accuracy
-            #preds = logits.argmax(dim=1).float()
             _,logits = logits.max(1)
             _,label = label.max(1)
 
@@ -326,8 +260,6 @@ class Trainer():
             
             logits = logits.reshape(int(self.batch_size/2)*self.sample_size)
             label = label.reshape(int(self.batch_size/2)*self.sample_size)
-            print("bincount y_true.shape={}".format(torch.bincount(label)))
-            print("bincount y_predict.shape={}".format(torch.bincount(logits)))
 
             logits = logits.detach().clone().cpu().data.numpy()
             label = label.detach().clone().cpu().data.numpy()
@@ -335,6 +267,7 @@ class Trainer():
             # tn tp fn tp
             tn, fp, fn, tp = confusion_matrix(label, logits, labels=[0,1]).ravel()
             print("tn-{} fp-{} fn-{} tp-{}".format(tn, fp, fn, tp))
+
             # precision, recall, f1-score
             recall, specificity, precision, acc = calculate_recall_precision(tn, fp, fn, tp)
             rec_all.append(recall)
@@ -358,6 +291,5 @@ class Trainer():
         print("recall-{} specificity-{} precision-{} acc-{} f1_score-{} auroc-{} mcc-{}".format(np.mean(rec_all), np.mean(spe_all), np.mean(pre_all), np.mean(acc_all), f1_score_avg, auroc, mcc))
         list_stat_res = [np.mean(rec_all), np.mean(spe_all), np.mean(pre_all), np.mean(acc_all), f1_score_avg, auroc, mcc]
 
-        # return [validation loss, validation accuracy, mcc, list of metrics]
         return sum_val_loss/num_batches, predict_correct/(num_batches*self.sample_size), mcc, list_stat_res
 

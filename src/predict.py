@@ -43,7 +43,7 @@ if __name__ == "__main__":
     
     # (2) prepare train dataset and validation dataset
     
-    test_dataset, sample_voxel_net_index_test, test_voxel_nets, sample_position, x_min_all, y_min_all, z_min_all, samples_rest = prepare_procedure_ier(
+    test_dataset, sample_voxel_net_index_test, test_voxel_nets, sample_position, x_min_all, y_min_all, z_min_all = prepare_procedure_ier(
                                                     data_path, 
                                                     resolution,
                                                     voxel_sample_mode, 
@@ -52,11 +52,11 @@ if __name__ == "__main__":
                                                     augmentation=False,
                                                     for_test=True,
                                                     voxel_size_ier=0.6,
-                                                    limit_comp=10, 
-                                                    limit_p_in_comp=100,
+                                                    limit_comp=1, 
+                                                    limit_p_in_comp=5,
                                                     tls_mode=False)
-
-    test_dataset = TestDataSet(test_dataset, sample_voxel_net_index_test, test_voxel_nets, my_device, sample_position, samples_rest)
+    # samples, sample_voxel_net_index, device, sample_position,
+    test_dataset = TestDataSet(test_dataset, sample_voxel_net_index_test, my_device, sample_position, num_classes=2)
     test_dataset.show_info()
 
     # (3) predict
@@ -68,9 +68,10 @@ if __name__ == "__main__":
 
     test_dataset_len = test_dataset.__len__()
     print("dataset len =", test_dataset_len)
-    # batch_size must be 1!!!
+    # batch_size = 1 for prediction
     test_loader = DataLoader(test_dataset, batch_size=1, shuffle=False)
     
+    #
     data_test_all = []
     i = 0
     #predict label possibilty    
@@ -79,11 +80,12 @@ if __name__ == "__main__":
         points_for_pointnet = points_for_pointnet.float()
         
         points, pointwise_features, points_for_pointnet = points.to(my_device), pointwise_features.to(my_device), points_for_pointnet.to(my_device)
-        logits = my_model(points, pointwise_features, 0, points_for_pointnet)
+        logits = my_model(points_for_pointnet)
         logits = F.softmax(logits, dim=1)
         predict = logits.squeeze(0).float()
         predict_label = logits.argmax(dim=1).float()
         
+        # sp: is the sample position
         [x_min, y_min, z_min, max_axe, max_x_axe, max_y_axe, max_z_axe] = sp[0]
         x_min, y_min, z_min, max_axe, max_x_axe, max_y_axe, max_z_axe = x_min.numpy(), y_min.numpy(), z_min.numpy(), max_axe.numpy(), max_x_axe.numpy(), max_y_axe.numpy(), max_z_axe.numpy()
         #print("x_min, y_min, z_min, max_axe, max_x_axe, max_y_axe, max_z_axe".format(local_x, local_y, local_z, adjust_x, adjust_y, adjust_z))
