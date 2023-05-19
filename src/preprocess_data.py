@@ -22,7 +22,7 @@ def read_data(path, label_name, detail=False):
     return data, x_min, x_max, y_min, y_max, z_min, z_max
 
 # read tran and val dataset from directory
-def read_data_from_directory(path_files, resolution, voxel_sample_mode, label_name, sample_size, augmentation):
+def read_data_from_directory(path_files, voxel_sample_mode, voxel_size_ier, label_name, sample_size, augmentation):
     res = []
     files = os.listdir(path_files)
     for f in files:
@@ -30,9 +30,9 @@ def read_data_from_directory(path_files, resolution, voxel_sample_mode, label_na
         print(">> preprocessing data:", path_tmp)
         samples_tmp, _, _ = prepare_procedure_ier(
                                                 path_tmp, 
-                                                resolution=resolution,
                                                 voxel_sample_mode=voxel_sample_mode,
                                                 label_name=label_name, 
+                                                voxel_size_ier=voxel_size_ier,
                                                 sample_size=sample_size,
                                                 augmentation=augmentation)
         res.append(samples_tmp)
@@ -193,7 +193,7 @@ def analyse_voxel_in_cuboid_bak(voxel_skeleton_cuboid, h, side):
 ##########################
 # training - ier version #
 ##########################
-def prepare_dataset_ier(data, voxel_size_ier, voxel_sample_mode, augmentation, limit_comp, limit_p_in_comp, tls_mode, resolution=25, for_test=False):
+def prepare_dataset_ier(data, voxel_size_ier, voxel_sample_mode, augmentation, limit_comp, limit_p_in_comp, tls_mode, for_test=False):
     '''
     Args:
         data: a np.ndarray. (x,y,z,label, placeholder)
@@ -272,7 +272,6 @@ def prepare_dataset_ier(data, voxel_size_ier, voxel_sample_mode, augmentation, l
             sample_skipped = True
             continue
 
-        new_voxel_size = 1/resolution
         sample_position.append([(x_min, y_min, z_min, max_axe, max_x_axe, max_y_axe, max_z_axe)])
         
         #sample_tmp_bis[:,:3] = sample_tmp_bis[:,:3] - 0.5
@@ -291,13 +290,12 @@ def prepare_dataset_ier(data, voxel_size_ier, voxel_sample_mode, augmentation, l
                 s_tmp = copy.deepcopy(sample_tmp_bis)
                 s_tmp[:,:3] = rotation[angle].apply(s_tmp[:,:3])
                 s_tmp[:,:3] = s_tmp[:,:3] + 0.5
-                _, _, voxel = voxel_grid_sample(s_tmp, (new_voxel_size), voxel_sample_mode)
                 s_tmp[:,:3] = s_tmp[:,:3] - 0.5
                 
                 # plot
                 if show_sample:
                     plot_pc(s_tmp)
-                    plot_pc(voxel)
+                    #plot_pc(voxel)
                 sample_tmp_aug[angle][ic] = s_tmp
         
     if augmentation:
@@ -311,7 +309,7 @@ def prepare_dataset_ier(data, voxel_size_ier, voxel_sample_mode, augmentation, l
     print(">> ic_empy=", ic_empty)
     return samples, 0, sample_position
 
-def prepare_procedure_ier(path, resolution, voxel_sample_mode, label_name, augmentation, sample_size=3000, for_test=False, voxel_size_ier=0.6, limit_comp=10, limit_p_in_comp=100, tls_mode=False):
+def prepare_procedure_ier(path, voxel_sample_mode, label_name, voxel_size_ier, augmentation=False, sample_size=3000, for_test=False, limit_comp=10, limit_p_in_comp=100, tls_mode=False):
     '''
     Args:
     Returns:
@@ -324,15 +322,14 @@ def prepare_procedure_ier(path, resolution, voxel_sample_mode, label_name, augme
     # (2) build samples
     # data_preprocessed : (x,y,z,label,intensity)
     samples, _, sample_position = prepare_dataset_ier(
-                                                    data_preprocessed, 
-                                                    voxel_size_ier, 
-                                                    voxel_sample_mode, 
-                                                    resolution=resolution, 
-                                                    augmentation=augmentation, 
-                                                    for_test=for_test, 
-                                                    limit_comp=limit_comp, 
-                                                    limit_p_in_comp=limit_p_in_comp,
-                                                    tls_mode=tls_mode)
+                                                data_preprocessed, 
+                                                voxel_size_ier, 
+                                                voxel_sample_mode,
+                                                augmentation=augmentation, 
+                                                for_test=for_test, 
+                                                limit_comp=limit_comp, 
+                                                limit_p_in_comp=limit_p_in_comp,
+                                                tls_mode=tls_mode)
 
     samples_res = []
     sample_voxel_net_index = []

@@ -12,11 +12,8 @@ if __name__ == "__main__":
     parser = ap.ArgumentParser(description="-- Yuchen PhD mission, let's figure it out! --")
     parser.add_argument("data_path", help="The path of raw data (train data with labels).", type=str)
     parser.add_argument("checkpoint_path", help="The path of checkpoint (train data with labels).", type=str)
-    parser.add_argument("--grid_size", help="The sliding window size.", type=float, default=5.0)
     parser.add_argument("--voxel_size", help="The voxel size.", type=float, default=0.2)
     parser.add_argument("--sample_size", help="The sample size : number of points in one-time training.", type=int, default=3000)
-    parser.add_argument("--global_height", help="The global height.", type=int, default=50)
-    parser.add_argument("--resolution", help="resolution of data", type=int, default=25)
     parser.add_argument("--label_name", help="WL if the test dataset has label, intensity or something else if not", type=str, default="intensity")
 
     args = parser.parse_args()
@@ -24,11 +21,8 @@ if __name__ == "__main__":
     # take arguments
     data_path = args.data_path
     cp_path = args.checkpoint_path
-    grid_size = args.grid_size
     voxel_size = args.voxel_size
     sample_size = args.sample_size
-    global_height = args.global_height
-    resolution = args.resolution
     label_name = args.label_name
 
     # set by default
@@ -44,8 +38,7 @@ if __name__ == "__main__":
     # (2) prepare train dataset and validation dataset
     
     test_dataset, sample_voxel_net_index_test, test_voxel_nets, sample_position, x_min_all, y_min_all, z_min_all = prepare_procedure_ier(
-                                                    data_path, 
-                                                    resolution,
+                                                    data_path,
                                                     voxel_sample_mode, 
                                                     label_name=label_name,
                                                     sample_size=sample_size,

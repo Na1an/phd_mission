@@ -40,7 +40,7 @@ def make_weights_for_celoss(target):
     return torch.cat((res,res), axis=1)/2
 
 class Trainer():
-    def __init__(self, model, device, train_dataset, val_dataset, batch_size, sample_size, predict_threshold, num_workers, grid_size, shuffle=True, opt="Adam"):
+    def __init__(self, model, device, train_dataset, val_dataset, batch_size, sample_size, predict_threshold, num_workers, shuffle=True, opt="Adam"):
         '''
         Args:
             model: the Deep Learning model.
@@ -56,7 +56,6 @@ class Trainer():
         self.train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers, drop_last=True)
 
         self.val_loader = DataLoader(val_dataset, batch_size=int(batch_size/2), shuffle=True, num_workers=num_workers)
-        self.grid_size = grid_size
 
         # optimizer
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=1e-7, weight_decay=0)

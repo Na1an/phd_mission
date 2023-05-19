@@ -14,28 +14,24 @@ if __name__ == "__main__":
     parser = ap.ArgumentParser(description="-- Yuchen PhD mission, let's figure it out! --")
     parser.add_argument("train_data_path", help="The path of raw data (train data with labels).", type=str)
     parser.add_argument("val_data_path", help="The path of raw data (val/test data with labels).", type=str)
-    parser.add_argument("--grid_size", help="The sliding window size.", type=float, default=5.0)
-    parser.add_argument("--voxel_size", help="The voxel size.", type=float, default=0.2)
+    parser.add_argument("label", help="The ground truth.", type=str, default="WL")
+    parser.add_argument("--voxel_size", help="The voxel size.", type=float, default=0.6)
     parser.add_argument("--sample_size", help="The sample size : number of points in one-time training.", type=int, default=5000)
     parser.add_argument("--nb_epoch", help="The epoch number.", type=int, default=300)
     parser.add_argument("--batch_size", help="The batch size.", type=int, default=4)
     parser.add_argument("--predict_threshold", help="The predict threshold.", type=float, default=0.5)
-    parser.add_argument("--nb_window", help="int(nb_window**0.5) is the number of cuboids we want on the training set.", type=int, default=400)
-    parser.add_argument("--augmentation", help="if we do the augmentation or not.", type=bool, default=False)
-    parser.add_argument("--resolution", help="resolution of data", type=int, default=25)
     
     args = parser.parse_args()
 
     # take arguments
     train_data_path = args.train_data_path
     val_data_path = args.val_data_path
-    grid_size = args.grid_size
+    label_name = args.label
     voxel_size = args.voxel_size
     sample_size = args.sample_size
     nb_epoch = args.nb_epoch
     predict_threshold = args.predict_threshold
     batch_size = args.batch_size
-    resolution = args.resolution
     augmentation = False
 
     # set by default
@@ -52,9 +48,9 @@ if __name__ == "__main__":
     # traindataset
     train_dataset = read_data_from_directory(
                                 train_data_path, 
-                                resolution, 
                                 voxel_sample_mode, 
-                                label_name="WL", 
+                                voxel_size_ier=voxel_size,
+                                label_name=label_name, 
                                 sample_size=sample_size, 
                                 augmentation=augmentation)
     train_dataset = TrainDataSet(train_dataset, 0, my_device)
@@ -63,9 +59,9 @@ if __name__ == "__main__":
     # validation dataset
     val_dataset = read_data_from_directory(
                                 val_data_path, 
-                                resolution, 
                                 voxel_sample_mode, 
-                                label_name="WL", 
+                                voxel_size_ier=voxel_size,
+                                label_name=label_name, 
                                 sample_size=sample_size, 
                                 augmentation=augmentation)
     val_dataset = TrainDataSet(val_dataset, 0, my_device)
@@ -84,7 +80,6 @@ if __name__ == "__main__":
                 sample_size=sample_size,
                 predict_threshold=predict_threshold,
                 num_workers=0,
-                grid_size=grid_size,
                 )
 
     my_trainer.train_model(nb_epoch=nb_epoch)
