@@ -108,7 +108,7 @@ if __name__ == "__main__":
         data_test_all.append(data_test)
         
         i = i+1
-        print(">>> cube - N°{}/{} predicted".format(i+1, test_dataset_len), end="\t\r")
+        print(">>> cube - N°{}/{} predicted".format(i, test_dataset_len), end="\t\r")
 
     data_test_all = np.array(data_test_all, dtype='object')
     nb_sample, sample_size, nb_f = data_test_all.shape
