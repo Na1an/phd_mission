@@ -125,6 +125,7 @@ if __name__ == "__main__":
     new_file.add_extra_dim(laspy.ExtraBytesParams(name="true", type=np.float64))
     new_file.add_extra_dim(laspy.ExtraBytesParams(name="gd", type=np.float64))
     new_file.add_extra_dim(laspy.ExtraBytesParams(name="id_comp", type=np.float64))
+    '''
     new_file.add_extra_dim(laspy.ExtraBytesParams(name="PCA1_30", type=np.float64))
     new_file.add_extra_dim(laspy.ExtraBytesParams(name="linearity_30", type=np.float64))
     new_file.add_extra_dim(laspy.ExtraBytesParams(name="sphericity_30", type=np.float64))
@@ -137,6 +138,7 @@ if __name__ == "__main__":
     new_file.add_extra_dim(laspy.ExtraBytesParams(name="linearity_90", type=np.float64))
     new_file.add_extra_dim(laspy.ExtraBytesParams(name="sphericity_90", type=np.float64))
     new_file.add_extra_dim(laspy.ExtraBytesParams(name="verticality_90", type=np.float64))
+    '''
 
     new_file.x = data_test_all[:,0]
     new_file.y = data_test_all[:,1]
@@ -148,7 +150,7 @@ if __name__ == "__main__":
     new_file.wood_proba = data_test_all[:,-3]
     new_file.leave_proba = data_test_all[:,-2]
     new_file.predict = data_test_all[:,-1]
-
+    '''
     new_file.PCA1_30 = data_test_all[:,4]
     new_file.linearity_30 = data_test_all[:,5]
     new_file.sphericity_30 = data_test_all[:,6]
@@ -161,6 +163,7 @@ if __name__ == "__main__":
     new_file.linearity_90 = data_test_all[:,13]
     new_file.sphericity_90 = data_test_all[:,14]
     new_file.verticality_90 = data_test_all[:,15]
+    '''
 
     time_end = datetime.now()
     new_file.write(os.getcwd()+"/predict_res/res_{}.las".format(time_end.strftime("%Y-%m-%d %H:%M:%S")))
