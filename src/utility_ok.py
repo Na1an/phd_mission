@@ -294,7 +294,7 @@ def dist_3d(a,b):
     return (((x_a-x_b)**2 + (y_a-y_b)**2 + (z_a - z_b**2))**0.5)
 
 # calculate the geodesic diatance of a voxelized space (cuboid)
-def geodesic_distance(voxels, voxel_size, tree_radius=7.0, limit_comp=10, limit_p_in_comp=100, tls_mode=False):
+def geodesic_distance(voxels, voxel_size, tree_radius=7.0, limit_comp=10, limit_p_in_comp=100):
     '''
     Args:
         voxles: a dict. Key is the coordinates of the occupied voxel and value is the points inside the voxel and geodesic distance initialised to 0.
@@ -304,38 +304,32 @@ def geodesic_distance(voxels, voxel_size, tree_radius=7.0, limit_comp=10, limit_
     #remaining_voxel = len(voxels)
     nb_component = 0
     nb_v_keep, nb_v_abandon, nb_p_keep, nb_p_abandon = 0, 0, 0, 0
-    rest = {}
+
     while(assignment_incomplete(voxels)):
         #print("voxel remaining={}".format(remaining_voxel))
         #(x_low, y_low, z_low) = lowest_voxel(voxels)
         voxel_low = lowest_voxel(voxels)
         (x_low, y_low, z_low) = voxel_low
-        #p_low,_ = voxels[voxel_low]
-        #voxels[voxel_low] = p_low, 0
         q_v = deque([(x_low, y_low, z_low)])
         seen = set()
         seen.add(voxel_low)
-        # nb_in_comp -> voxels number inside the comp
         nb_in_comp = 0
-        # nb_p_in_comp -> points number inside the comp
         nb_p_in_comp = 0
         while(len(q_v)>0):
             #print("len(q_v)={}".format(len(q_v)))
             v_act = q_v.popleft() # coordooné d'un voxel
-            
             nb_in_comp = nb_in_comp + 1
             #print("v_act={}".format(v_act))
             father, child, gd_fa_min = find_neighbours_and_assign_gd(v_act, voxels)
             
-            points,gd_act = voxels[v_act]
+            points,_ = voxels[v_act]
             voxels[v_act] = points, gd_fa_min+1
             nb_p_in_comp = nb_p_in_comp + len(points)
             x_a,y_a,z_a = v_act
             
-            if len(father)==0 and gd_act==-1:
+            if len(father)==0:
                 points,_ = voxels[v_act]
                 voxels[v_act] = points, 0
-                seen.add(v_act) # seen add the coordinate of the voxels
             else:
                 # here, setting the limits about IER or geodesic distance
                 # extend limit
@@ -363,43 +357,24 @@ def geodesic_distance(voxels, voxel_size, tree_radius=7.0, limit_comp=10, limit_
             for c in child:
                 if c not in seen:
                     q_v.append(c)
-                    seen.add(c)
+                    seen.add(c) # seen add the coordinate of the voxels
             #print("queue =", q_v)
             #print("child={}, father={}".format(child,father))
-            #print("seen={}", seen)
         
         # when a set of component is processed
         if nb_in_comp < limit_comp or nb_p_in_comp < limit_p_in_comp:
             nb_v_abandon = nb_v_abandon + nb_in_comp
             nb_p_abandon = nb_p_abandon + nb_p_in_comp
             for i in seen:
-                p_del, gd_del = voxels[i]
-                len_f = len(p_del[0])
-                len_points = len(p_del)
-                feature_add = np.zeros((len_points, 3), dtype=points.dtype)
-                p_del = np.concatenate((p_del,feature_add), axis=1)
-                p_del[:,len_f] = gd_del
-                p_del[:,len_f+1] = ((gd_fa_min+1)/dist_3d(v_act, voxel_low))
-                p_del[:,len_f+2] = nb_component
-                rest[i] = p_del, gd_del
-                #print("voxel corrd = {} is removed, gd_del={}".format(i, gd_del))
-                # 不是移除点，而是把当前点提前加入 nb_component 里
                 del voxels[i]
         else:
             nb_v_keep = nb_v_keep + nb_in_comp
             nb_p_keep = nb_p_keep + nb_p_in_comp
             cauculate_ier(voxels, (x_low, y_low, z_low), seen, voxel_size, nb_component)
-            print(">> {} voxels in component n°{} : ier calculated \t".format(nb_in_comp, nb_component), end="\r")
+            print(">> {} voxels in component n°{} : ier calculated".format(nb_in_comp, nb_component))
             nb_component = nb_component + 1
-    
-    # this will not give us the mosaic holes
-    # the numpy shuffler will resolve the mosaic color problem
-    if tls_mode:
-        for k,v in rest.items():
-            voxels[k] = v
-        nb_component = nb_component+1
         
-    print("\n>> All voxels are processed, we have {} component in this zone".format(nb_component))
+    print(">> All voxels are processed, we have {} component in this zone".format(nb_component))
     print(">> {} voxels keeped, {} voxels abondaned because of small component, remove {}% voxels.".format(nb_v_keep, nb_v_abandon, round((100*nb_v_abandon)/(nb_v_abandon+nb_v_keep),2)))
     print(">> {} points keeped, {} points abondaned because of small component, remove {}% points.".format(nb_p_keep, nb_p_abandon, round((100*nb_p_abandon)/(nb_p_abandon+nb_p_keep),2)))
 

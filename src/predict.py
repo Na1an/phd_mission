@@ -14,9 +14,10 @@ if __name__ == "__main__":
     parser.add_argument("checkpoint_path", help="The path of checkpoint (train data with labels).", type=str)
     parser.add_argument("--grid_size", help="The sliding window size.", type=float, default=5.0)
     parser.add_argument("--voxel_size", help="The voxel size.", type=float, default=0.2)
-    parser.add_argument("--sample_size", help="The sample size : number of points in one-time training.", type=int, default=5000)
+    parser.add_argument("--sample_size", help="The sample size : number of points in one-time training.", type=int, default=3000)
     parser.add_argument("--global_height", help="The global height.", type=int, default=50)
-    parser.add_argument("--resolution", help="resolution of data", type=int, default=20)
+    parser.add_argument("--resolution", help="resolution of data", type=int, default=25)
+    parser.add_argument("--label_name", help="WL if the test dataset has label, intensity or something else if not", type=str, default="intensity")
 
     args = parser.parse_args()
 
@@ -28,7 +29,8 @@ if __name__ == "__main__":
     sample_size = args.sample_size
     global_height = args.global_height
     resolution = args.resolution
-    
+    label_name = args.label_name
+
     # set by default
     voxel_sample_mode = 'mc'
 
@@ -41,101 +43,130 @@ if __name__ == "__main__":
     
     # (2) prepare train dataset and validation dataset
     
-    samples_test, sample_voxel_net_index_test, test_voxel_nets, sample_position, x_min_all, y_min_all, z_min_all, samples_rest = prepare_procedure_ier(
+    test_dataset, sample_voxel_net_index_test, test_voxel_nets, sample_position, x_min_all, y_min_all, z_min_all, samples_rest = prepare_procedure_ier(
                                                     data_path, 
                                                     resolution,
                                                     voxel_sample_mode, 
-                                                    label_name="intensity",
+                                                    label_name=label_name,
                                                     sample_size=sample_size,
                                                     augmentation=False,
-                                                    for_test=True)
-    test_dataset = TestDataSet(samples_test, sample_voxel_net_index_test, test_voxel_nets, my_device, sample_position, samples_rest)
-    #test_dataset.show_info()
+                                                    for_test=True,
+                                                    voxel_size_ier=0.6)
+
+    test_dataset = TestDataSet(test_dataset, sample_voxel_net_index_test, test_voxel_nets, my_device, sample_position, samples_rest)
+    test_dataset.show_info()
 
     # (3) predict
     my_model = PointWiseModel(device=my_device)
     checkpoint = torch.load(cp_path, map_location=torch.device('cpu'))
     my_model.load_state_dict(checkpoint['model_state_dict'])
+    my_model.to(my_device)
     my_model.eval()
 
-    print("dataset len =", test_dataset.__len__())
+    test_dataset_len = test_dataset.__len__()
+    print("dataset len =", test_dataset_len)
     # batch_size must be 1!!!
     test_loader = DataLoader(test_dataset, batch_size=1, shuffle=False)
-    #test_voxel_nets = torch.from_numpy(test_voxel_nets.copy()).type(torch.float).to(my_device)
     
+    data_test_all = []
     i = 0
-    #predict label possibilty
-    
-    for points, pointwise_features, labels, voxel_net, sp, samples_rest_single, points_raw in test_loader:
+    #predict label possibilty    
+    for points, pointwise_features, labels, sp, points_raw, gd, id_comp in test_loader:
         points_for_pointnet = torch.cat([points.transpose(2,1), pointwise_features.transpose(2,1)], dim=1)
-        #points_for_pointnet[:,0:2,:] = points_for_pointnet[:,0:2,:] * self.grid_size
-        #points_for_pointnet[:,2,:] = points_for_pointnet[:,2,:] * self.global_height + (self.global_height/2)
-        #points_for_pointnet[:,6:,:] = points_for_pointnet[:,6:,:] + 0.5
-        #print("pointsfor_pointnet.shape={}".format(points_for_pointnet.shape))
-        logits = my_model(points, pointwise_features, voxel_net, points_for_pointnet.float())
+        points_for_pointnet = points_for_pointnet.float()
+        
+        points, pointwise_features, points_for_pointnet = points.to(my_device), pointwise_features.to(my_device), points_for_pointnet.to(my_device)
+        logits = my_model(points, pointwise_features, 0, points_for_pointnet)
         logits = F.softmax(logits, dim=1)
         predict = logits.squeeze(0).float()
         predict_label = logits.argmax(dim=1).float()
-        #print("predict.shape", predict.shape)
-        #print("predict_label.shape", predict_label.shape)
+        
         [x_min, y_min, z_min, max_axe, max_x_axe, max_y_axe, max_z_axe] = sp[0]
         x_min, y_min, z_min, max_axe, max_x_axe, max_y_axe, max_z_axe = x_min.numpy(), y_min.numpy(), z_min.numpy(), max_axe.numpy(), max_x_axe.numpy(), max_y_axe.numpy(), max_z_axe.numpy()
         #print("x_min, y_min, z_min, max_axe, max_x_axe, max_y_axe, max_z_axe".format(local_x, local_y, local_z, adjust_x, adjust_y, adjust_z))
-        new_file = laspy.create(point_format=3)
-        new_file.add_extra_dim(laspy.ExtraBytesParams(name="wood_proba", type=np.float64))
-        new_file.add_extra_dim(laspy.ExtraBytesParams(name="leave_proba", type=np.float64))
-        new_file.add_extra_dim(laspy.ExtraBytesParams(name="predict", type=np.float64))
-        new_file.add_extra_dim(laspy.ExtraBytesParams(name="true", type=np.float64))
-        points = points.squeeze(0).cpu().detach().numpy()
+        
         labels = labels.squeeze(0).cpu().detach().numpy()
         points_raw = points_raw.squeeze(0).cpu().detach().numpy()
-        
-        # + 0.5 : react to centered to (0,0,0)
-        # - (1 - np.max(points[:,0])) : react to cube centering
-        # * max_axe : react to scaling
-        # + x_min : find global position
-        new_file.x = points_raw[:,0] + x_min + x_min_all
-        new_file.y = points_raw[:,1] + y_min + y_min_all
-        new_file.z = points_raw[:,2] + z_min + z_min_all
-
-        new_file.wood_proba = predict[0,:].cpu().detach().numpy()
-        new_file.leave_proba = predict[1,:].cpu().detach().numpy()
-        new_file.predict = predict_label.cpu().detach().numpy()
-        new_file.true = labels
-        new_file.write(os.getcwd()+"/predict_res/res_{:04}.las".format(i))
-
+        gd = gd.squeeze(0).cpu().detach().numpy()
+        id_comp = id_comp.squeeze(0).cpu().detach().numpy()
+        pointwise_features = pointwise_features.squeeze(0).cpu().detach().numpy()
+        predict = predict.cpu().detach().numpy()
+        predict = np.transpose(predict, (1,0)) 
+        predict_label = logits.argmax(dim=1).float().cpu().detach().numpy()
+        predict_label = np.transpose(predict_label, (1,0)) 
         '''
-        # sample rest
-        new_file_bis = laspy.create(point_format=3)
-        new_file_bis.add_extra_dim(laspy.ExtraBytesParams(name="wood_proba", type=np.float64))
-        new_file_bis.add_extra_dim(laspy.ExtraBytesParams(name="leave_proba", type=np.float64))
-        new_file_bis.add_extra_dim(laspy.ExtraBytesParams(name="predict", type=np.float64))
-        new_file_bis.add_extra_dim(laspy.ExtraBytesParams(name="true", type=np.float64))
-        
-        
-        if len(samples_rest_single) ==0:
-            continue
-        samples_rest_single = samples_rest_single.squeeze(0).cpu().detach().numpy()
-        samples_rest_single = samples_rest_single[:,:4]
-        
-        # + 0.5 : react to centered to (0,0,0)
-        # - (1 - np.max(points[:,0])) : react to cube centering
-        # * max_axe : react to scaling
-        # + x_min : find global position
-        new_file_bis.x = samples_rest_single[:,0] + x_min + x_min_all
-        new_file_bis.y = samples_rest_single[:,1] + y_min + y_min_all
-        new_file_bis.z = samples_rest_single[:,2] + z_min + z_min_all
-        
-        new_file_bis.wood_proba = -1 * np.ones(len(samples_rest_single[:]))
-        new_file_bis.leave_proba = -1 * np.ones(len(samples_rest_single[:]))
-        # wood label=0, leaf label=1
-        new_file_bis.predict = np.ones(len(samples_rest_single[:]))
-        new_file_bis.true = samples_rest_single[:,3]
-        new_file_bis.write(os.getcwd()+"/predict_res/rest_{:04}.las".format(i))
+        print("points_raw.shape=",points_raw.shape)
+        print("gd.shape=",gd.shape)
+        print("labels.shape=",labels.reshape(-1,1).shape)
+        print("pointwise_features.shape=",pointwise_features.shape)
+        print("predict.shape=",predict.shape)
+        print("predict_label.shape=",predict_label.shape)
         '''
+        points_raw[:,0] = points_raw[:,0] + x_min + x_min_all
+        points_raw[:,1] = points_raw[:,1] + y_min + y_min_all
+        points_raw[:,2] = points_raw[:,2] + z_min + z_min_all
+
+        data_test = np.concatenate((points_raw, labels.reshape(-1,1), pointwise_features, id_comp.reshape(-1,1), gd.reshape(-1,1), predict, predict_label), axis=1)
+        data_test_all.append(data_test)
+        
         i = i+1
-        print(">>> cube - N°{} predicted ".format(i))
+        print(">>> cube - N°{}/{} predicted".format(i+1, test_dataset_len), end="\t\r")
+
+    data_test_all = np.array(data_test_all, dtype='object')
+    nb_sample, sample_size, nb_f = data_test_all.shape
+    data_test_all = data_test_all.reshape(nb_sample*sample_size, nb_f)
+    print("data_test_all.shape={}".format(data_test_all.shape))
+    data_test_all = np.array(data_test_all, dtype=np.float32)
+
+    new_file = laspy.create(point_format=3)
+    new_file.add_extra_dim(laspy.ExtraBytesParams(name="wood_proba", type=np.float64))
+    new_file.add_extra_dim(laspy.ExtraBytesParams(name="leave_proba", type=np.float64))
+    new_file.add_extra_dim(laspy.ExtraBytesParams(name="predict", type=np.float64))
+    new_file.add_extra_dim(laspy.ExtraBytesParams(name="true", type=np.float64))
+    new_file.add_extra_dim(laspy.ExtraBytesParams(name="gd", type=np.float64))
+    new_file.add_extra_dim(laspy.ExtraBytesParams(name="id_comp", type=np.float64))
+    '''
+    new_file.add_extra_dim(laspy.ExtraBytesParams(name="PCA1_30", type=np.float64))
+    new_file.add_extra_dim(laspy.ExtraBytesParams(name="linearity_30", type=np.float64))
+    new_file.add_extra_dim(laspy.ExtraBytesParams(name="sphericity_30", type=np.float64))
+    new_file.add_extra_dim(laspy.ExtraBytesParams(name="verticality_30", type=np.float64))
+    new_file.add_extra_dim(laspy.ExtraBytesParams(name="PCA1_60", type=np.float64))
+    new_file.add_extra_dim(laspy.ExtraBytesParams(name="linearity_60", type=np.float64))
+    new_file.add_extra_dim(laspy.ExtraBytesParams(name="sphericity_60", type=np.float64))
+    new_file.add_extra_dim(laspy.ExtraBytesParams(name="verticality_60", type=np.float64))
+    new_file.add_extra_dim(laspy.ExtraBytesParams(name="PCA1_90", type=np.float64))
+    new_file.add_extra_dim(laspy.ExtraBytesParams(name="linearity_90", type=np.float64))
+    new_file.add_extra_dim(laspy.ExtraBytesParams(name="sphericity_90", type=np.float64))
+    new_file.add_extra_dim(laspy.ExtraBytesParams(name="verticality_90", type=np.float64))
+    '''
+
+    new_file.x = data_test_all[:,0]
+    new_file.y = data_test_all[:,1]
+    new_file.z = data_test_all[:,2]
+    new_file.true = data_test_all[:,3]
+
+    new_file.id_comp = data_test_all[:,-5]
+    new_file.gd = data_test_all[:,-4]
+    new_file.wood_proba = data_test_all[:,-3]
+    new_file.leave_proba = data_test_all[:,-2]
+    new_file.predict = data_test_all[:,-1]
+    '''
+    new_file.PCA1_30 = data_test_all[:,4]
+    new_file.linearity_30 = data_test_all[:,5]
+    new_file.sphericity_30 = data_test_all[:,6]
+    new_file.verticality_30 = data_test_all[:,7]
+    new_file.PCA1_60 = data_test_all[:,8]
+    new_file.linearity_60 = data_test_all[:,9]
+    new_file.sphericity_60 = data_test_all[:,10]
+    new_file.verticality_60 = data_test_all[:,11]
+    new_file.PCA1_90 = data_test_all[:,12]
+    new_file.linearity_90 = data_test_all[:,13]
+    new_file.sphericity_90 = data_test_all[:,14]
+    new_file.verticality_90 = data_test_all[:,15]
+    '''
+
+    time_end = datetime.now()
+    new_file.write(os.getcwd()+"/predict_res/res_{}.las".format(time_end.strftime("%Y-%m-%d %H:%M:%S")))
     
     print("\n###### End ######")
-
         
