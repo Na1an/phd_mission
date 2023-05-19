@@ -68,17 +68,17 @@ class Trainer():
         # check_point path
         self.checkpoint_path = get_current_direct_path() + "/checkpoints"
         if not os.path.exists(self.checkpoint_path):
-            print(">> No checkpoint folder exist, so create it:", self.checkpoint_path)
+            print("> No checkpoint folder exist, so create it:", self.checkpoint_path)
             os.makedirs(self.checkpoint_path)
         else:
-            print(">> So checkpoint folder exist, the path is:", self.checkpoint_path)
+            print("> So checkpoint folder exist, the path is:", self.checkpoint_path)
 
         self.gradient_clipping_path = get_current_direct_path() + "/gradient_clipping"
         if not os.path.exists(self.gradient_clipping_path):
-            print(">> No gradient clipping folder exist, so create it:", self.checkpoint_path)
+            print("> No gradient clipping folder exist, so create it:", self.checkpoint_path)
             os.makedirs(self.gradient_clipping_path)
         else:
-            print(">> So gradient clipping folder exist, the path is:", self.checkpoint_path)
+            print("> So gradient clipping folder exist, the path is:", self.checkpoint_path)
         
         # gradient_clipping
         self.val_min = None
@@ -262,7 +262,7 @@ class Trainer():
     def load_checkpoint(self):
         checkpoints = glob(self.checkpoint_path+'/*')
         if len(checkpoints) == 0:
-            print('No checkpoints found at {}'.format(self.checkpoint_path))
+            print('> [checkpoints not found] at {}'.format(self.checkpoint_path))
             return 0
 
         checkpoints = [os.path.splitext(os.path.basename(path))[0][17:] for path in checkpoints]
@@ -270,7 +270,7 @@ class Trainer():
         checkpoints = np.sort(checkpoints)
         path = self.checkpoint_path + '/checkpoint_epoch_{:06}.pth'.format(checkpoints[-1])
 
-        print('Loaded checkpoint from: {}'.format(path))
+        print('> [checkpoint Loaded] from: {}'.format(path))
         checkpoint = torch.load(path, map_location=torch.device(self.device))
         self.model.load_state_dict(checkpoint['model_state_dict'])
         self.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])

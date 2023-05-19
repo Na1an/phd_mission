@@ -245,7 +245,7 @@ def prepare_dataset_ier(data, voxel_size_ier, voxel_sample_mode, augmentation, r
         voxel_skeleton_cuboid: (nb_voxel/voxel_id, 4:x+y+z+[1 or 0]).
     '''
     # tls_mode is a temporary parameter
-    tls_mode = True
+    tls_mode = False
     show_sample = False
     sample_position = []
     # (1) calculate gd and ier. group trees is also splited in the same time.
