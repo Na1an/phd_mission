@@ -97,14 +97,7 @@ if __name__ == "__main__":
         predict = np.transpose(predict, (1,0)) 
         predict_label = logits.argmax(dim=1).float().cpu().detach().numpy()
         predict_label = np.transpose(predict_label, (1,0)) 
-        '''
-        print("points_raw.shape=",points_raw.shape)
-        print("gd.shape=",gd.shape)
-        print("labels.shape=",labels.reshape(-1,1).shape)
-        print("pointwise_features.shape=",pointwise_features.shape)
-        print("predict.shape=",predict.shape)
-        print("predict_label.shape=",predict_label.shape)
-        '''
+
         points_raw[:,0] = points_raw[:,0] + x_min + x_min_all
         points_raw[:,1] = points_raw[:,1] + y_min + y_min_all
         points_raw[:,2] = points_raw[:,2] + z_min + z_min_all
@@ -128,6 +121,8 @@ if __name__ == "__main__":
     new_file.add_extra_dim(laspy.ExtraBytesParams(name="true", type=np.float64))
     new_file.add_extra_dim(laspy.ExtraBytesParams(name="gd", type=np.float64))
     new_file.add_extra_dim(laspy.ExtraBytesParams(name="id_comp", type=np.float64))
+    
+    # you can access computed features here
     '''
     new_file.add_extra_dim(laspy.ExtraBytesParams(name="PCA1_30", type=np.float64))
     new_file.add_extra_dim(laspy.ExtraBytesParams(name="linearity_30", type=np.float64))
