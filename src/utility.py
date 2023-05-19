@@ -11,8 +11,7 @@ from collections import deque
 from mpl_toolkits import mplot3d
 from sklearn.metrics import confusion_matrix, matthews_corrcoef, f1_score, roc_auc_score
 from sklearn.neighbors import NearestNeighbors
-
-'''
+''' for maket model structure plot 
 from torchsummary import summary
 summary = summary(model, (1, 512, 512))
 '''
@@ -43,43 +42,9 @@ def get_info(las):
 
     return x_min, x_max, y_min, y_max, z_min, z_max
 
-def get_region_index(data, x_min, x_max, y_min, y_max):
-    '''
-    Args:
-        data : a 4-D np.darray. (x,y,z,label)
-    Returns:
-        numpyp index, which are in this region.
-    '''
-    return np.where((((x_min)<data[:,0]) & (data[:,0]<(x_max))) & (((y_min)<data[:,1]) & (data[:,1]<(y_max))))
-
-# visualize key point of voxels
-def visualize_voxel_key_points(points, points_per_voxel, title):
-    '''
-    Args:
-        points: a (x,y,z) np.darray.
-        points_per_voxel: a (m,n) np.darray. m is the points number in each voxel, n is index of voxel.
-        title: a string.
-    Returns:
-        None.
-    '''
-    ax = plt.axes(projection='3d')
-    ax.set_title(title)
-    sc = ax.scatter(points[:,0], points[:,1], points[:,2], c=(points_per_voxel/np.max(points_per_voxel)), s=20)
-    #plt.gca().invert_xaxis()
-    #plt.legend("nb points")
-    plt.colorbar(sc, fraction=0.020, pad=0.04) 
-    plt.show()
-    
-    return None
-
 # get current directory path
 def get_current_direct_path():
     return os.path.dirname(os.path.abspath(__file__))
-
-# to do
-# setting device
-def setting_device():
-    return None
 
 def dist(a,b):
     x_a, y_a = a
@@ -103,57 +68,6 @@ def normalize_long_axe(pc):
     #print("after pc.shape = {}".format(pc.shape))
     return pc, max_axe, max_x_axe, max_y_axe, max_z_axe
 
-def normalize_point_cloud_remake(pc, mode="gm"):
-    if mode == "cm":
-        centroid = np.mean(pc, axis=0) # 求取点云的中心
-    elif mode == "gm":
-        centroid = np.mean(pc, axis=0) # geometric center
-    pc = pc - centroid # 将点云中心置于原点 (0, 0, 0)
-    m = np.max(np.sqrt(np.sum(pc ** 2, axis=1))) # 求取长轴的的长度
-    pc_normalized = pc / m # 依据长轴将点云归一化到 (-1, 1)
-    return pc_normalized, centroid, m  # centroid: 点云中心, m: 长轴长度, centroid和m可用于keypoints的计算
-
-# plot pc
-def plot_pc(data, c=1):
-    
-    x = data[:, 0]
-    y = data[:, 1]
-    z = data[:, 2]
-    fig = plt.figure(figsize=(8, 8))
-    ax = fig.add_subplot(111, projection='3d')
-    ax.scatter(x, y, z, c=c, cmap=plt.hot())
-    plt.show()
-
-def plot_voxels(voxels, grid_size=0, voxel_size=0.5):
-    '''
-    Args:
-        voxels: a nupmy.ndarray. shape (x,y,z), the value is the feature.
-    Return:
-        None
-    '''
-    mycolormap = plt.get_cmap('coolwarm')
-    maxvalue = voxels.max()
-    sizeall = voxels.size
-    relativevalue=np.round(voxels/maxvalue,1)
-    zt = np.reshape(relativevalue, (sizeall,))
-    colorsvalues = mycolormap(relativevalue)
-    alpha=0.5
-    d,w,h=voxels.shape
-    colorsvalue=np.array([(mycolormap(i)[0],mycolormap(i)[1],mycolormap(i)[2],alpha) for i in zt])
-    colorsvalues=np.reshape(colorsvalue,(d,w,h,4))
-    fig = plt.figure(figsize=(20,20))
-    ax = fig.add_subplot(projection='3d')
-    ax.set_xlim((((10+grid_size)//2)-25)/voxel_size, (((10+grid_size)//2)+25)/voxel_size)
-    ax.set_ylim((((10+grid_size)//2)-25)/voxel_size, (((10+grid_size)//2)+25)/voxel_size)
-    ax.set_zlim(0, 50/voxel_size)
-    p = ax.voxels(voxels, facecolors=colorsvalues, edgecolor=('k'), shade=False)
-    #plt.colorbar(p, ax=ax)
-    norm = matplotlib.colors.Normalize(vmin=np.min(voxels), vmax=np.max(voxels))
-    m = matplotlib.cm.ScalarMappable(cmap=plt.cm.plasma, norm=norm)
-    m.set_array([])
-    plt.colorbar(m, ax=ax, fraction=0.046, pad=0.04)
-    plt.show()
-
 def check_nan_in_array(feature_name,a):
     print(feature_name + "shape={} nan size={}".format(a.shape, a[np.isnan(a)].shape))
     return None
@@ -175,21 +89,6 @@ def standardization(data):
     mu = np.mean(data, axis=0)
     sigma = np.std(data, axis=0)
     return (data - mu) / sigma
-
-# L1/L2
-#!!!!!!!!!!!!!!!!!!!!!! à faire
-# calculate auroc score
-def calculate_auroc(y_score, y_true):
-    '''
-    Args:
-        y_score: a numpy.ndarray. (n, 2)
-        y_true: a numpy.ndarray. (n, 2)
-    Returns:
-        res: a float. The auroc score of logits and label. We should note here: leaf label=0, wood label=1
-    '''
-
-    roc_auc_score(y_score=logits[:,1], y_true=label[:,1])
-    return 0
 
 # we then calculate recall, precision
 def calculate_recall_precision(tn, fp, fn, tp):
@@ -405,3 +304,75 @@ def geodesic_distance(voxels, voxel_size, tree_radius=7.0, limit_comp=10, limit_
 
     return voxels, nb_component
 
+##########
+# Assets #
+##########
+def get_region_index(data, x_min, x_max, y_min, y_max):
+    '''
+    Args:
+        data : a 4-D np.darray. (x,y,z,label)
+    Returns:
+        numpyp index, which are in this region.
+    '''
+    return np.where((((x_min)<data[:,0]) & (data[:,0]<(x_max))) & (((y_min)<data[:,1]) & (data[:,1]<(y_max))))
+
+# plot pc
+def plot_pc(data, c=1):
+    
+    x = data[:, 0]
+    y = data[:, 1]
+    z = data[:, 2]
+    fig = plt.figure(figsize=(8, 8))
+    ax = fig.add_subplot(111, projection='3d')
+    ax.scatter(x, y, z, c=c, cmap=plt.hot())
+    plt.show()
+
+# plot voxel
+def plot_voxels(voxels, grid_size=0, voxel_size=0.5):
+    '''
+    Args:
+        voxels: a nupmy.ndarray. shape (x,y,z), the value is the feature.
+    Return:
+        None
+    '''
+    mycolormap = plt.get_cmap('coolwarm')
+    maxvalue = voxels.max()
+    sizeall = voxels.size
+    relativevalue=np.round(voxels/maxvalue,1)
+    zt = np.reshape(relativevalue, (sizeall,))
+    colorsvalues = mycolormap(relativevalue)
+    alpha=0.5
+    d,w,h=voxels.shape
+    colorsvalue=np.array([(mycolormap(i)[0],mycolormap(i)[1],mycolormap(i)[2],alpha) for i in zt])
+    colorsvalues=np.reshape(colorsvalue,(d,w,h,4))
+    fig = plt.figure(figsize=(20,20))
+    ax = fig.add_subplot(projection='3d')
+    ax.set_xlim((((10+grid_size)//2)-25)/voxel_size, (((10+grid_size)//2)+25)/voxel_size)
+    ax.set_ylim((((10+grid_size)//2)-25)/voxel_size, (((10+grid_size)//2)+25)/voxel_size)
+    ax.set_zlim(0, 50/voxel_size)
+    p = ax.voxels(voxels, facecolors=colorsvalues, edgecolor=('k'), shade=False)
+    #plt.colorbar(p, ax=ax)
+    norm = matplotlib.colors.Normalize(vmin=np.min(voxels), vmax=np.max(voxels))
+    m = matplotlib.cm.ScalarMappable(cmap=plt.cm.plasma, norm=norm)
+    m.set_array([])
+    plt.colorbar(m, ax=ax, fraction=0.046, pad=0.04)
+    plt.show()
+
+# visualize key point of voxels
+def visualize_voxel_key_points(points, points_per_voxel, title):
+    '''
+    Args:
+        points: a (x,y,z) np.darray.
+        points_per_voxel: a (m,n) np.darray. m is the points number in each voxel, n is index of voxel.
+        title: a string.
+    Returns:
+        None.
+    '''
+    ax = plt.axes(projection='3d')
+    ax.set_title(title)
+    sc = ax.scatter(points[:,0], points[:,1], points[:,2], c=(points_per_voxel/np.max(points_per_voxel)), s=20)
+    #plt.gca().invert_xaxis()
+    #plt.legend("nb points")
+    plt.colorbar(sc, fraction=0.020, pad=0.04) 
+    plt.show()
+    return None

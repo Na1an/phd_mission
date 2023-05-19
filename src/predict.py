@@ -51,7 +51,10 @@ if __name__ == "__main__":
                                                     sample_size=sample_size,
                                                     augmentation=False,
                                                     for_test=True,
-                                                    voxel_size_ier=0.6)
+                                                    voxel_size_ier=0.6,
+                                                    limit_comp=10, 
+                                                    limit_p_in_comp=100,
+                                                    tls_mode=False)
 
     test_dataset = TestDataSet(test_dataset, sample_voxel_net_index_test, test_voxel_nets, my_device, sample_position, samples_rest)
     test_dataset.show_info()

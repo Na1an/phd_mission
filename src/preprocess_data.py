@@ -184,33 +184,6 @@ def voxel_grid_sample(cuboid, voxel_size, mode):
     #return np.array(res), np.array(nb_points_per_voxel), voxel_and_points
     return voxel_grid, np.array(nb_points_per_voxel), voxel_and_points
 
-# analyse
-def analyse_voxel_in_cuboid_ier(voxels, resolution):
-    '''
-    Args:
-        voxels : a list of ndarray.
-        h : a float. The height cuboid.
-        side : a float. side length.
-    Returns:
-        res: a voxelized space, indicate each voxel is occupied or not.
-    '''
-    print(">> voxels[0].shape=", voxels[0].shape)
-    nb_cuboid = len(voxels)
-    res = np.zeros([nb_cuboid, resolution, resolution, resolution])
-    for i in range(len(voxels)):
-        for j in range(len(voxels[i])):
-            v_x,v_y,v_z,v_p = voxels[i][j]
-            res[i,int(v_x),int(v_y),int(v_z)] = v_p
-            '''
-            try:
-                res[i,int(v_x),int(v_y),int(v_z)] = v_p
-            except IndexError as e:
-                print("v_x={},v_y={},v_z={},v_p={}, res={}".format(v_x,v_y,v_z,v_p,resolution))
-                print(f"{e}")
-            '''
-            
-    return res
-
 def analyse_voxel_in_cuboid_bak(voxel_skeleton_cuboid, h, side):
     '''
     Args:
@@ -235,7 +208,7 @@ def analyse_voxel_in_cuboid_bak(voxel_skeleton_cuboid, h, side):
 ##########################
 # training - ier version #
 ##########################
-def prepare_dataset_ier(data, voxel_size_ier, voxel_sample_mode, augmentation, resolution=25, for_test=False, limit_comp=1, limit_p_in_comp=20):
+def prepare_dataset_ier(data, voxel_size_ier, voxel_sample_mode, augmentation, limit_comp, limit_p_in_comp, tls_mode, resolution=25, for_test=False):
     '''
     Args:
         data: a np.ndarray. (x,y,z,label,reflectance)
@@ -245,7 +218,6 @@ def prepare_dataset_ier(data, voxel_size_ier, voxel_sample_mode, augmentation, r
         voxel_skeleton_cuboid: (nb_voxel/voxel_id, 4:x+y+z+[1 or 0]).
     '''
     # tls_mode is a temporary parameter
-    tls_mode = False
     show_sample = False
     sample_position = []
     # (1) calculate gd and ier. group trees is also splited in the same time.
@@ -405,7 +377,7 @@ def prepare_dataset_ier(data, voxel_size_ier, voxel_sample_mode, augmentation, r
     print(">> ic_empy=", ic_empty)
     return samples, sample_voxelized, sample_position, samples_rest
 
-def prepare_procedure_ier(path, resolution, voxel_sample_mode, label_name, augmentation, sample_size=3000, for_test=False, voxel_size_ier=0.6, limit_comp=10, limit_p_in_comp=100):
+def prepare_procedure_ier(path, resolution, voxel_sample_mode, label_name, augmentation, sample_size=3000, for_test=False, voxel_size_ier=0.6, limit_comp=10, limit_p_in_comp=100, tls_mode=False):
     '''
     Args:
     Returns:
@@ -417,11 +389,17 @@ def prepare_procedure_ier(path, resolution, voxel_sample_mode, label_name, augme
 
     # (2) build samples
     # data_preprocessed : (x,y,z,label,intensity)
-    samples, samples_voxelized, sample_position, samples_rest = prepare_dataset_ier(data_preprocessed, voxel_size_ier, voxel_sample_mode, resolution=resolution, augmentation=augmentation, for_test=for_test, limit_comp=limit_comp, limit_p_in_comp=limit_p_in_comp)
-    #samples : [[x,y,z,label,reflectance,gd,ier,PCA1,linearity,verticality,...], ...]
-    #samples_voxelized : [[x,y,z,point_density], ...]
+    samples, samples_voxelized, sample_position, samples_rest = prepare_dataset_ier(
+                                                                    data_preprocessed, 
+                                                                    voxel_size_ier, 
+                                                                    voxel_sample_mode, 
+                                                                    resolution=resolution, 
+                                                                    augmentation=augmentation, 
+                                                                    for_test=for_test, 
+                                                                    limit_comp=limit_comp, 
+                                                                    limit_p_in_comp=limit_p_in_comp,
+                                                                    tls_mode=tls_mode)
 
-    #voxel_nets = analyse_voxel_in_cuboid_ier(samples_voxelized, resolution)
     samples_res = []
     sample_voxel_net_index = []
     len_samples = len(samples)
