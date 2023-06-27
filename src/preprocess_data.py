@@ -64,7 +64,7 @@ def read_data_with_intensity(path, label_name, feature='intensity', detail=False
         data_las[label_name],
         data_las[label_name] # here is placeholder here
         ))
-
+    
     return data.transpose(), x_min, x_max, y_min, y_max, z_min, z_max
 
 # read header
@@ -255,6 +255,7 @@ def prepare_dataset_ier(data, voxel_size_ier, voxel_sample_mode, augmentation, l
             np.random.shuffle(sample_tmp[ic])
         else:
             sample_tmp[ic] = sample_tmp[ic][sample_tmp[ic][:, -2].argsort()]
+
         sample_tmp[ic][:,-1] = ic
         # normalize ier
         x_min, y_min, z_min = np.min(sample_tmp[ic][:,0]), np.min(sample_tmp[ic][:,1]), np.min(sample_tmp[ic][:,2])
@@ -278,9 +279,10 @@ def prepare_dataset_ier(data, voxel_size_ier, voxel_sample_mode, augmentation, l
         sample_res[ic] = np.concatenate((sample_tmp[ic], pos_raw), axis=1)
 
         #sample_res_rest[ic] = sample_tmp_bis_rest
-        if show_sample:
-            plot_pc(sample_tmp_bis[:,:3])
-            plot_pc(voxel)
+        # if show_sample:
+        #     print("pos_raw.shape=",pos_raw.shape)
+        #     plot_pc(pos_raw)
+        #     #plot_pc(voxel)
 
         #print("voxel.shape={}".format(voxel.shape))
         if augmentation:
@@ -304,6 +306,7 @@ def prepare_dataset_ier(data, voxel_size_ier, voxel_sample_mode, augmentation, l
     for ic_del in ic_empty:
         del sample_res[ic_del]
         del sample_position[ic_del]
+
     samples = np.array(sample_res, dtype='object')
     print(">> prepare_dataset_ier finesehd samples.shape={} len(sample_position)={}".format(samples.shape, len(sample_position)))
     print(">> ic_empy=", ic_empty)
@@ -314,7 +317,7 @@ def prepare_procedure_ier(path, voxel_sample_mode, label_name, voxel_size_ier, a
     Args:
     Returns:
     '''
-    print("augmen is",augmentation)
+    print("> augmen is", augmentation)
     # (1) load data
     data_preprocessed, x_min, x_max, y_min, y_max, z_min, z_max = read_data_with_intensity(path, label_name=label_name, detail=True)
     print("> input data: {} \n> data_preprocess.shape = {}".format(path, data_preprocessed.shape))
@@ -343,6 +346,8 @@ def prepare_procedure_ier(path, voxel_sample_mode, label_name, voxel_size_ier, a
             new_sample_tmp[-1] = np.concatenate((new_sample_tmp[-1], samples[i][np.random.choice([c for c in range(p_size)], sample_size - p_size)]))
         else:
             new_sample_tmp[-1] = np.concatenate((new_sample_tmp[-1], samples[i][np.random.choice([c for c in range(sample_size*(len(new_sample_tmp)-1))], sample_size - p_size)]))
+            #new_sample_tmp[-1] = np.concatenate((new_sample_tmp[-1], samples[i][p_size-sample_size:]))
+
         #print("new_sample_tmp[-1].shape=",new_sample_tmp[-1].shape)
         samples_res = samples_res + new_sample_tmp
         

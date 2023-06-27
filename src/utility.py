@@ -436,7 +436,7 @@ def plot_pc(data, c=1):
     z = data[:, 2]
     fig = plt.figure(figsize=(8, 8))
     ax = fig.add_subplot(111, projection='3d')
-    ax.scatter(x, y, z, c=c, cmap=plt.hot())
+    ax.scatter(x, y, z, cmap=plt.hot())
     plt.show()
 
 # plot voxel
