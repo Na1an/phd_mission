@@ -1,3 +1,4 @@
+import gc
 import copy
 from scipy.spatial.transform import Rotation
 from utility import *
@@ -27,6 +28,8 @@ def read_data_from_directory(path_files, voxel_sample_mode, voxel_size_ier, labe
     files = os.listdir(path_files)
     for f in files:
         path_tmp = path_files + '/' + f
+        if os.path.isfile(path_tmp) is False:
+            continue
         print(">> preprocessing data:", path_tmp)
         samples_tmp, _, _ = prepare_procedure_ier(
                                                 path_tmp, 
@@ -64,7 +67,7 @@ def read_data_with_intensity(path, label_name, feature='intensity', detail=False
         data_las[label_name],
         data_las[label_name] # here is placeholder here
         ))
-    
+
     return data.transpose(), x_min, x_max, y_min, y_max, z_min, z_max
 
 # read header
@@ -193,7 +196,7 @@ def analyse_voxel_in_cuboid_bak(voxel_skeleton_cuboid, h, side):
 ##########################
 # training - ier version #
 ##########################
-def prepare_dataset_ier(data, voxel_size_ier, voxel_sample_mode, augmentation, limit_comp, limit_p_in_comp, tls_mode, for_test=False):
+def prepare_dataset_ier(mf_file_exit, mf_data_path, data, voxel_size_ier, voxel_sample_mode, augmentation, limit_comp, limit_p_in_comp, tls_mode, for_test=False):
     '''
     Args:
         data: a np.ndarray. (x,y,z,label, placeholder)
@@ -203,20 +206,25 @@ def prepare_dataset_ier(data, voxel_size_ier, voxel_sample_mode, augmentation, l
     # tls_mode is a temporary parameter
     show_sample = False
     sample_position = []
+
     # (1) calculate gd and ier. group trees is also splited in the same time.
 
-    features_30 = compute_features(data[:,:3], search_radius=0.3, feature_names=["PCA1","linearity","sphericity", "verticality"])
-    features_60 = compute_features(data[:,:3], search_radius=0.6, feature_names=["PCA1","linearity","sphericity", "verticality"])
-    features_90 = compute_features(data[:,:3], search_radius=0.9, feature_names=["PCA1","linearity","sphericity", "verticality"])
-    data = np.concatenate((data, features_30, features_60, features_90), axis=1)
-    
-    nb_p, len_f = data.shape
-    print(">> before remove nan, data.shape={}".format(data.shape))
-    data = data[np.all(~np.isnan(data[:,-12:]), axis=1)]
-    print(">> after remove nan, data.shape={}, {}% point removed".format(data.shape, 100 - 100*(data.shape[0]/nb_p)))
-    data[:,-12:] = standardization(data[:,-12:])
-    print(">> norlization - down")
+    if mf_file_exit is False:
+        features_30 = compute_features(data[:,:3], search_radius=0.3, feature_names=["PCA1","linearity","sphericity", "verticality"])
+        features_60 = compute_features(data[:,:3], search_radius=0.6, feature_names=["PCA1","linearity","sphericity", "verticality"])
+        features_90 = compute_features(data[:,:3], search_radius=0.9, feature_names=["PCA1","linearity","sphericity", "verticality"])
+        data = np.concatenate((data, features_30, features_60, features_90), axis=1)
+        
+        nb_p, len_f = data.shape
+        print(">> before remove nan, data.shape={}".format(data.shape))
+        data = data[np.all(~np.isnan(data[:,-12:]), axis=1)]
+        print(">> after remove nan, data.shape={}, {}% point removed".format(data.shape, 100 - 100*(data.shape[0]/nb_p)))
+        data[:,-12:] = standardization(data[:,-12:])
+        print(">> norlization - down")
 
+        np.savetxt(mf_data_path, data, delimiter=',')
+        print(">> multiple_features_data is saved here:", mf_data_path)
+    
     dict_points_in_voxel, nb_points_per_voxel, voxel = voxel_grid_sample(data, voxel_size_ier, voxel_sample_mode)
     # dict_points_in_voxel is a dict, key is voxel coord, value is a list of (points, label, ..) 
     initialize_voxels(dict_points_in_voxel)
@@ -319,12 +327,24 @@ def prepare_procedure_ier(path, voxel_sample_mode, label_name, voxel_size_ier, a
     '''
     print("> augmen is", augmentation)
     # (1) load data
-    data_preprocessed, x_min, x_max, y_min, y_max, z_min, z_max = read_data_with_intensity(path, label_name=label_name, detail=True)
-    print("> input data: {} \n> data_preprocess.shape = {}".format(path, data_preprocessed.shape))
+    path_tmp = path.split('/')
+    path_tmp_dir = '/'.join(path_tmp[0:len(path_tmp)-1]) + '/mf'
+    os.makedirs(path_tmp_dir, exist_ok=True)
+    mf_data_path = path_tmp_dir + '/' + path_tmp[-1].replace('.las','.txt')
+    mf_file_exit = os.path.isfile(mf_data_path)
+
+    if mf_file_exit:
+        print(">> multiple_features_data exists here:", mf_data_path)
+        data_preprocessed = np.loadtxt(mf_data_path, delimiter=',')
+    else:
+        data_preprocessed, x_min, x_max, y_min, y_max, z_min, z_max = read_data_with_intensity(path, label_name=label_name, detail=True)
+        print("> input data: {} \n> data_preprocess.shape = {}".format(path, data_preprocessed.shape))
 
     # (2) build samples
     # data_preprocessed : (x,y,z,label,intensity)
     samples, _, sample_position = prepare_dataset_ier(
+                                                mf_file_exit,
+                                                mf_data_path,
                                                 data_preprocessed, 
                                                 voxel_size_ier, 
                                                 voxel_sample_mode,
@@ -332,7 +352,10 @@ def prepare_procedure_ier(path, voxel_sample_mode, label_name, voxel_size_ier, a
                                                 for_test=for_test, 
                                                 limit_comp=limit_comp, 
                                                 limit_p_in_comp=limit_p_in_comp,
-                                                tls_mode=tls_mode)
+                                                tls_mode=tls_mode
+                                                )
+    del data_preprocessed
+    gc.collect()
 
     samples_res = []
     sample_voxel_net_index = []
