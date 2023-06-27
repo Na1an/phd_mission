@@ -26,7 +26,7 @@ def make_weights_for_celoss(target):
     
     if len(wood_loss) == 0:
         res[leaf_loss] = 1.0 / len(leaf_loss)
-    if len(leaf_loss) == 0:
+    elif len(leaf_loss) == 0:
         res[wood_loss] = 1.0 / len(wood_loss)
     elif len(wood_loss) < len(leaf_loss):
         index_leaf = torch.randperm(len(leaf_loss))[:len(wood_loss)]
