@@ -1,3 +1,0 @@
-ground Lambertian_mineral.db loam_gravelly_brown
-leaf Lambertian_vegetation.db citrus_sinensis1_leaf
-trunk Lambertian_vegetation.db citrus_sinensis_wood
