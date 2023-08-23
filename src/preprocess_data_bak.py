@@ -336,8 +336,6 @@ def prepare_procedure_ier(path, voxel_sample_mode, label_name, voxel_size_ier, a
     if mf_file_exit:
         print(">> multiple_features_data exists here:", mf_data_path)
         data_preprocessed = np.loadtxt(mf_data_path, delimiter=',')
-        x_min, y_min, z_min = np.min(data_preprocessed[:,0]), np.min(data_preprocessed[:,1]), np.min(data_preprocessed[:,2])
-        #x_max, y_max, z_max = np.max(las.x), np.max(las.y), np.max(las.z)
     else:
         data_preprocessed, x_min, x_max, y_min, y_max, z_min, z_max = read_data_with_intensity(path, label_name=label_name, detail=True)
         print("> input data: {} \n> data_preprocess.shape = {}".format(path, data_preprocessed.shape))
