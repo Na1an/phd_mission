@@ -55,6 +55,7 @@ class Trainer():
         # put our data to device & DataLoader
         self.device = device
         self.model = model.to(device)
+        self.model = nn.DataParallel(self.model)
         self.train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers, drop_last=True)
 
         self.val_loader = DataLoader(val_dataset, batch_size=int(batch_size/2), shuffle=True, num_workers=num_workers)
