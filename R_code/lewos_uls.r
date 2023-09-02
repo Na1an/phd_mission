@@ -11,7 +11,7 @@ draw_confusion_matrix <- function(cm, f_name) {
   layout(matrix(c(1,1,2)))
   par(mar=c(2,2,2,2))
   plot(c(100, 345), c(300, 450), type = "n", xlab="", ylab="", xaxt='n', yaxt='n')
-  title(paste('Lewos on ULS - Confusion Matrix :',f_name), cex.main=2)
+  title(paste('Only use linearity on ULS - Confusion Matrix :',f_name), cex.main=2)
   
   # create the matrix 
   rect(150, 430, 240, 370, col='#3F97D0')
@@ -101,15 +101,16 @@ draw_confusion_matrix(cm2, "wood_s")
 
 ##################### calculate confusion matrix #################
 
-uls <- readLAS("/home/yuchen/Documents/PhD/data_for_project/22-09-01_new_data_with_new_feature/dls_new_test_with_new_feature.las")
+#uls <- readLAS("/home/yuchen/Documents/PhD/data_for_project/22-09-01_new_data_with_new_feature/dls_new_test_with_new_feature.las")
+uls <- readLAS("/home/yuchen/Documents/PhD/data_for_project/23-02-28_predic_result/res_on_test_data_yuchen_model_remove_duplicated_points.las")
 #uls_pred <- readLAS("/home/yuchen/Documents/PhD/data_for_project/22-09-01_new_data_with_new_feature/dls_new_test_with_new_feature_FSCT_output/segmented.las")
-uls_pred <- readLAS("/home/yuchen/Documents/PhD/data_for_project/22-06-20_test_lewos_and_fsct/uls_retrain_test_FSCT_output_raw/segmented.las")
+uls_pred <- readLAS("/home/yuchen/Documents/PhD/data_for_project/23-02-28_predic_result/res_on_test_data_yuchen_model_remove_duplicated_points.las")
 
 true_data <- uls@data
 pred_data <- uls_pred@data
 
-table(true_data$WL)
-table(pred_data$label)
+table(true_data$true)
+table(pred_data$predict)
 
 true_data$WL <- replace(true_data$WL, true_data$WL == 2, 0)
 pred_data$label <- replace(pred_data$label, pred_data$label == 1, 0)
@@ -118,8 +119,19 @@ pred_data$label <- replace(pred_data$label, pred_data$label == 3, 1)
 table(true_data$WL)
 table(pred_data$label)
 
+true_data$true <- replace(true_data$true, true_data$true == 0, -1)
+true_data$true <- replace(true_data$true, true_data$true == 1, 0)
+true_data$true <- replace(true_data$true, true_data$true == -1, 1)
+
+true_data$predict <- replace(true_data$predict, true_data$predict == 0, -1)
+true_data$predict <- replace(true_data$predict, true_data$predict == 1, 0)
+true_data$predict <- replace(true_data$predict, true_data$predict == -1, 1)
+
 truth <- factor(true_data$WL)
-pred <- factor(pred_data$label)
+pred <- factor(true_data$label)
+
+truth <- factor(true_data$true)
+pred <- factor(true_data$predict)
 
 cm <- confusionMatrix(pred, truth)
-draw_confusion_matrix(cm, "raw weights")
+draw_confusion_matrix(cm, "downgraded SOUL model")
