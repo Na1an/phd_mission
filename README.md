@@ -25,9 +25,21 @@ If you have any difficulties or find any bugs, please get in touch and I will tr
 
 If you have an available Nvidia GPU, the code will use it automatically. If not, CPU will be used for training and prediction.
 
+#### 1.3 Code and Folder
 
+* ```main.py``` is for training.
 
-### 2. Lunch the code
+* ```predict.py``` is for prediction.
+
+* ```data``` has a small test dataset.
+
+* ```checkpoints``` holds the model parameters. (3161th epoch in this case.)
+
+* ```predict_res``` will keep the prediction result.
+
+  
+
+### 2. Usage
 
 ---------------
 
@@ -51,8 +63,8 @@ For training model, you need go to the directory ```path-to-code/phd_mission/src
 
 Execution example
 
-* ```
-  python main.py "path-to-data/train" "path-to-data/validation" "WL" --sample_size=3000 --nb_epoch=10000 --batch_size=16 --voxel
+* ```sh
+  python main.py "path-to-data/train" "path-to-data/validation" "WL" --sample_size=3000 --nb_epoch=10000 --batch_size=16 --voxel_size=0.6
   ```
 
 **[*] Checkpoint** Be attention,  if you already have one checkpoint in side ```path-to-code/phd_mission/src/checkpoints```, the number of this archive is bigger than your setting (like ```--nb_epoch=10000``` set on execution example), the program will terminate. 
@@ -63,7 +75,7 @@ Execution example
 
 For prediction, you need go to the directory ```path-to-code/phd_mission/src```, the ```predict.py``` will be used for predicting. The useful parameters are explained below.
 
-* ```shell
+* ```sh
   python predict.py path-to-testfile path-to-checkpoint
   ```
 
@@ -73,17 +85,10 @@ For prediction, you need go to the directory ```path-to-code/phd_mission/src```,
   * sample_size : an integer. The point number for one sample, the default value is 3000.
   * label : a string. The feature name of your ground truth.
 
-* ```shell
-  python predict.py "path-to-test/test.las" checkpoints/checkpoint_epoch_003161.pth --sample_size=3000 --label_name="Amplitude"
+* ```sh
+  python predict.py ./data/dls_merged_test.las --sample_size=3000 --label_name="WL" checkpoints/checkpoint_epoch_003161.pth
   ```
 
 
 
 **[*] label_name** For prediction, this is not important. If you have ground truth for the test data. Leave the name here, or you can just leave one feature name here.
-
-
-
-### 3. Output
-
---------
-
