@@ -4,7 +4,7 @@
 >
 > [Yuchen BAI](https://na1an.github.io/), [Jean-Baptiste Durand](https://amap.cirad.fr/fr/edit-article.php?id=433), [Florence Forbes](https://mistis.inrialpes.fr/people/forbes/), [Grégoire Vincent](https://lab.ird.fr/personne/eHBCWllvN3FjJTJGQVNWTzhlRkdwZ2FoTDMlMkIlMkJRS3BCdUR1eDZjdGtwZzlqRSUzRA/show)
 >
->  Université Grenoble-Alpes, Inria Statify, AMAP
+>  Université Grenoble-Alpes, Inria, AMAP
 
 *A more detailed README.md will be released soon.*
 
