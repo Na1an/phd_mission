@@ -1,12 +1,12 @@
-# SOUL (Semantic segmentation On ULs)
+# Semantic segmentation of sparse irregular point clouds for leaf/wood discrimination (NeurIPS 2023)
+
+[Yuchen BAI](https://na1an.github.io/), [Jean-Baptiste Durand](https://amap.cirad.fr/fr/edit-article.php?id=433), [Florence Forbes](https://mistis.inrialpes.fr/people/forbes/), [Grégoire Vincent](https://lab.ird.fr/personne/eHBCWllvN3FjJTJGQVNWTzhlRkdwZ2FoTDMlMkIlMkJRS3BCdUR1eDZjdGtwZzlqRSUzRA/show)
 
 
 
 ### 1. Installation
 
 ---------
-
-The code will be published on github later.
 
 #### 1.1 System
 
