@@ -1,6 +1,18 @@
-# Semantic segmentation of sparse irregular point clouds for leaf/wood discrimination (NeurIPS 2023)
+# SOUL (Semantic segmentation On ULs)
 
-[Yuchen BAI](https://na1an.github.io/), [Jean-Baptiste Durand](https://amap.cirad.fr/fr/edit-article.php?id=433), [Florence Forbes](https://mistis.inrialpes.fr/people/forbes/), [Grégoire Vincent](https://lab.ird.fr/personne/eHBCWllvN3FjJTJGQVNWTzhlRkdwZ2FoTDMlMkIlMkJRS3BCdUR1eDZjdGtwZzlqRSUzRA/show)
+> [Semantic segmentation of sparse irregular point clouds for leaf/wood discrimination](https://arxiv.org/abs/2305.16963)
+>
+> [Yuchen BAI](https://na1an.github.io/), [Jean-Baptiste Durand](https://amap.cirad.fr/fr/edit-article.php?id=433), [Florence Forbes](https://mistis.inrialpes.fr/people/forbes/), [Grégoire Vincent](https://lab.ird.fr/personne/eHBCWllvN3FjJTJGQVNWTzhlRkdwZ2FoTDMlMkIlMkJRS3BCdUR1eDZjdGtwZzlqRSUzRA/show)
+>
+>  Université Grenoble-Alpes, Inria Statify, AMAP
+
+*A more detailed README.md will be released soon.*
+
+#### News
+
+--------
+
+**[2023-09-22]** This paper is accepted by **NeurIPS 2023**! 
 
 
 
@@ -42,8 +54,6 @@ If you have an available Nvidia GPU, the code will use it automatically. If not,
 ### 2. Usage
 
 ---------------
-
-
 
 #### 2.1 For training:
 
