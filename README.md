@@ -12,7 +12,7 @@
 
 --------
 
-**[2023-09-22]** This paper is accepted by **NeurIPS 2023**! 
+**[2023-09-22]** This paper is accepted by **NeurIPS 2023**! :tada:
 
 
 
