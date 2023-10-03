@@ -1,6 +1,6 @@
 # SOUL (Semantic segmentation On ULs)
 
-> [Semantic segmentation of sparse irregular point clouds for leaf/wood discrimination](https://arxiv.org/abs/2305.16963)
+> [Semantic segmentation of sparse irregular point clouds for leaf/wood discrimination](https://neurips.cc/virtual/2023/poster/72647)
 >
 > [Yuchen BAI](https://na1an.github.io/), [Jean-Baptiste Durand](https://amap.cirad.fr/fr/edit-article.php?id=433), [Florence Forbes](https://mistis.inrialpes.fr/people/forbes/), [Grégoire Vincent](https://lab.ird.fr/personne/eHBCWllvN3FjJTJGQVNWTzhlRkdwZ2FoTDMlMkIlMkJRS3BCdUR1eDZjdGtwZzlqRSUzRA/show)
 >
@@ -11,6 +11,8 @@
 #### News
 
 --------
+
+**[2023-10-02]** The dataset used in the article is open access now: https://zenodo.org/record/8398853
 
 **[2023-09-22]** This paper is accepted by **NeurIPS 2023**! :tada:
 
