@@ -228,7 +228,7 @@ def geodesic_distance(voxels, voxel_size, tree_radius=7.0, limit_comp=10, limit_
             nb_in_comp = nb_in_comp + 1
             father, child, gd_fa_min = find_neighbours_and_assign_gd(v_act, voxels)
             
-            points,gd_act = voxels[v_act]
+            points, gd_act = voxels[v_act]
             voxels[v_act] = points, gd_fa_min+1
             nb_p_in_comp = nb_p_in_comp + len(points)
             x_a,y_a,z_a = v_act
@@ -240,12 +240,12 @@ def geodesic_distance(voxels, voxel_size, tree_radius=7.0, limit_comp=10, limit_
             else:
                 # here, setting the limits about IER or geodesic distance
                 # extend limit
-
-                if ((gd_fa_min+1)/dist_3d(v_act, voxel_low)) > 1.5:
+                if (gd_fa_min+1) >= 10:
                     continue
 
-                if (gd_fa_min+1) > 10:
+                if ((gd_fa_min+1)/dist_3d(v_act, voxel_low)) >= 1.5:
                     continue
+
                 '''
                 # limit on ratio with height in z-axis and gd
                 if (gd_fa_min+1) > 2.5*(z_a-z_low):
@@ -278,7 +278,8 @@ def geodesic_distance(voxels, voxel_size, tree_radius=7.0, limit_comp=10, limit_
                 p_del[:,len_f] = gd_del
                 p_del[:,len_f+1] = ((gd_fa_min+1)/dist_3d(v_act, voxel_low))
                 p_del[:,len_f+2] = nb_component
-                rest[i] = p_del, gd_del
+                #rest[i] = p_del, gd_del
+                rest[i] = p_del, -1
                 #print("voxel corrd = {} is removed, gd_del={}".format(i, gd_del))
                 del voxels[i]
         else:
