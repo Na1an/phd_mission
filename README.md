@@ -101,6 +101,6 @@ For prediction, you need go to the directory ```path-to-code/phd_mission/src```,
   python predict.py ./data/dls_merged_test.las --sample_size=3000 --label_name="WL" checkpoints/checkpoint_epoch_003161.pth
   ```
 
+**[*] --label_name** For prediction, this is not important. If you have ground truth for the test data. Leave the name here, or you can just leave one feature name here.
 
-
-**[*] label_name** For prediction, this is not important. If you have ground truth for the test data. Leave the name here, or you can just leave one feature name here.
+* Inside the ```predict.py```, you need to pay attentions on the **point_format**. The float type (e.g. **float32** or **float64**) is crucial to coordinate precision. You can check the doc [here](https://laspy.readthedocs.io/en/latest/intro.html#point-format-6).
