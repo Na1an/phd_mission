@@ -45,8 +45,8 @@ if __name__ == "__main__":
                                                     augmentation=False,
                                                     for_test=True,
                                                     voxel_size_ier=0.6,
-                                                    limit_comp=1, 
-                                                    limit_p_in_comp=5,
+                                                    limit_comp=10, 
+                                                    limit_p_in_comp=100,
                                                     tls_mode=False)
     # samples, sample_voxel_net_index, device, sample_position,
     test_dataset = TestDataSet(test_dataset, sample_voxel_net_index_test, my_device, sample_position, num_classes=2)
@@ -107,9 +107,12 @@ if __name__ == "__main__":
     nb_sample, sample_size, nb_f = data_test_all.shape
     data_test_all = data_test_all.reshape(nb_sample*sample_size, nb_f)
     print("data_test_all.shape={}".format(data_test_all.shape))
-    data_test_all = np.array(data_test_all, dtype=np.float32)
+    
+    # dtype=np.float64 is more secure
+    # dtype=np.float32 will cause coordinates problem
+    data_test_all = np.array(data_test_all, dtype=np.float64)
 
-    new_file = laspy.create(point_format=3)
+    new_file = laspy.create(point_format=6)
     new_file.add_extra_dim(laspy.ExtraBytesParams(name="wood_proba", type=np.float64))
     new_file.add_extra_dim(laspy.ExtraBytesParams(name="leave_proba", type=np.float64))
     new_file.add_extra_dim(laspy.ExtraBytesParams(name="predict", type=np.float64))
