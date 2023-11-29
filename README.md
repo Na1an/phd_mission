@@ -1,5 +1,7 @@
 # SOUL (Semantic segmentation On ULs)
 
+[![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/semantic-segmentation-of-sparse-irregular/lidar-semantic-segmentation-on-uls-labeled)](https://paperswithcode.com/sota/lidar-semantic-segmentation-on-uls-labeled?p=semantic-segmentation-of-sparse-irregular)
+
 > [Semantic segmentation of sparse irregular point clouds for leaf/wood discrimination](https://neurips.cc/virtual/2023/poster/72647)
 >
 > [Yuchen BAI](https://na1an.github.io/), [Jean-Baptiste Durand](https://amap.cirad.fr/fr/edit-article.php?id=433), [Florence Forbes](https://mistis.inrialpes.fr/people/forbes/), [Grégoire Vincent](https://lab.ird.fr/personne/eHBCWllvN3FjJTJGQVNWTzhlRkdwZ2FoTDMlMkIlMkJRS3BCdUR1eDZjdGtwZzlqRSUzRA/show)
