@@ -291,10 +291,10 @@ def geodesic_distance(voxels, voxel_size, tree_radius=7.0, limit_comp=10, limit_
     
     # this will not give us the mosaic holes
     # the numpy shuffler will resolve the mosaic color problem
-    if tls_mode:
-        for k,v in rest.items():
-            voxels[k] = v
-        nb_component = nb_component+1
+    #if tls_mode:
+    for k,v in rest.items():
+        voxels[k] = v
+    nb_component = nb_component+1
         
     print("\n>> All voxels are processed, we have {} component in this zone".format(nb_component))
 
@@ -408,11 +408,11 @@ def geodesic_distance_stable(voxels, voxel_size, tree_radius=7.0, limit_comp=10,
     
     # this will not give us the mosaic holes
     # the numpy shuffler will resolve the mosaic color problem
-    if tls_mode:
-        for k,v in rest.items():
-            voxels[k] = v
-        nb_component = nb_component+1
-        
+    #if tls_mode:
+    for k,v in rest.items():
+        voxels[k] = v
+    nb_component = nb_component+1
+    
     print("\n>> All voxels are processed, we have {} component in this zone".format(nb_component))
 
     return voxels, nb_component

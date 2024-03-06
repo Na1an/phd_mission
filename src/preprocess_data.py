@@ -196,7 +196,7 @@ def analyse_voxel_in_cuboid_bak(voxel_skeleton_cuboid, h, side):
 ##########################
 # training - ier version #
 ##########################
-def prepare_dataset_ier(mf_file_exit, mf_data_path, data, voxel_size_ier, voxel_sample_mode, augmentation, limit_comp, limit_p_in_comp, tls_mode, for_test=False):
+def prepare_dataset_ier(mf_file_exit, mf_data_path, data, voxel_size_ier, voxel_sample_mode, augmentation, limit_comp, limit_p_in_comp, tls_mode, offsets, for_test=False):
     '''
     Args:
         data: a np.ndarray. (x,y,z,label, placeholder)
@@ -223,7 +223,13 @@ def prepare_dataset_ier(mf_file_exit, mf_data_path, data, voxel_size_ier, voxel_
         data[:,-12:] = standardization(data[:,-12:])
         print(">> norlization - down, data.shape={}".format(data.shape))
 
-        np.savetxt(mf_data_path, data, delimiter=',')
+        (x_min, y_min, z_min) = offsets
+        data_copy = np.array(data)
+        data_copy[:,0] = data[:,0] + x_min
+        data_copy[:,1] = data[:,1] + y_min
+        data_copy[:,2] = data[:,2] + z_min
+        np.savetxt(mf_data_path, data_copy, delimiter=',')
+        data_copy = None
         print(">> multiple_features_data is saved here:", mf_data_path)
     
     dict_points_in_voxel, nb_points_per_voxel, voxel = voxel_grid_sample(data, voxel_size_ier, voxel_sample_mode)
@@ -355,6 +361,7 @@ def prepare_procedure_ier(path, voxel_sample_mode, label_name, voxel_size_ier, a
                                                 for_test=for_test, 
                                                 limit_comp=limit_comp, 
                                                 limit_p_in_comp=limit_p_in_comp,
+                                                offsets= (x_min, y_min, z_min),
                                                 tls_mode=tls_mode
                                                 )
     del data_preprocessed
@@ -387,7 +394,7 @@ def prepare_procedure_ier(path, voxel_sample_mode, label_name, voxel_size_ier, a
     if for_test:
         return samples_res, sample_voxel_net_index, 0, sample_position, x_min, y_min, z_min
     else:
-        return samples_res, sample_voxel_net_index, 0
+        return samples_res, sample_voxel_net_index, 0, sample_position, x_min, y_min, z_min
 
 ############################## for prediction ###############################
 # return the set of sliding window coordinates
