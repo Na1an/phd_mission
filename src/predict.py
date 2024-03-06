@@ -47,7 +47,7 @@ if __name__ == "__main__":
                                                     voxel_size_ier=0.6,
                                                     limit_comp=10, 
                                                     limit_p_in_comp=100,
-                                                    tls_mode=False)
+                                                    tls_mode=True)
     # samples, sample_voxel_net_index, device, sample_position,
     test_dataset = TestDataSet(test_dataset, sample_voxel_net_index_test, my_device, sample_position, num_classes=2)
     test_dataset.show_info()

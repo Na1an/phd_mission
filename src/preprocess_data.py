@@ -55,7 +55,7 @@ def read_data_with_intensity(path, label_name, feature='intensity', detail=False
         res : a 4-D numpy array type tensor.
     '''
     data_las = laspy.read(path)
-    data_las = data_las[data_las[label_name]>0]
+    #data_las = data_las[data_las[label_name]>0]
     x_min, x_max, y_min, y_max, z_min, z_max = get_info(data_las)
     print(">> bincount label_name={} : {}".format(label_name, np.bincount(data_las[label_name].astype(int))))
     print(">> data_las.z min={} max={} diff={}".format(z_min, z_max, z_max - z_min))
@@ -218,9 +218,10 @@ def prepare_dataset_ier(mf_file_exit, mf_data_path, data, voxel_size_ier, voxel_
         nb_p, len_f = data.shape
         print(">> before remove nan, data.shape={}".format(data.shape))
         data = data[np.all(~np.isnan(data[:,-12:]), axis=1)]
+        #data = np.nan_to_num(data, nan=0.0)
         print(">> after remove nan, data.shape={}, {}% point removed".format(data.shape, 100 - 100*(data.shape[0]/nb_p)))
         data[:,-12:] = standardization(data[:,-12:])
-        print(">> norlization - down")
+        print(">> norlization - down, data.shape={}".format(data.shape))
 
         np.savetxt(mf_data_path, data, delimiter=',')
         print(">> multiple_features_data is saved here:", mf_data_path)
@@ -320,7 +321,7 @@ def prepare_dataset_ier(mf_file_exit, mf_data_path, data, voxel_size_ier, voxel_
     print(">> ic_empy=", ic_empty)
     return samples, 0, sample_position
 
-def prepare_procedure_ier(path, voxel_sample_mode, label_name, voxel_size_ier, augmentation=False, sample_size=3000, for_test=False, limit_comp=10, limit_p_in_comp=100, tls_mode=False):
+def prepare_procedure_ier(path, voxel_sample_mode, label_name, voxel_size_ier, augmentation=False, sample_size=3000, for_test=False, limit_comp=10, limit_p_in_comp=10, tls_mode=False):
     '''
     Args:
     Returns:

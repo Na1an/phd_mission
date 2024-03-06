@@ -105,4 +105,20 @@ For prediction, you need go to the directory ```path-to-code/phd_mission/src```,
 
 **[*] --label_name** For prediction, this is not important. If you have ground truth for the test data. Leave the name here, or you can just leave one feature name here.
 
+* The data will be processed as ```data_las = data_las[data_las[label_name]>0]```, So if you have missing points, maybe check your input label name? ```The default version have commented this line.```
+
 * Inside the ```predict.py```, you need to pay attentions on the **point_format**. The float type (e.g. **float32** or **float64**) is crucial to coordinate precision. You can check the doc [here](https://laspy.readthedocs.io/en/latest/intro.html#point-format-6).
+
+**[*] Missing data like mosaic.**
+
+![img](./Asset/wytham_wood_missing_data.png)
+
+* If you miss some data lime on the figure, you can active the ```tls_mode``` in the ```predict.py``` like below:
+
+  * ```
+    ... = prepare_procedure_ier(..., tls_mode=True)
+    ```
+
+  * tls_mode is activated par default.
+
+  
