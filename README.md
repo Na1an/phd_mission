@@ -37,9 +37,29 @@ cd path-to-code/phd_mission
 conda env create -f phd_mission.yml
 ```
 
-If you have any difficulties or find any bugs, please get in touch and I will try to help you get it going. Suggestions for improvements are greatly appreciated.
+* If you have any difficulties or find any bugs, please get in touch and I will try to help you get it going. Suggestions for improvements are greatly appreciated.
 
-If you have an available Nvidia GPU, the code will use it automatically. If not, CPU will be used for training and prediction.
+* If you have an available Nvidia GPU, the code will use it automatically. If not, CPU will be used for training and prediction.
+
+* If you have problem with ```torch```, use code below to install specific torch version:
+
+  ```
+  pip install torch==1.7.1+cu110 torchvision==0.8.2+cu110 torchaudio==0.7.2 -f https://download.pytorch.org/whl/torch_stable.html
+  ```
+
+* if you have problem with ```laspy```:
+
+  ```
+  pip install laspy[lazrs,laszip]
+  ```
+
+* You may need to install the missing packages:
+
+  ```
+  pip install six seaborn scikit-learn tensorboard captum jakteristics
+  ```
+
+
 
 #### 1.3 Code and Folder
 
@@ -110,5 +130,4 @@ For prediction, you need go to the directory ```path-to-code/phd_mission/src```,
 * Inside the ```predict.py```, you need to pay attentions on the **point_format**. The float type (e.g. **float32** or **float64**) is crucial to coordinate precision. You can check the doc [here](https://laspy.readthedocs.io/en/latest/intro.html#point-format-6).
 
 **[*] ** ```tls_mode``` is activated par default.
-
 
