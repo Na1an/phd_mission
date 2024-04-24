@@ -8,7 +8,7 @@
 >
 >  Université Grenoble-Alpes, Inria, AMAP
 
-*A more detailed README.md will be released soon.*
+
 
 #### News
 
