@@ -14,6 +14,8 @@
 
 --------
 
+**[2024-05-22]** The epoch 0 weights of SOUL are available.
+
 **[2023-10-02]** The dataset used in the article is open access now: https://zenodo.org/record/8398853
 
 **[2023-09-22]** This paper is accepted by **NeurIPS 2023**! :tada:
@@ -130,4 +132,17 @@ For prediction, you need go to the directory ```path-to-code/phd_mission/src```,
 * Inside the ```predict.py```, you need to pay attentions on the **point_format**. The float type (e.g. **float32** or **float64**) is crucial to coordinate precision. You can check the doc [here](https://laspy.readthedocs.io/en/latest/intro.html#point-format-6).
 
 **[*] ** ```tls_mode``` is activated par default.
+
+
+
+### 3. Reproducibility
+
+-----------
+
+The epoch 0 weights (i.e. default weights) for network are now available in ```path-to-code/phd_mission/src/checkpoints_default_weights```, I hope this facilitates reproducing my work. 
+
+* In ```TLS_samplesize_20000_version```, you can find the TLS version (dense pts version), the batch size is 20000.
+* In ```ULS_samplesize_3000_version```, you can find the ULS version (drone data version), the batch size is 3000.
+
+Because the code is able to resume from checkpoint, you can simply clear old checkpoints in `src/checkpoints` directory, add the latest ones, and run the code as usual.
 
