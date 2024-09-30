@@ -146,3 +146,26 @@ The epoch 0 weights (i.e. default weights) for network are now available in ```p
 
 Because the code is able to resume from checkpoint, you can simply clear old checkpoints in `src/checkpoints` directory, add the latest ones, and run the code as usual.
 
+
+
+### 4. Citation
+
+---------
+
+If you find this repository help, please consider citing:
+
+```
+@inproceedings{bai2023soul,
+ author = {Bai, Yuchen and Durand, Jean-Baptiste and Vincent, Gr\'{e}goire and Forbes, Florence},
+ booktitle = {Advances in Neural Information Processing Systems},
+ editor = {A. Oh and T. Neumann and A. Globerson and K. Saenko and M. Hardt and S. Levine},
+ pages = {48293--48313},
+ publisher = {Curran Associates, Inc.},
+ title = {Semantic segmentation of sparse irregular point clouds for leaf/wood discrimination},
+ volume = {36},
+ year = {2023}
+}
+```
+
+
+
