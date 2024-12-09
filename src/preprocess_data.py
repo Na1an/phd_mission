@@ -31,7 +31,7 @@ def read_data_from_directory(path_files, voxel_sample_mode, voxel_size_ier, labe
         if os.path.isfile(path_tmp) is False:
             continue
         print(">> preprocessing data:", path_tmp)
-        samples_tmp, _, _ = prepare_procedure_ier(
+        samples_tmp, _, _, _,_,_,_ = prepare_procedure_ier(
                                                 path_tmp, 
                                                 voxel_sample_mode=voxel_sample_mode,
                                                 label_name=label_name, 

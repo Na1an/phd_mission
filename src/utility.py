@@ -7,6 +7,7 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
+from torchviz import make_dot
 from collections import deque 
 from mpl_toolkits import mplot3d
 from sklearn.metrics import confusion_matrix, matthews_corrcoef, f1_score, roc_auc_score
@@ -488,4 +489,8 @@ def visualize_voxel_key_points(points, points_per_voxel, title):
     #plt.legend("nb points")
     plt.colorbar(sc, fraction=0.020, pad=0.04) 
     plt.show()
+    return None
+
+# visualize network
+def visualize_net_structure(net):
     return None

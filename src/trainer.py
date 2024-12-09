@@ -5,7 +5,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 from glob import glob
 from torch.utils.data import DataLoader
-#from torchviz import make_dot
 from torch.autograd import Variable
 from torch.utils.tensorboard import SummaryWriter
 from sklearn.utils import class_weight
