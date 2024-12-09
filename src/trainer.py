@@ -112,6 +112,7 @@ class Trainer():
                 self.optimizer.zero_grad()
                 
                 points_for_pointnet = torch.cat([points.transpose(2,1), pointwise_features.transpose(2,1)], dim=1)
+                print(points_for_pointnet.shape)
                 logits = self.model(points_for_pointnet.float())
                 logits = logits.to(self.device)
                 label = label.to(self.device)
