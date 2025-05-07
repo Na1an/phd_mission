@@ -60,10 +60,17 @@ def read_data_with_intensity(path, label_name, feature='intensity', detail=False
     print(">> bincount label_name={} : {}".format(label_name, np.bincount(data_las[label_name].astype(int))))
     print(">> data_las.z min={} max={} diff={}".format(z_min, z_max, z_max - z_min))
 
+    print(">>>>>>>>>>>>>> test_new <<<<<<<<<<<<<<")
+    # how do we labelled the class, for AMAPVox classification selection
+    # data.loc[data['102_Leaf[%]'] >= 50, 'assign_class'] = 5
+    # data.loc[data['103_Trunk[%]'] > 50, 'assign_class'] = 3
+    # data.loc[data['7_Ground[%]'] > 90, 'assign_class'] = 2
+    # data.loc[data['assign_class'] <0, 'assign_class'] = 1
     data = np.vstack((
         data_las.x - x_min, 
         data_las.y - y_min, 
         data_las.z - z_min,
+        #np.round(data_las[label_name]).astype(int)*1000 + np.round(data_las['number_of_returns']).astype(int)*100 + np.round(data_las['return_number']).astype(int)*10 + data_las['classification'],
         data_las[label_name],
         data_las[label_name] # here is placeholder here
         ))
@@ -127,8 +134,10 @@ def get_region_indice(data, x_min, x_max, y_min, y_max, blank):
 #def voxel_grid_sample(cuboid, grid_size, height, voxel_size, mode):
 def voxel_grid_sample(cuboid, voxel_size, mode):
     '''
+    This function can be used for any features length, it support any (n, m) numpy.darray as the first input. 
+    Where n is the number of points and m is the number of features.
     Args:
-        cuboid : a (n,4) numpy.darray. The data to process.
+        cuboid : a (n,4) numpy.darray in this project. The points cloud data to process.
         voxel_size : a float. The resolution of the voxel. 
         mode : a string. How to select points in voxel. ('mc': mean_center, 'cmc' : closest point to mean center)
     Returns:
