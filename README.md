@@ -14,23 +14,56 @@
 
 --------
 
+**[2025-05-10]** The docker image is open access.
+
 **[2024-05-22]** The epoch 0 weights of SOUL are available.
 
 **[2023-10-02]** The dataset used in the article is open access now: https://zenodo.org/record/8398853
 
 **[2023-09-22]** This paper is accepted by **NeurIPS 2023**! :tada:
 
+### 1. Installation via docker
 
+-----
 
-### 1. Installation
+So, for the easy usage, we provide here a docker image for the fast deployment.
+
+* The SOUL docker image is here: https://zenodo.org/records/15377222
+
+* After install docker, you can simply run ```docker load -i soul_docker.tar ``` for load the docker image.
+
+* Use ```docker run -it soul:latest``` to execute the Linux system inside docker.
+
+* Then, simple run:
+
+  ```
+  cd home/phd_mission/
+  conda activate phd_mission
+  ```
+
+* Normally, you can now run SOUL model inside the docker.
+
+* You can use: 
+
+  ```docker cp file_in_your_computer 7bf378620045:/path_in_docker/file_in_your_computer``` 
+
+  or 
+
+  ```docker cp file_in_your_computer 7bf378620045:/path_in_docker/file_in_your_computer``` 
+
+  to copy/paste the file between your system and the docker image.
+
+* [*] If you want to use GPU, make all GPU visible to the image: ```docker run --gpus all --name <container_name> -d -t <image_id>```
+
+### 2. Installation via Conda
 
 ---------
 
-#### 1.1 System
+#### 2.1 System
 
 Normally, the code is able to be executed on all linux-like system. (Or, only python and a few packages are need.)
 
-#### 1.2 Create env on conda
+#### 2.2 Create env on conda
 
 You will need to install all packages in the requirements.txt file.  Executing the routine requires```miniconda``` (```Anaconda``` will certainly work). 
 
@@ -58,12 +91,12 @@ conda env create -f phd_mission.yml
 * You may need to install the missing packages:
 
   ```
-  pip install six seaborn scikit-learn tensorboard captum jakteristics
+  pip install six seaborn scikit-learn tensorboard captum jakteristics torchviz
   ```
 
 
 
-#### 1.3 Code and Folder
+#### 2.3 Code and Folder
 
 * ```main.py``` is for training.
 
