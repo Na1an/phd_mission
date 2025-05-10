@@ -45,13 +45,16 @@ So, for the easy usage, we provide here a docker image for the fast deployment.
 
 * You can use: 
 
-  ```docker cp file_in_your_computer 7bf378620045:/path_in_docker/file_in_your_computer``` 
+  ```docker cp file_in_your_computer <CONTAINER ID>:/path_in_docker/file_in_your_computer``` 
 
   or 
 
-  ```docker cp file_in_your_computer 7bf378620045:/path_in_docker/file_in_your_computer``` 
+  ```docker cp <CONTAINER ID>:/path_in_docker/file_in_your_computer file_in_your_computer ``` 
 
   to copy/paste the file between your system and the docker image.
+
+
+* [*] Please note, docker image will not automatically save your training checkpoints or predicted point cloud results. You need to use ```docker cp``` to keep your intermediate result or use ```docker commit (e.g.``` ```docker commit <CONTAINER ID> soul:latest ``` ) to update the SOUL docker image locally, which is able to keep intermediate data.
 
 * [*] If you want to use GPU, make all GPU visible to the image: ```docker run --gpus all --name <container_name> -d -t <image_id>```
 
