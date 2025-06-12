@@ -14,7 +14,7 @@
 
 --------
 
-**[2025-05-10]** The docker image is open access.
+**[2025-05-10]** The docker image is open access: https://zenodo.org/records/15377222.
 
 **[2024-05-22]** The epoch 0 weights of SOUL are available.
 
